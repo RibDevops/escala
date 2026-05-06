@@ -1,0 +1,328 @@
+{% load static %}<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="300">
+    <title>Escala de Sobreaviso{% if om %} — {{ om.sigla }}{% endif %}</title>
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap-icons.css' %}">
+    <link rel="stylesheet" href="{% static 'css/cinzel.css' %}">
+    <link rel="stylesheet" href="{% static 'css/militar.css' %}">
+    <style>
+        body { background: #f0f4f8; }
+
+        .sobreaviso-header {
+            background: var(--m-azul-fab, #003a78);
+            color: #fff;
+            padding: 1.2rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            border-bottom: 4px solid var(--m-amarelo-fab, #ffd200);
+        }
+        .sobreaviso-header .om-logo { height: 56px; width: 56px; object-fit: contain; }
+        .sobreaviso-header h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: 0.05em;
+        }
+        .sobreaviso-header .subtitle {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-top: 0.2rem;
+        }
+        .sobreaviso-header .data-hora {
+            margin-left: auto;
+            text-align: right;
+            font-size: 0.9rem;
+        }
+
+        .section-title {
+            font-family: 'Cinzel', serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--m-azul-fab, #003a78);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-bottom: 2px solid var(--m-amarelo-fab, #ffd200);
+            padding-bottom: 0.4rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Cards dos dias */
+        .dias-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.6rem;
+        }
+        .dia-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 0.7rem 0.8rem;
+            border-left: 4px solid #ccc;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+            position: relative;
+        }
+        .dia-card.hoje-card {
+            border-left-color: var(--m-amarelo-fab, #ffd200) !important;
+            background: #fffbea;
+            box-shadow: 0 2px 8px rgba(255,210,0,0.25);
+        }
+        .dia-card .dia-data {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .dia-card .dia-semana {
+            font-size: 0.7rem;
+            color: #888;
+            margin-bottom: 0.3rem;
+        }
+        .dia-card .dia-militar {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            line-height: 1.2;
+        }
+        .dia-card .dia-posto {
+            font-size: 0.7rem;
+            color: #666;
+        }
+        .dia-card .badge-hoje {
+            position: absolute;
+            top: 0.4rem;
+            right: 0.4rem;
+            font-size: 0.6rem;
+            background: var(--m-amarelo-fab, #ffd200);
+            color: var(--m-azul-fab, #003a78);
+            font-weight: 800;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+        .dia-card.vazio { background: #f8f8f8; border-left-color: #ddd; }
+        .dia-card.vazio .dia-militar { color: #aaa; font-style: italic; font-weight: 400; font-size: 0.82rem; }
+
+        /* Tabela de próximos */
+        .proximos-card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 1.2rem;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+        }
+        .proximos-card .prox-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #fff;
+            padding: 0.3rem 0.8rem;
+            border-radius: 5px;
+            display: inline-block;
+            margin-bottom: 0.8rem;
+        }
+        .proximos-lista { list-style: none; padding: 0; margin: 0; }
+        .proximos-lista li {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.45rem 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+        }
+        .proximos-lista li:last-child { border-bottom: none; }
+        .prox-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #e8eef5;
+            color: #003a78;
+            font-weight: 800;
+            font-size: 0.72rem;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .prox-total {
+            margin-left: auto;
+            font-size: 0.78rem;
+            color: #888;
+            white-space: nowrap;
+        }
+
+        .tipo-escala-bloco { margin-bottom: 2.5rem; }
+
+        .footer-pub {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #999;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .dias-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+            .sobreaviso-header h1 { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="sobreaviso-header">
+    {% if om and om.logo %}
+        <img src="{{ om.logo.url }}" alt="Logo {{ om.sigla }}" class="om-logo">
+    {% else %}
+        <span class="crest" style="width:48px;height:48px;font-size:1.4rem;flex-shrink:0;">★</span>
+    {% endif %}
+    <div>
+        <h1><i class="bi bi-broadcast"></i> Escala de Sobreaviso</h1>
+        <div class="subtitle">
+            {% if om %}{{ om.nome }}{% else %}Sistema de Escala FAB{% endif %}
+            &nbsp;·&nbsp; Atualizado a cada 5 min
+        </div>
+    </div>
+    <div class="data-hora">
+        <div class="fw-bold" id="hora-atual"></div>
+        <div>{{ hoje|date:"d/m/Y" }}</div>
+    </div>
+</header>
+
+<main class="container-fluid py-4 px-3 px-md-4">
+
+{% if not om %}
+<div class="alert alert-warning">Nenhuma Organização Militar cadastrada.</div>
+{% else %}
+
+{% for bloco in escalas_data %}
+{% if bloco.escala_atual %}
+<section class="tipo-escala-bloco">
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <h2 class="section-title mb-0">{{ bloco.tipo_escala.nome }}</h2>
+        <span class="badge text-bg-secondary">
+            {{ bloco.escala_atual.get_status_display }}
+            &middot;
+            {{ bloco.escala_atual.mes|stringformat:"02d" }}/{{ bloco.escala_atual.ano }}
+        </span>
+    </div>
+
+    {% if bloco.itens_15 %}
+    <div class="dias-grid mb-3">
+        {% for d in bloco.itens_15 %}
+        <div class="dia-card {% if d.data == hoje %}hoje-card{% endif %}"
+             style="border-left-color: {{ d.tipo_servico.cor_hex|default:'#aaa' }}">
+            {% if d.data == hoje %}<span class="badge-hoje">HOJE</span>{% endif %}
+            <div class="dia-data">{{ d.data|date:"d/m" }}</div>
+            <div class="dia-semana">{{ d.dia_semana }}</div>
+            <div class="dia-militar">{{ d.militar.nome_guerra }}</div>
+            <div class="dia-posto">{{ d.militar.posto.sigla }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-light border small">
+        <i class="bi bi-calendar-x"></i> Nenhum serviço lançado para os próximos 15 dias desta escala.
+    </div>
+    {% endif %}
+
+    {% if bloco.proxima_escala %}
+    <div class="small text-muted mt-1">
+        <i class="bi bi-arrow-right-circle"></i>
+        Próxima escala: <strong>{{ bloco.proxima_escala.mes|stringformat:"02d" }}/{{ bloco.proxima_escala.ano }}</strong>
+        — {{ bloco.proxima_escala.get_status_display }}
+    </div>
+    {% endif %}
+</section>
+{% endif %}
+{% endfor %}
+
+{% if proximos_preto or proximos_vermelho %}
+<div class="row g-3 mt-1">
+
+    {% if proximos_preto %}
+    <div class="col-md-6">
+        <div class="proximos-card">
+            <span class="prox-title" style="background:#111;">
+                <i class="bi bi-clock-history"></i> Próximos — Serviço Preto
+            </span>
+            <ul class="proximos-lista">
+                {% for p in proximos_preto %}
+                <li>
+                    <span class="prox-num">{{ forloop.counter }}</span>
+                    <div>
+                        <div class="fw-semibold">{{ p.militar.nome_guerra }}</div>
+                        <div class="text-muted" style="font-size:0.75rem;">{{ p.militar.posto.sigla }}</div>
+                    </div>
+                    <span class="prox-total">{{ p.total }} serv.</span>
+                </li>
+                {% endfor %}
+            </ul>
+            <div class="text-muted mt-2" style="font-size:0.72rem;">
+                <i class="bi bi-info-circle"></i> Ordenado por menor contagem — primeiros a escalar.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if proximos_vermelho %}
+    <div class="col-md-6">
+        <div class="proximos-card">
+            <span class="prox-title" style="background:#b30000;">
+                <i class="bi bi-clock-history"></i> Próximos — Serviço Vermelho
+            </span>
+            <ul class="proximos-lista">
+                {% for p in proximos_vermelho %}
+                <li>
+                    <span class="prox-num">{{ forloop.counter }}</span>
+                    <div>
+                        <div class="fw-semibold">{{ p.militar.nome_guerra }}</div>
+                        <div class="text-muted" style="font-size:0.75rem;">{{ p.militar.posto.sigla }}</div>
+                    </div>
+                    <span class="prox-total">{{ p.total }} serv.</span>
+                </li>
+                {% endfor %}
+            </ul>
+            <div class="text-muted mt-2" style="font-size:0.72rem;">
+                <i class="bi bi-info-circle"></i> Ordenado por menor contagem — primeiros a escalar.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endif %}
+
+{% endif %}
+
+</main>
+
+<div class="footer-pub">
+    <i class="bi bi-shield-check"></i>
+    Sistema de Escala FAB &middot; Página pública &middot; Atualização automática a cada 5 minutos
+    {% if user.is_authenticated %}
+    &middot; <a href="/" class="text-muted">Acessar sistema</a>
+    {% else %}
+    &middot; <a href="/login/" class="text-muted">Login</a>
+    {% endif %}
+</div>
+
+<script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+<script>
+(function () {
+    function atualizarHora() {
+        const el = document.getElementById('hora-atual');
+        if (!el) return;
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        el.textContent = h + ':' + m + ':' + s;
+    }
+    atualizarHora();
+    setInterval(atualizarHora, 1000);
+})();
+</script>
+</body>
+</html>

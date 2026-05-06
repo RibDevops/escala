@@ -124,4 +124,7 @@ urlpatterns = [
     path('escalas/<int:escala_id>/previsao/', views.escala_marcar_previsao, name='escala_marcar_previsao'),
     path('escalas/<int:escala_id>/publicar/', views.escala_publicar, name='escala_publicar'),
     path('escalas/<int:escala_id>/matriz/', views.escala_matriz, name='escala_matriz'),
+
+    # Tela pública — Escala de Sobreaviso (sem login)
+    path('sobreaviso/', views.sobreaviso_publico, name='sobreaviso_publico'),
 ]

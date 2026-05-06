@@ -9,10 +9,11 @@
             {% if om %}{{ om.sigla }}{% else %}—{% endif %}
             &middot; {{ ano }}
             {% if tipo_escala_atual %} &middot; <strong>{{ tipo_escala_atual.nome }}</strong>{% endif %}
+            {% if militar_proprio %} &middot; <span class="text-warning">{{ militar_proprio.posto.sigla }} {{ militar_proprio.nome_guerra }}</span>{% endif %}
         </div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        {% if escala_atual %}
+        {% if escala_atual and not militar_proprio %}
         <a href="{% url 'escala_matriz' escala_atual.id %}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-grid-3x3"></i> Ver Matriz
         </a>
@@ -97,14 +98,25 @@
                 <tr>
                     <td><span class="badge-posto">{{ linha.militar.posto.sigla }}</span></td>
                     <td>
+                        {% if militar_proprio %}
+                            <strong>{{ linha.militar.nome_guerra }}</strong>
+                            <div class="small text-muted">{{ linha.militar.nome_completo }}</div>
+                        {% else %}
                         <a href="{% url 'militar_detalhe' linha.militar.id %}?ano={{ ano }}"
                            class="text-decoration-none">
                             <strong>{{ linha.militar.nome_guerra }}</strong>
                         </a>
                         <div class="small text-muted">{{ linha.militar.nome_completo }}</div>
+                        {% endif %}
                     </td>
                     {% for c in linha.celulas %}
                         <td class="text-center">
+                            {% if militar_proprio %}
+                                <span class="fw-bold fs-5 {% if c.valor == 0 %}text-muted{% endif %}"
+                                      title="Saldo inicial: {{ c.ajuste_inicial }} · Sistema: {{ c.quantidade }}">
+                                    {{ c.valor }}
+                                </span>
+                            {% else %}
                             <a href="{% url 'quadrinho_editar' linha.militar.id tipo_escala_atual.id c.tipo_servico.id ano %}"
                                class="text-decoration-none"
                                title="Saldo inicial: {{ c.ajuste_inicial }} · Sistema: {{ c.quantidade }}">
@@ -113,6 +125,7 @@
                                 </span>
                                 <i class="bi bi-pencil-square small text-muted ms-1"></i>
                             </a>
+                            {% endif %}
                         </td>
                     {% endfor %}
                     <td class="text-center">

@@ -719,6 +719,7 @@ def militar_detalhe(request, militar_id):
 @login_required
 def quadrinho_visao(request):
     om = obter_om_ativa(request)
+    militar_proprio = getattr(request.user, 'militar', None)
 
     ano_atual = _date.today().year
     try:
@@ -741,13 +742,17 @@ def quadrinho_visao(request):
         list(om.tipos_servico.filter(ativo=True).order_by('ordem')) if om else []
     )
 
-    militares = (
-        list(
-            Militar.objects.filter(organizacao_militar=om, ativo=True)
-            .select_related('posto', 'divisao')
+    # Se for militar próprio, filtra somente ele no quadrinho
+    if militar_proprio:
+        militares = [militar_proprio] if om else []
+    else:
+        militares = (
+            list(
+                Militar.objects.filter(organizacao_militar=om, ativo=True)
+                .select_related('posto', 'divisao')
+            )
+            if om else []
         )
-        if om else []
-    )
 
     quadrinhos_map = {}
     if om and tipo_escala_atual and militares and tipos_servico:
@@ -839,6 +844,7 @@ def quadrinho_visao(request):
             'total_geral': total_geral,
             'ordem': ordem,
             'escala_atual': escala_atual,
+            'militar_proprio': militar_proprio,
         },
     )
 
@@ -1593,4 +1599,133 @@ def escala_matriz(request, escala_id):
         'passos': passos,
         'itens': itens,
         'nomes_meses': NOMES_MESES,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Tela pública — Escala de Sobreaviso
+# ---------------------------------------------------------------------------
+
+def sobreaviso_publico(request):
+    """
+    Tela pública (sem login) que exibe:
+    - Cards dos próximos 15 dias da escala atual (publicada ou previsão) de cada tipo
+    - Os 5 próximos militares da Preto e da Vermelho (menor total no quadrinho)
+    - A próxima escala publicada/previsão, se existir
+    """
+    from datetime import date as _d, timedelta
+
+    hoje = _d.today()
+
+    # Pega a primeira OM ativa (ordem de id)
+    om = OrganizacaoMilitar.objects.filter(ativo=True).order_by('id').first()
+
+    tipos_servico = list(om.tipos_servico.filter(ativo=True).order_by('ordem')) if om else []
+    tipos_escala = list(TipoEscala.objects.filter(ativo=True).order_by('nome')) if om else []
+
+    # --- Escala atual e próxima por tipo de escala ---
+    escalas_data = []
+    for te in tipos_escala:
+        # Escala atual: publicada ou previsão cujo mês/ano >= hoje e mais próxima
+        escala_atual = (
+            Escala.objects.filter(
+                organizacao_militar=om,
+                tipo_escala=te,
+                status__in=('publicada', 'previsao'),
+            )
+            .order_by('-ano', '-mes')
+            .first()
+        )
+
+        itens_15 = []
+        proxima_escala = None
+        proximos_15_itens = []
+
+        if escala_atual:
+            data_ini = max(hoje, _d(escala_atual.ano, escala_atual.mes, 1))
+            data_fim = data_ini + timedelta(days=14)
+
+            itens_qs = (
+                EscalaItem.objects.filter(
+                    escala=escala_atual,
+                    calendario_dia__data__range=(data_ini, data_fim),
+                )
+                .select_related('militar__posto', 'calendario_dia__tipo_servico')
+                .order_by('calendario_dia__data')
+            )
+
+            # Agrupa por data
+            dias_map = {}
+            for item in itens_qs:
+                dt = item.calendario_dia.data
+                if dt not in dias_map:
+                    dias_map[dt] = {
+                        'data': dt,
+                        'dia_semana': ['Segunda', 'Terça', 'Quarta', 'Quinta',
+                                       'Sexta', 'Sábado', 'Domingo'][dt.weekday()],
+                        'tipo_servico': item.calendario_dia.tipo_servico,
+                        'militar': item.militar,
+                    }
+            itens_15 = [dias_map[d] for d in sorted(dias_map)]
+
+            # Próxima escala
+            import calendar as _cal
+            ultimo_dia_mes = _cal.monthrange(escala_atual.ano, escala_atual.mes)[1]
+            prox_data = _d(escala_atual.ano, escala_atual.mes, ultimo_dia_mes) + timedelta(days=1)
+            proxima_escala = (
+                Escala.objects.filter(
+                    organizacao_militar=om,
+                    tipo_escala=te,
+                    status__in=('publicada', 'previsao'),
+                    ano__gte=prox_data.year,
+                )
+                .order_by('ano', 'mes')
+                .first()
+            )
+            if proxima_escala and (proxima_escala.ano, proxima_escala.mes) <= (escala_atual.ano, escala_atual.mes):
+                proxima_escala = None
+
+        escalas_data.append({
+            'tipo_escala': te,
+            'escala_atual': escala_atual,
+            'itens_15': itens_15,
+            'proxima_escala': proxima_escala,
+        })
+
+    # --- 5 próximos da Preto e Vermelho (menor total no quadrinho do ano atual) ---
+    ano_atual = hoje.year
+    militares_om = (
+        list(Militar.objects.filter(organizacao_militar=om, ativo=True)
+             .select_related('posto'))
+        if om else []
+    )
+
+    def _ranking_servico(nome_servico):
+        ts = next((t for t in tipos_servico if nome_servico.lower() in t.nome.lower()), None)
+        if not ts or not militares_om:
+            return []
+        # Para cada tipo de escala, pega o quadrinho e soma
+        totais = {}
+        for m in militares_om:
+            totais[m.id] = {'militar': m, 'total': 0}
+        for te in tipos_escala:
+            for qd in Quadrinho.objects.filter(
+                militar__in=militares_om,
+                tipo_servico=ts,
+                tipo_escala=te,
+                ano=ano_atual,
+            ).select_related('militar__posto'):
+                totais[qd.militar_id]['total'] += qd.total
+        return sorted(totais.values(), key=lambda x: (x['total'], x['militar'].nome_guerra))[:5]
+
+    proximos_preto = _ranking_servico('preto')
+    proximos_vermelho = _ranking_servico('vermelho')
+
+    return render(request, 'escala/sobreaviso_publico.html', {
+        'om': om,
+        'hoje': hoje,
+        'escalas_data': escalas_data,
+        'proximos_preto': proximos_preto,
+        'proximos_vermelho': proximos_vermelho,
+        'tipos_servico': tipos_servico,
     })
