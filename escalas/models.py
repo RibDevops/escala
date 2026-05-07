@@ -9,6 +9,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.utils.text import slugify
 from datetime import datetime, timedelta
 
 
@@ -541,6 +542,14 @@ class TipoEscala(models.Model):
         unique=True,
         help_text="Ex: Permanência, Sobreaviso, Serviço Administrativo"
     )
+
+    slug = models.SlugField(
+        max_length=80,
+        unique=True,
+        blank=True,
+        help_text="URL amigável gerada automaticamente do nome (ex: permanencia). "
+                  "Não altere após criação para não quebrar links existentes.",
+    )
     
     descricao = models.TextField(
         blank=True,
@@ -564,6 +573,23 @@ class TipoEscala(models.Model):
     
     def __str__(self):
         return self.nome
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.nome) or f'tipo-{self.pk or "novo"}'
+            slug = base
+            n = 1
+            while TipoEscala.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f'{base}-{n}'
+                n += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+    def get_escala_publica_url(self):
+        return f'/escala/{self.slug}/'
+
+    def get_matriz_publica_url(self):
+        return f'/matriz/{self.slug}/'
 
     def folga_efetiva_dias(self, config=None) -> int:
         """Retorna a folga mínima em dias: usa o override do tipo ou o global da OM."""

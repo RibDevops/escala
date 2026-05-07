@@ -127,9 +127,13 @@ urlpatterns = [
     path('escalas/<int:escala_id>/publicar/', views.escala_publicar, name='escala_publicar'),
     path('escalas/<int:escala_id>/matriz/', views.escala_matriz, name='escala_matriz'),
 
-    # Tela pública — Escala de Sobreaviso (sem login)
+    # Redirecionamentos legados (mantidos para não quebrar links antigos)
     path('sobreaviso/', views.sobreaviso_publico, name='sobreaviso_publico'),
-
-    # Tela pública — Quadrinho de Serviços (sem login)
     path('quadrinho-publico/', views.quadrinho_publico, name='quadrinho_publico'),
+
+    # Páginas públicas dinâmicas por slug de TipoEscala (sem login)
+    # Criadas automaticamente ao cadastrar um novo tipo de escala
+    # Exemplos: /escala/permanencia/  /escala/eletricista/  /matriz/sobreaviso/
+    path('escala/<slug:slug>/', views.escala_publica, name='escala_publica'),
+    path('matriz/<slug:slug>/', views.matriz_publica, name='matriz_publica'),
 ]

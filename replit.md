@@ -115,6 +115,23 @@ Processa **todos os dias do mês em ordem cronológica** (Preto, Vermelho, Roxo 
 - `/escalas/<id>/previsao/` — muda status para Previsão (POST)
 - `/escalas/<id>/publicar/` — publica a escala como oficial (POST)
 
+## Páginas públicas por TipoEscala (sem login)
+
+Cada `TipoEscala` recebe automaticamente duas páginas públicas ao ser cadastrado:
+
+- `/escala/<slug>/` — estilo sobreaviso: próximos 15 dias + ranking por tipo de serviço
+- `/matriz/<slug>/` — estilo matriz: tabela militares × dias + lista cronológica
+
+Slugs são gerados automaticamente via `slugify(nome)` no `save()` do modelo (nunca se regeneram ao renomear, garantindo estabilidade de URL). Slugs atuais:
+- `permanencia` → Permanência
+- `sobreaviso` → Sobreaviso
+- `servico-administrativo` → Serviço Administrativo
+- `voo-operacional` → Voo Operacional
+
+URLs legadas continuam funcionando como redirecionamentos:
+- `/sobreaviso/` → `/escala/<primeiro-tipo>/`
+- `/quadrinho-publico/` → `/matriz/<primeiro-tipo>/`
+
 ## Próximos passos sugeridos
 
 - Telas de cadastro/edição de indisponibilidades por militar (atual: apenas consulta no algoritmo).

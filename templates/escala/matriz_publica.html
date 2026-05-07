@@ -1,0 +1,362 @@
+{% load static escala_filters %}<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="300">
+    <title>Matriz — {{ tipo_escala.nome }}{% if om %} — {{ om.sigla }}{% endif %}</title>
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap-icons.css' %}">
+    <link rel="stylesheet" href="{% static 'css/cinzel.css' %}">
+    <link rel="stylesheet" href="{% static 'css/militar.css' %}">
+    <style>
+        body { background: #f0f4f8; }
+
+        .pub-header {
+            background: var(--m-azul-fab, #003a78);
+            color: #fff;
+            padding: 1.2rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            border-bottom: 4px solid var(--m-amarelo-fab, #ffd200);
+        }
+        .pub-header .om-logo { height: 56px; width: 56px; object-fit: contain; }
+        .pub-header h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: 0.05em;
+        }
+        .pub-header .subtitle { font-size: 0.85rem; opacity: 0.8; margin-top: 0.2rem; }
+        .pub-header .data-hora { margin-left: auto; text-align: right; font-size: 0.9rem; white-space: nowrap; }
+
+        /* Navegação entre tipos */
+        .tipo-nav {
+            background: #fff;
+            border-bottom: 1px solid #dee2e6;
+            padding: 0 1.5rem;
+            display: flex;
+            gap: 0;
+            flex-wrap: wrap;
+            overflow-x: auto;
+        }
+        .tipo-nav a {
+            font-family: 'Cinzel', serif;
+            font-size: 0.8rem;
+            letter-spacing: 0.04em;
+            color: var(--m-azul-fab, #003a78);
+            padding: 0.7rem 1.1rem;
+            text-decoration: none;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            transition: border-color 0.15s;
+        }
+        .tipo-nav a:hover { border-bottom-color: #aab5c5; }
+        .tipo-nav a.ativo {
+            border-bottom-color: var(--m-amarelo-fab, #ffd200);
+            font-weight: 700;
+        }
+
+        /* Tabela da matriz */
+        .matriz-card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.09);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        .matriz-card .card-header-pub {
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 0.6rem 1rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        td.col-militar {
+            white-space: nowrap;
+            position: sticky;
+            left: 0;
+            background: #fff;
+            z-index: 1;
+            font-weight: 600;
+            font-size: 0.83rem;
+        }
+        .badge-serves {
+            background: #198754;
+            color: #fff;
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 4px 5px;
+            border-radius: 4px;
+            display: block;
+            text-align: center;
+        }
+        .badge-indisp {
+            background: #dc3545;
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 500;
+            padding: 3px 4px;
+            border-radius: 4px;
+            display: block;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        /* Tabela cronológica */
+        .cronolog-card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.09);
+            overflow: hidden;
+        }
+        .cronolog-card .card-header-pub {
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 0.6rem 1rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        tr.hoje-row { background-color: #fffbea !important; }
+
+        .footer-pub {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #999;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .pub-header h1 { font-size: 1.1rem; }
+            .pub-header { padding: 0.9rem 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="pub-header">
+    {% if om and om.logo %}
+        <img src="{{ om.logo.url }}" alt="Logo {{ om.sigla }}" class="om-logo">
+    {% else %}
+        <span style="width:48px;height:48px;font-size:1.5rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;">★</span>
+    {% endif %}
+    <div>
+        <h1><i class="bi bi-grid-3x3"></i> Matriz — {{ tipo_escala.nome }}</h1>
+        <div class="subtitle">
+            {% if om %}{{ om.nome }}{% else %}Sistema de Escala FAB{% endif %}
+            {% if escala %}&nbsp;·&nbsp; {{ nomes_meses|index:escala.mes }}/{{ escala.ano }}{% endif %}
+            &nbsp;·&nbsp; Atualizado a cada 5 min
+        </div>
+    </div>
+    <div class="data-hora">
+        <div class="fw-bold" id="hora-atual"></div>
+        <div>{{ hoje|date:"d/m/Y" }}</div>
+    </div>
+</header>
+
+<!-- Navegação entre todos os tipos de escala -->
+<nav class="tipo-nav">
+    {% for te in todos_tipos %}
+    <a href="{{ te.get_matriz_publica_url }}"
+       class="{% if te.id == tipo_escala.id %}ativo{% endif %}">
+        {{ te.nome }}
+    </a>
+    {% endfor %}
+</nav>
+
+<main class="container-fluid py-4 px-3 px-md-4">
+
+{% if not om %}
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> Nenhuma Organização Militar cadastrada.</div>
+{% else %}
+
+<!-- Barra de info + link para escala -->
+<div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+    {% if escala %}
+        <span class="fw-semibold">
+            <i class="bi bi-calendar2-week"></i>
+            {{ nomes_meses|index:escala.mes }}/{{ escala.ano }}
+        </span>
+        <span class="badge {% if escala.status == 'publicada' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+            {{ escala.get_status_display }}
+        </span>
+        <span class="text-muted small">{{ militares|length }} militar(es) · {{ itens|length }} serviço(s)</span>
+    {% else %}
+        <span class="text-muted"><i class="bi bi-calendar-x"></i> Nenhuma escala publicada ou em previsão.</span>
+    {% endif %}
+    <div class="ms-auto">
+        <a href="{{ tipo_escala.get_escala_publica_url }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-broadcast"></i> Ver Escala
+        </a>
+    </div>
+</div>
+
+{% if not escala %}
+    {# mensagem já exibida acima #}
+{% elif not itens %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i>
+        A escala ainda não foi gerada — não há serviços lançados para exibir.
+    </div>
+{% else %}
+
+<!-- Legenda -->
+<div class="d-flex gap-3 flex-wrap small mb-3">
+    <span><span style="display:inline-block;width:13px;height:13px;background:#198754;border-radius:3px;vertical-align:middle;"></span> Escalado</span>
+    <span><span style="display:inline-block;width:13px;height:13px;background:#dc3545;border-radius:3px;vertical-align:middle;"></span> Indisponível</span>
+    <span class="text-muted fst-italic">↑ TOPO (mais antigo) &nbsp;|&nbsp; ↓ BASE (mais moderno)</span>
+</div>
+
+<!-- Matriz militares × dias de serviço -->
+<div class="matriz-card">
+    <div class="card-header-pub">
+        <span><i class="bi bi-table"></i> Matriz Militares × Dias</span>
+        <span class="text-muted small">Colunas = serviços em ordem cronológica</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm mb-0 align-middle" style="font-size:0.82rem;">
+            <thead class="table-dark">
+                <tr>
+                    <th style="min-width:130px; white-space:nowrap; position:sticky; left:0; background:#212529; z-index:2;">Militar</th>
+                    <th style="min-width:58px; white-space:nowrap;">Posto</th>
+                    {% for i in max_eventos_range %}
+                    <th class="text-center" style="min-width:66px; font-weight:400; font-size:0.73rem; color:#adb5bd;">
+                        {{ forloop.counter }}º serv.
+                    </th>
+                    {% endfor %}
+                    <th class="text-center" style="min-width:52px;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in matrix_rows %}
+                <tr>
+                    <td class="col-militar">
+                        {% if forloop.first %}
+                            <span class="badge bg-info text-dark me-1" style="font-size:0.6rem;" title="Topo — mais antigo">↑</span>
+                        {% endif %}
+                        {% if forloop.last %}
+                            <span class="badge bg-warning text-dark me-1" style="font-size:0.6rem;" title="Base — mais moderno">↓</span>
+                        {% endif %}
+                        {{ row.militar.nome_guerra }}
+                    </td>
+                    <td class="text-muted" style="white-space:nowrap; font-size:0.78rem;">{{ row.militar.posto.sigla }}</td>
+
+                    {% for ev in row.eventos_padded %}
+                        {% if ev == None %}
+                            <td style="background:#f8f9fa;"></td>
+                        {% elif ev.serves %}
+                            <td class="text-center p-1">
+                                <span class="badge-serves" title="{{ ev.dia.data|date:'l, d/m/Y' }}">
+                                    {{ ev.dia.data|date:"d/m" }}
+                                </span>
+                            </td>
+                        {% else %}
+                            <td class="text-center p-1">
+                                <span class="badge-indisp" title="{{ ev.dia.data|date:'d/m' }} — {{ ev.motivo }}">
+                                    {{ ev.dia.data|date:"d/m" }}<br>
+                                    <span style="font-size:0.62rem; opacity:0.9;">{{ ev.motivo|truncatechars:10 }}</span>
+                                </span>
+                            </td>
+                        {% endif %}
+                    {% endfor %}
+
+                    <td class="text-center fw-bold">
+                        <span class="badge bg-primary rounded-pill fs-6">{{ row.total }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Lista cronológica -->
+<div class="cronolog-card">
+    <div class="card-header-pub">
+        <i class="bi bi-list-ol"></i> Serviços — ordem cronológica
+        <span class="badge bg-secondary ms-2">{{ itens|length }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle" style="font-size:0.85rem;">
+            <thead class="table-secondary">
+                <tr>
+                    <th>#</th>
+                    <th>Data</th>
+                    <th>Dia</th>
+                    <th>Tipo</th>
+                    <th>Militar</th>
+                    <th>Posto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in itens %}
+                <tr {% if item.calendario_dia.data == hoje %}class="hoje-row"{% endif %}>
+                    <td class="text-muted small">{{ forloop.counter }}</td>
+                    <td class="fw-semibold">
+                        {{ item.calendario_dia.data|date:"d/m/Y" }}
+                        {% if item.calendario_dia.data == hoje %}
+                            <span class="badge ms-1" style="background:var(--m-amarelo-fab,#ffd200);color:var(--m-azul-fab,#003a78);font-size:0.6rem;">HOJE</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ item.calendario_dia.data|date:"D"|slice:":3"|upper }}</td>
+                    <td>
+                        {% if item.calendario_dia.tipo_servico %}
+                        <span class="badge rounded-pill"
+                              style="background-color:{{ item.calendario_dia.tipo_servico.cor_hex|default:'#555' }};color:#fff;font-size:0.72rem;">
+                            {{ item.calendario_dia.tipo_servico.nome }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ item.militar.nome_guerra }}</strong></td>
+                    <td class="text-muted small">{{ item.militar.posto.sigla }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endif %}
+{% endif %}
+
+</main>
+
+<div class="footer-pub">
+    <i class="bi bi-shield-check"></i>
+    Sistema de Escala FAB &middot; Página pública &middot; Atualização automática a cada 5 minutos
+    {% if user.is_authenticated %}
+    {% if escala %}
+    &middot; <a href="/escalas/{{ escala.id }}/matriz/" class="text-muted">Ver matriz completa</a>
+    {% endif %}
+    &middot; <a href="/" class="text-muted">Acessar sistema</a>
+    {% else %}
+    &middot; <a href="/login/" class="text-muted">Login</a>
+    {% endif %}
+</div>
+
+<script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+<script>
+(function () {
+    function atualizarHora() {
+        const el = document.getElementById('hora-atual');
+        if (!el) return;
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        el.textContent = h + ':' + m + ':' + s;
+    }
+    atualizarHora();
+    setInterval(atualizarHora, 1000);
+})();
+</script>
+</body>
+</html>
