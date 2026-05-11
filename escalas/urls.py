@@ -127,6 +127,12 @@ urlpatterns = [
     path('escalas/<int:escala_id>/publicar/', views.escala_publicar, name='escala_publicar'),
     path('escalas/<int:escala_id>/matriz/', views.escala_matriz, name='escala_matriz'),
 
+    # Usuários do sistema
+    path('usuarios/', views.usuario_listar, name='usuario_listar'),
+    path('usuarios/novo/', views.usuario_form, name='usuario_novo'),
+    path('usuarios/<int:usuario_id>/editar/', views.usuario_form, name='usuario_editar'),
+    path('usuarios/<int:usuario_id>/excluir/', views.usuario_excluir, name='usuario_excluir'),
+
     # Redirecionamentos legados (mantidos para não quebrar links antigos)
     path('sobreaviso/', views.sobreaviso_publico, name='sobreaviso_publico'),
     path('quadrinho-publico/', views.quadrinho_publico, name='quadrinho_publico'),

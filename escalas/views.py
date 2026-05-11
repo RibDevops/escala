@@ -28,6 +28,7 @@ from .forms_cadastro import (
     QuadrinhoForm,
     TipoEscalaForm,
     TipoIndisponibilidadeForm,
+    UsuarioForm,
 )
 from .models import (
     CalendarioDia,
@@ -39,12 +40,14 @@ from .models import (
     Indisponibilidade,
     Militar,
     OrganizacaoMilitar,
+    PerfilUsuario,
     Posto,
     PonteiroEscala,
     Quadrinho,
     TipoEscala,
     TipoIndisponibilidade,
     TipoServico,
+    UsuarioCustomizado,
 )
 
 
@@ -2046,3 +2049,68 @@ def matriz_publica(request, slug):
         'max_eventos_range': range(max_eventos),
         'nomes_meses': NOMES_MESES,
     })
+
+
+# ---------------------------------------------------------------------------
+# Gerenciamento de Usuários (admin_om only)
+# ---------------------------------------------------------------------------
+
+@login_required
+def usuario_listar(request):
+    q = request.GET.get('q', '').strip()
+    perfil_filtro = request.GET.get('perfil', '')
+
+    qs = UsuarioCustomizado.objects.select_related('om_principal').order_by('username')
+
+    if q:
+        qs = qs.filter(
+            Q(username__icontains=q) |
+            Q(first_name__icontains=q) |
+            Q(last_name__icontains=q)
+        )
+
+    if perfil_filtro:
+        qs = qs.filter(perfil=perfil_filtro)
+
+    return render(request, 'cadastro/usuario_list.html', {
+        'usuarios': qs,
+        'q': q,
+        'perfil_filtro': perfil_filtro,
+        'perfis': PerfilUsuario.choices,
+    })
+
+
+@login_required
+def usuario_form(request, usuario_id=None):
+    instancia = get_object_or_404(UsuarioCustomizado, pk=usuario_id) if usuario_id else None
+    if request.method == 'POST':
+        form = UsuarioForm(request.POST, instance=instancia)
+        if form.is_valid():
+            usuario = form.save(commit=False)
+            if not instancia:
+                usuario.set_unusable_password()
+            usuario.save()
+            acao = 'atualizado' if instancia else 'criado'
+            messages.success(request, f'Usuário {usuario.username} {acao} com sucesso.')
+            return redirect('usuario_listar')
+    else:
+        form = UsuarioForm(instance=instancia)
+    return render(request, 'cadastro/usuario_form.html', {
+        'form': form,
+        'usuario': instancia,
+    })
+
+
+@login_required
+def usuario_excluir(request, usuario_id):
+    usuario = get_object_or_404(UsuarioCustomizado, pk=usuario_id)
+    if usuario.is_superuser:
+        messages.error(request, 'Superusuários não podem ser desativados por esta tela.')
+        return redirect('usuario_listar')
+    if request.method == 'POST':
+        usuario.ativo = False
+        usuario.is_active = False
+        usuario.save()
+        messages.success(request, f'Usuário {usuario.username} desativado.')
+        return redirect('usuario_listar')
+    return render(request, 'cadastro/usuario_confirm_delete.html', {'usuario': usuario})

@@ -285,6 +285,48 @@ class EscalaCriarForm(BootstrapFormMixin, forms.Form):
 # Indisponibilidade — registro pelo escalante ou pelo próprio militar
 # ---------------------------------------------------------------------------
 
+class UsuarioForm(BootstrapFormMixin, forms.ModelForm):
+    """Formulário para criação/edição de usuários (autenticação via LDAP)."""
+
+    class Meta:
+        from .models import UsuarioCustomizado
+        model = UsuarioCustomizado
+        fields = ['username', 'first_name', 'last_name', 'perfil', 'om_principal', 'ativo']
+        labels = {
+            'username': 'Nome de usuário (login LDAP)',
+            'first_name': 'Nome',
+            'last_name': 'Sobrenome',
+            'perfil': 'Papel / Nível de acesso',
+            'om_principal': 'OM principal',
+            'ativo': 'Ativo',
+        }
+        help_texts = {
+            'username': 'Deve corresponder exatamente ao login da rede (LDAP).',
+            'perfil': 'Define o que o usuário pode fazer no sistema.',
+            'om_principal': 'OM à qual este usuário pertence.',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .models import OrganizacaoMilitar
+        self.fields['om_principal'].queryset = OrganizacaoMilitar.objects.filter(ativo=True).order_by('nome')
+        self.fields['om_principal'].required = False
+        self.fields['first_name'].required = False
+        self.fields['last_name'].required = False
+
+    def clean_username(self):
+        from .models import UsuarioCustomizado
+        username = (self.cleaned_data.get('username') or '').strip().lower()
+        if not username:
+            raise ValidationError('Informe o nome de usuário.')
+        qs = UsuarioCustomizado.objects.filter(username=username)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError('Já existe um usuário com este nome de login.')
+        return username
+
+
 class IndisponibilidadeRegistrarForm(BootstrapFormMixin, forms.ModelForm):
     """
     Formulário para registrar indisponibilidade.

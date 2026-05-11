@@ -1,5 +1,10 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "GHP6BQXQewk6MMgxynJAA"
+uri = "file://static/img/logo_escala.png"
+type = "image"
+title = "generated_image"
 
 [[outputs]]
 id = "NSiqdw_4RINQ8surahQWM"

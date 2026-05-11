@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block titulo %}{% if usuario %}Editar Usuário{% else %}Novo Usuário{% endif %}{% endblock %}
+{% block conteudo %}
+<div class="page-header">
+    <h1>
+        <i class="bi bi-person-gear"></i>
+        {% if usuario %}Editar Usuário{% else %}Novo Usuário{% endif %}
+    </h1>
+    <div class="subtitle">
+        {% if usuario %}
+            Alterando dados de <strong>{{ usuario.username }}</strong>
+        {% else %}
+            Cadastro de acesso — a senha é gerenciada pelo LDAP da rede
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card-mil">
+            <div class="card-mil-header"><i class="bi bi-person-badge"></i> Dados do usuário</div>
+            <div class="p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% include 'cadastro/_form_layout.html' with form=form %}
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'usuario_listar' %}" class="btn btn-mil-outline">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-mil-dourado">
+                            <i class="bi bi-check2"></i> Salvar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card-mil">
+            <div class="card-mil-header"><i class="bi bi-question-circle"></i> Guia de papéis</div>
+            <div class="p-3">
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="fw-bold mb-1" style="font-size:0.9rem;">
+                        <i class="bi bi-person"></i> Militar <span class="badge-mil badge-inativo ms-1" style="font-size:0.65rem;">Padrão</span>
+                    </div>
+                    <div class="small text-muted">
+                        Pode consultar as escalas públicas e registrar / editar sua própria indisponibilidade.
+                        Não acessa cadastros nem gera escalas.
+                    </div>
+                </div>
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="fw-bold mb-1" style="font-size:0.9rem;">
+                        <i class="bi bi-calendar2-check"></i> Escalante
+                    </div>
+                    <div class="small text-muted">
+                        Gera e publica escalas mensais, gerencia indisponibilidades de todos,
+                        acessa o quadrinho. Não altera configurações da OM.
+                    </div>
+                </div>
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="fw-bold mb-1" style="font-size:0.9rem;">
+                        <i class="bi bi-bar-chart"></i> Gerente
+                    </div>
+                    <div class="small text-muted">
+                        Acesso de leitura completo. Visualiza escalas, quadrinho e relatórios.
+                        Não cria nem edita registros.
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="fw-bold mb-1" style="font-size:0.9rem;">
+                        <i class="bi bi-shield-shaded"></i> Administrador da OM
+                    </div>
+                    <div class="small text-muted">
+                        Acesso total à OM: cadastros, escalas, configurações e usuários.
+                        Use com critério — conceda apenas a quem precisar.
+                    </div>
+                </div>
+                <div class="mt-3 p-2 rounded small" style="background:rgba(255,241,18,0.12);border:1px solid var(--m-amarelo);">
+                    <i class="bi bi-shield-lock"></i> <strong>Sem senha aqui.</strong>
+                    O login é feito com as credenciais da rede (LDAP).
+                    O campo <em>Nome de usuário</em> deve ser idêntico ao login de rede.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

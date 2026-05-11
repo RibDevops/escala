@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block titulo %}Desativar Usuário{% endblock %}
+{% block conteudo %}
+<div class="page-header">
+    <h1><i class="bi bi-person-x"></i> Desativar Usuário</h1>
+    <div class="subtitle">O usuário perderá o acesso ao sistema</div>
+</div>
+
+<div class="card-mil" style="max-width:540px;">
+    <div class="card-mil-header" style="background:var(--m-vermelho);">
+        <i class="bi bi-exclamation-triangle"></i> Confirmar desativação
+    </div>
+    <div class="p-4">
+        <p class="mb-1">Deseja desativar o usuário abaixo?</p>
+        <div class="p-3 mb-3 rounded border" style="background:var(--m-fundo);">
+            <div><strong>Login:</strong> <code>{{ usuario.username }}</code></div>
+            <div><strong>Nome:</strong> {{ usuario.get_full_name|default:"—" }}</div>
+            <div><strong>Papel:</strong> {{ usuario.get_perfil_display }}</div>
+            <div><strong>OM:</strong> {{ usuario.om_principal.sigla|default:"—" }}</div>
+        </div>
+        <p class="small text-muted mb-4">
+            <i class="bi bi-info-circle"></i>
+            O usuário não será excluído — apenas desativado. Ele não conseguirá mais fazer login.
+            Pode ser reativado a qualquer momento na tela de edição.
+        </p>
+        <form method="post" class="d-flex gap-2">
+            {% csrf_token %}
+            <a href="{% url 'usuario_listar' %}" class="btn btn-mil-outline flex-fill">
+                <i class="bi bi-arrow-left"></i> Cancelar
+            </a>
+            <button type="submit" class="btn btn-mil-danger flex-fill">
+                <i class="bi bi-person-x"></i> Desativar
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
