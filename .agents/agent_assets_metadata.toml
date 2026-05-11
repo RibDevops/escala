@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "NSiqdw_4RINQ8surahQWM"
+uri = "file://attached_assets/matriz_escala_maio2026.png"
+type = "image"
+title = "Matriz Militares × Dias — Permanência Maio 2026"
