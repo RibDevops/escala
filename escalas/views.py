@@ -1522,183 +1522,27 @@ def escala_item_definir_substituto(request, item_id):
 
 @login_required
 def escala_gerar(request, escala_id):
-    """
-    Gera a escala automaticamente usando o algoritmo de ponteiro BASE→TOPO.
-
-    Executa separadamente para cada TipoServico (Preta, Vermelha, etc.)
-    mantendo um ponteiro persistente entre meses por OM + TipoServico.
-
-    POST = executa; GET = tela de confirmação.
-    """
-    from calendar import monthrange
-
-    escala = get_object_or_404(Escala, pk=escala_id)
-    om = escala.organizacao_militar
-
-    if escala.status not in ('rascunho', 'previsao'):
-        messages.error(request, 'Somente escalas em Rascunho ou Previsão podem ser geradas.')
-        return redirect('escala_detalhar', escala_id=escala_id)
-
-    if request.method == 'POST':
-        from .engine_escala import gerar_escala_multi_tipo, obter_indisponibilidades
-
-        # Limpar itens existentes antes de regerar
-        escala.itens.all().delete()
-
-        # ----- Intervalo do mês -----
-        primeiro_dia = date(escala.ano, escala.mes, 1)
-        ultimo_num   = monthrange(escala.ano, escala.mes)[1]
-        ultimo_dia   = date(escala.ano, escala.mes, ultimo_num)
-
-        # ----- Calendário -----
-        dias_qs = CalendarioDia.objects.filter(
-            organizacao_militar=om,
-            data__range=(primeiro_dia, ultimo_dia),
-        ).select_related('tipo_servico').order_by('data')
-
-        if not dias_qs.exists():
-            try:
-                CalendarioDia.gerar_calendario_automatico(om, escala.ano)
-                dias_qs = CalendarioDia.objects.filter(
-                    organizacao_militar=om,
-                    data__range=(primeiro_dia, ultimo_dia),
-                ).select_related('tipo_servico').order_by('data')
-            except Exception as e:
-                messages.error(
-                    request,
-                    f'Sem calendário para {NOMES_MESES[escala.mes]}/{escala.ano}. '
-                    f'Cadastre os Tipos de Serviço da OM primeiro. ({e})'
-                )
-                return redirect('escala_detalhar', escala_id=escala_id)
-
-        lista_dias = list(dias_qs)
-
-        # ----- Militares: índice 0 = mais antigo (TOPO), último = mais moderno (BASE) -----
-        lista_militares = list(
-            Militar.objects.filter(organizacao_militar=om, ativo=True)
-            .select_related('posto')
-            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
-        )
-
-        if not lista_militares:
-            messages.error(request, 'Nenhum militar ativo nesta OM.')
-            return redirect('escala_detalhar', escala_id=escala_id)
-
-        # ----- Configuração -----
-        config = ConfiguracaoEscala.obter_para_om(om)
-        tipo_escala_obj = escala.tipo_escala
-
-        # ----- Indisponibilidades + carryover inter-mês -----
-        # Carryover considera TODOS os tipos de serviço do mesmo tipo_escala (folga global).
-        indisp = obter_indisponibilidades(
-            lista_militares, primeiro_dia, ultimo_dia,
-            config=config, tipo_escala=tipo_escala_obj,
-        )
-
-        # ----- Quadrinhos acumulados por tipo de serviço antes deste mês -----
-        # Detecta os tipos de serviço presentes nos dias do mês
-        tipos_servico_no_mes = {}
-        for dia in lista_dias:
-            ts = dia.tipo_servico
-            if ts.nome not in tipos_servico_no_mes:
-                tipos_servico_no_mes[ts.nome] = ts
-
-        quadrinhos_inicio = {}
-        ultimos_militares = {}
-        for nome_ts, ts in tipos_servico_no_mes.items():
-            qi = {}
-            for m in lista_militares:
-                qs = Quadrinho.objects.filter(
-                    militar=m,
-                    tipo_escala=tipo_escala_obj,
-                    tipo_servico=ts,
-                    ano=escala.ano,
-                )
-                qi[m.id] = qs.first().total if qs.exists() else 0
-            quadrinhos_inicio[nome_ts] = qi
-            ultimos_militares[nome_ts] = PonteiroEscala.obter_ultimo_id(om, ts)
-
-        # ----- ENGINE CRONOLÓGICO: todos os tipos em ordem de data -----
-        resultado_por_tipo, novos_ultimos = gerar_escala_multi_tipo(
-            lista_militares=lista_militares,
-            lista_dias=lista_dias,          # TODOS os dias, misturados — engine ordena
-            indisponibilidades=indisp,
-            quadrinhos_inicio=quadrinhos_inicio,
-            ultimos_militares=ultimos_militares,
-            config=config,
-            tipo_escala=tipo_escala_obj,
-        )
-
-        # ----- Salvar ponteiros e persistir itens -----
-        criados     = 0
-        sem_militar = 0
-
-        for nome_ts, pares in resultado_por_tipo.items():
-            ts = tipos_servico_no_mes[nome_ts]
-
-            # Atualiza ponteiro para o próximo mês
-            novo_id = novos_ultimos.get(nome_ts)
-            if novo_id:
-                PonteiroEscala.salvar(om, ts, novo_id)
-
-            for dia, militar in pares:
-                if militar is not None:
-                    EscalaItem.objects.create(
-                        escala=escala,
-                        militar=militar,
-                        calendario_dia=dia,
-                        observacao='Gerado automaticamente (cronológico global)',
-                    )
-                    Quadrinho.incrementar(
-                        militar=militar,
-                        tipo_escala=tipo_escala_obj,
-                        tipo_servico=ts,
-                        ano=escala.ano,
-                    )
-                    criados += 1
-                else:
-                    sem_militar += 1
-
-        if sem_militar:
-            messages.warning(
-                request,
-                f'{sem_militar} dia(s) sem militar disponível (todos indisponíveis naquele dia).',
-            )
-        messages.success(
-            request,
-            f'Escala gerada com folga global! '
-            f'{criados} dia(s) preenchidos.',
-        )
-        return redirect('escala_detalhar', escala_id=escala_id)
-
-    # GET — tela de confirmação
-    militares_count = Militar.objects.filter(organizacao_militar=om, ativo=True).count()
-    tem_itens = escala.itens.exists()
-    return render(request, 'escala/gerar.html', {
-        'escala': escala,
-        'militares_count': militares_count,
-        'tem_itens': tem_itens,
-        'nomes_meses': NOMES_MESES,
-    })
+    """Redireciona para o novo motor vertical (único algoritmo ativo)."""
+    return redirect('escala_gerar_vertical', escala_id=escala_id)
 
 
 @login_required
 def escala_gerar_vertical(request, escala_id):
     """
-    Gera a escala automaticamente usando o MotorEscalaVertical.
+    Gera a escala usando o MotorEscalaVertical (único algoritmo ativo).
 
-    Este algoritmo percorre os dias em ordem cronológica (01→30) e para cada dia
-    escolhe o militar mais adequado baseado em:
-    1. Menor quantidade de serviços no mês
-    2. Maior distância do último serviço
-    3. Ordem natural da matriz
+    Algoritmo:
+      - Menor quantidade total de serviços → prioridade
+      - Desempate: BASE → TOPO (mais moderno primeiro)
+      - Folga GLOBAL entre Preto/Vermelho (configurável em horas)
+      - Preto gerado primeiro, depois Vermelho
+      - Dois estados: Matriz Histórica (banco) + Matriz Operacional (memória)
 
-    Substitui completamente o algoritmo anterior de "dia mais vazio".
-
-    POST = executa; GET = tela de confirmação.
+    GET  = tela de confirmação (ou exibe resultado da última geração via session)
+    POST = executa o motor e redireciona para GET com resultado na session
     """
     from django.core.exceptions import ValidationError
-    from .services import gerar_escala_vertical as gerar_escala_vertical_novo
+    from .services import gerar_escala_vertical as _gerar
 
     escala = get_object_or_404(Escala, pk=escala_id)
     om = escala.organizacao_militar
@@ -1709,26 +1553,51 @@ def escala_gerar_vertical(request, escala_id):
 
     if request.method == 'POST':
         try:
-            alocacoes = gerar_escala_vertical_novo(escala)
-            messages.success(
-                request,
-                f'Escala gerada (motor vertical)! '
-                f'{alocacoes} alocações criadas.',
-            )
+            resultado = _gerar(escala)
         except ValidationError as e:
             messages.error(request, str(e))
             return redirect('escala_detalhar', escala_id=escala_id)
 
-        return redirect('escala_detalhar', escala_id=escala_id)
+        # Guardar resultado na session para exibir no GET
+        request.session['motor_resultado'] = {
+            'alocacoes_criadas': resultado['alocacoes_criadas'],
+            'dias_sem_militar':  resultado['dias_sem_militar'],
+            'alertas':           resultado['alertas'],
+            'log':               resultado['log'],
+            'escala_id':         escala_id,
+        }
 
-    # GET — tela de confirmação
+        if resultado['dias_sem_militar']:
+            messages.warning(
+                request,
+                f"{resultado['dias_sem_militar']} dia(s) sem cobertura — "
+                f"todos os militares estavam com férias/licença."
+            )
+        if resultado['alertas']:
+            messages.warning(
+                request,
+                f"{len(resultado['alertas'])} alerta(s) gerado(s) durante a geração."
+            )
+        messages.success(
+            request,
+            f"Escala gerada! {resultado['alocacoes_criadas']} serviço(s) atribuído(s)."
+        )
+        return redirect('escala_gerar_vertical', escala_id=escala_id)
+
+    # GET — tela de confirmação ou resultado
+    resultado = None
+    session_resultado = request.session.pop('motor_resultado', None)
+    if session_resultado and session_resultado.get('escala_id') == escala_id:
+        resultado = session_resultado
+
     militares_count = Militar.objects.filter(organizacao_militar=om, ativo=True).count()
     tem_itens = escala.itens.exists()
     return render(request, 'escala/gerar_vertical.html', {
-        'escala': escala,
-        'militares_count': militares_count,
-        'tem_itens': tem_itens,
-        'nomes_meses': NOMES_MESES,
+        'escala':           escala,
+        'militares_count':  militares_count,
+        'tem_itens':        tem_itens,
+        'nomes_meses':      NOMES_MESES,
+        'resultado':        resultado,
     })
 
 

@@ -18,19 +18,9 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
         {% if pode_editar %}
-            <div class="dropdown">
-                <button class="btn btn-warning btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-lightning-charge"></i> Gerar Automático
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="{% url 'escala_gerar' escala.id %}">
-                        <i class="bi bi-grid-3x3-gap"></i> Algoritmo Padrão (Matriz)
-                    </a></li>
-                    <li><a class="dropdown-item" href="{% url 'escala_gerar_vertical' escala.id %}">
-                        <i class="bi bi-arrows-vertical"></i> Algoritmo Vertical
-                    </a></li>
-                </ul>
-            </div>
+            <a href="{% url 'escala_gerar_vertical' escala.id %}" class="btn btn-warning btn-sm">
+                <i class="bi bi-lightning-charge"></i> Gerar Automático
+            </a>
             {% if itens %}
             <form method="post" action="{% url 'escala_limpar' escala.id %}"
                   onsubmit="return confirm('Apagar todos os itens desta escala?')">

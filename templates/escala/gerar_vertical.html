@@ -1,30 +1,134 @@
 {% extends 'base.html' %}
 {% load escala_filters %}
-{% block titulo %}Gerar Escala Vertical — {{ block.super }}{% endblock %}
+{% block titulo %}Gerar Escala — {{ block.super }}{% endblock %}
 
 {% block conteudo %}
 <div class="row justify-content-center">
-    <div class="col-md-7">
-        <div class="card shadow-sm border-warning">
-            <div class="card-header" style="background:#ffd200;color:#003a78;">
-                <i class="bi bi-arrows-vertical"></i>
-                Geração Automática (Algoritmo Vertical)
+    <div class="col-md-8">
+
+        {% if resultado %}
+        <!-- ══════════════════════════════════════════════════════════════
+             RESULTADO DA GERAÇÃO
+        ══════════════════════════════════════════════════════════════════ -->
+        <div class="card shadow-sm mb-3 border-success">
+            <div class="card-header text-white" style="background:#003a78;">
+                <i class="bi bi-check2-circle"></i>
+                Geração concluída — {{ escala.tipo_escala.nome }}
+                {{ nomes_meses|index:escala.mes }}/{{ escala.ano }}
             </div>
             <div class="card-body">
 
-                <h5>{{ escala.tipo_escala.nome }} — {{ nomes_meses|index:escala.mes }}/{{ escala.ano }}</h5>
-                <p class="text-muted small">OM: <strong>{{ escala.organizacao_militar.sigla }}</strong></p>
+                <div class="row text-center g-3 mb-3">
+                    <div class="col-4">
+                        <div class="border rounded p-3">
+                            <div class="fs-3 fw-bold text-success">{{ resultado.alocacoes_criadas }}</div>
+                            <div class="small text-muted">Serviços atribuídos</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="border rounded p-3">
+                            <div class="fs-3 fw-bold {% if resultado.alertas %}text-warning{% else %}text-success{% endif %}">
+                                {{ resultado.alertas|length }}
+                            </div>
+                            <div class="small text-muted">Alertas</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="border rounded p-3">
+                            <div class="fs-3 fw-bold {% if resultado.dias_sem_militar %}text-danger{% else %}text-success{% endif %}">
+                                {{ resultado.dias_sem_militar }}
+                            </div>
+                            <div class="small text-muted">Dias sem cobertura</div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if resultado.alertas %}
+                <div class="alert alert-warning py-2 small">
+                    <strong><i class="bi bi-exclamation-triangle"></i> Alertas da geração:</strong>
+                    <ul class="mb-0 mt-1">
+                        {% for alerta in resultado.alertas %}
+                        <li>{{ alerta }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if resultado.dias_sem_militar %}
+                <div class="alert alert-danger py-2 small">
+                    <i class="bi bi-x-circle"></i>
+                    <strong>{{ resultado.dias_sem_militar }} dia(s) sem cobertura</strong> —
+                    nenhum militar estava disponível (férias/licença). Verifique e ajuste manualmente.
+                </div>
+                {% endif %}
+
+                <!-- Log operacional (colapsável) -->
+                <div class="mt-2">
+                    <button class="btn btn-outline-secondary btn-sm" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#collapseLog">
+                        <i class="bi bi-terminal"></i> Ver log operacional ({{ resultado.log|length }} linhas)
+                    </button>
+                    <div class="collapse mt-2" id="collapseLog">
+                        <div class="border rounded bg-dark text-light p-3"
+                             style="font-family:monospace;font-size:0.75rem;max-height:400px;overflow-y:auto;white-space:pre-wrap;">{% for linha in resultado.log %}{{ linha }}
+{% endfor %}</div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                    <a href="{% url 'escala_detalhar' escala.id %}" class="btn btn-primary">
+                        <i class="bi bi-eye"></i> Ver Escala Gerada
+                    </a>
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-warning text-dark">
+                            <i class="bi bi-arrow-repeat"></i> Gerar Novamente
+                        </button>
+                    </form>
+                    <a href="{% url 'escala_listar' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
+
+            </div>
+        </div>
+
+        {% else %}
+        <!-- ══════════════════════════════════════════════════════════════
+             TELA DE CONFIRMAÇÃO
+        ══════════════════════════════════════════════════════════════════ -->
+        <div class="card shadow-sm border-warning">
+            <div class="card-header" style="background:#ffd200;color:#003a78;">
+                <i class="bi bi-lightning-charge"></i>
+                Gerar Escala Automática — {{ escala.tipo_escala.nome }}
+                {{ nomes_meses|index:escala.mes }}/{{ escala.ano }}
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-1">
+                    OM: <strong>{{ escala.organizacao_militar.sigla }}</strong> &nbsp;|&nbsp;
+                    Status: <strong>{{ escala.get_status_display }}</strong>
+                </p>
 
                 <hr>
 
-                <h6 class="fw-bold"><i class="bi bi-info-circle"></i> Como funciona o motor vertical</h6>
-                <ul class="small text-secondary">
-                    <li><strong>Ordem cronológica</strong>: dias processados de 01 a 30.</li>
-                    <li>Para cada dia, <strong>ordena militares</strong> por: menor quantidade de serviços → maior distância do último → ordem natural.</li>
-                    <li><strong>Subida vertical</strong>: primeiro militar disponível assume o dia.</li>
-                    <li>Respeita <strong>indisponibilidades</strong>, folga mínima e carryover inter-mês.</li>
-                    <li><strong>Equilíbrio progressivo</strong>: todos terminam com quantidade próxima de serviços.</li>
-                </ul>
+                <h6 class="fw-bold"><i class="bi bi-info-circle"></i> Como o motor funciona</h6>
+                <div class="row g-2 small text-secondary mb-3">
+                    <div class="col-md-6">
+                        <ul class="mb-0">
+                            <li><strong>Prioridade:</strong> quem tem MENOS serviços vai primeiro</li>
+                            <li><strong>Desempate:</strong> BASE → TOPO (mais moderno → mais antigo)</li>
+                            <li><strong>Folga GLOBAL:</strong> Preto bloqueia Vermelho e vice-versa</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="mb-0">
+                            <li><strong>Ordem:</strong> todos os dias Preto → depois Vermelho</li>
+                            <li><strong>Histórico:</strong> carrega contagem real do banco (Quadrinho)</li>
+                            <li><strong>Carry-over:</strong> respeita folga do mês anterior</li>
+                        </ul>
+                    </div>
+                </div>
 
                 <div class="row text-center g-3 my-2">
                     <div class="col-6">
@@ -37,7 +141,7 @@
                         <div class="border rounded p-2">
                             {% if tem_itens %}
                             <div class="fs-4 fw-bold text-warning">{{ escala.itens.count }}</div>
-                            <div class="small text-warning">Itens existentes (serão apagados)</div>
+                            <div class="small text-warning">Itens existentes (serão apagados e regenerados)</div>
                             {% else %}
                             <div class="fs-4 fw-bold text-success">0</div>
                             <div class="small text-muted">Itens existentes</div>
@@ -50,7 +154,8 @@
                 <div class="alert alert-warning small py-2">
                     <i class="bi bi-exclamation-triangle"></i>
                     Esta escala já possui <strong>{{ escala.itens.count }} item(ns)</strong>.
-                    Ao confirmar, todos serão <strong>apagados</strong> e regerados.
+                    Ao confirmar, todos serão <strong>apagados</strong> e os Quadrinhos revertidos
+                    antes de regenerar.
                 </div>
                 {% endif %}
 
@@ -58,15 +163,19 @@
                     {% csrf_token %}
                     <div class="d-flex gap-2 mt-3">
                         <button type="submit" class="btn btn-warning text-dark fw-semibold">
-                            <i class="bi bi-arrows-vertical"></i> Gerar Agora (Vertical)
+                            <i class="bi bi-lightning-charge"></i>
+                            {% if tem_itens %}Regerar Escala{% else %}Gerar Escala{% endif %}
                         </button>
                         <a href="{% url 'escala_detalhar' escala.id %}" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Cancelar
                         </a>
                     </div>
                 </form>
+
             </div>
         </div>
+        {% endif %}
+
     </div>
 </div>
 {% endblock %}
