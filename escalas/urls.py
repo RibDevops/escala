@@ -106,6 +106,7 @@ urlpatterns = [
         views.quadrinho_editar,
         name='quadrinho_editar',
     ),
+    path('quadrinho/exportar/', views.quadrinho_exportar, name='quadrinho_exportar'),
 
     # Indisponibilidades
     path('indisponibilidades/', views.indisponibilidade_listar, name='indisponibilidade_listar'),

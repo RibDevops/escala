@@ -2161,3 +2161,201 @@ def usuario_excluir(request, usuario_id):
         messages.success(request, f'Usuário {usuario.username} desativado.')
         return redirect('usuario_listar')
     return render(request, 'cadastro/usuario_confirm_delete.html', {'usuario': usuario})
+
+
+# ---------------------------------------------------------------------------
+# Exportação Excel de Quadrinho
+# ---------------------------------------------------------------------------
+
+@login_required
+def quadrinho_exportar(request):
+    """Exporta o quadrinho em formato Excel com matriz de serviços."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from calendar import monthrange
+
+    om = obter_om_ativa(request)
+    if not om:
+        messages.error(request, 'Nenhuma OM ativa.')
+        return redirect('quadrinho_visao')
+
+    # Parâmetros
+    try:
+        ano = int(request.GET.get('ano') or _date.today().year)
+    except ValueError:
+        ano = _date.today().year
+
+    tipo_escala_id = request.GET.get('tipo_escala')
+    tipo_escala = get_object_or_404(TipoEscala, pk=tipo_escala_id) if tipo_escala_id else TipoEscala.objects.first()
+
+    if not tipo_escala:
+        messages.error(request, 'Nenhum tipo de escala disponível.')
+        return redirect('quadrinho_visao')
+
+    # Obter militares
+    militares = list(
+        Militar.objects.filter(organizacao_militar=om, ativo=True)
+        .select_related('posto')
+        .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+    )
+
+    if not militares:
+        messages.error(request, 'Nenhum militar ativo nesta OM.')
+        return redirect('quadrinho_visao')
+
+    # Obter tipos de serviço
+    tipos_servico = list(om.tipos_servico.filter(ativo=True).order_by('ordem'))
+
+    # Criar workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Quadrinho {ano}"
+
+    # Estilos
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="003A78", end_color="003A78", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    center_align = Alignment(horizontal='center', vertical='center')
+
+    # Cabeçalho
+    ws.merge_cells('A1:A2')
+    ws['A1'] = "Militar"
+    ws['A1'].font = header_font
+    ws['A1'].fill = header_fill
+    ws['A1'].alignment = center_align
+    ws['A1'].border = thin_border
+
+    ws.merge_cells('B1:B2')
+    ws['B1'] = "Posto"
+    ws['B1'].font = header_font
+    ws['B1'].fill = header_fill
+    ws['B1'].alignment = center_align
+    ws['B1'].border = thin_border
+
+    # Meses como colunas (cada mês com seus dias)
+    col_idx = 3  # Começa na coluna C
+    meses = [
+        (1, 'Janeiro'), (2, 'Fevereiro'), (3, 'Março'), (4, 'Abril'),
+        (5, 'Maio'), (6, 'Junho'), (7, 'Julho'), (8, 'Agosto'),
+        (9, 'Setembro'), (10, 'Outubro'), (11, 'Novembro'), (12, 'Dezembro')
+    ]
+
+    mapa_servicos = {}
+    if tipo_escala:
+        servicos = EscalaItem.objects.filter(
+            militar__in=militares,
+            escala__tipo_escala=tipo_escala,
+            calendario_dia__data__year=ano,
+        ).values('militar_id', 'calendario_dia__data', 'calendario_dia__tipo_servico__cor_hex')
+
+        def converter_cor_para_excel(cor_hex):
+            """Converte cor #RRGGBB para formato aRGB do openpyxl"""
+            if not cor_hex:
+                return None
+            cor_hex = cor_hex.lstrip('#')
+            if len(cor_hex) == 6:
+                return f"FF{cor_hex.upper()}"  # FF prefix = opacity 100%
+            return None
+
+        for s in servicos:
+            chave = (s['militar_id'], s['calendario_dia__data'])
+            cor_original = s['calendario_dia__tipo_servico__cor_hex']
+            mapa_servicos[chave] = converter_cor_para_excel(cor_original)
+
+    # Para cada mês, criar colunas de dias
+    for mes_num, mes_nome in meses:
+        ultimo_dia = monthrange(ano, mes_num)[1]
+
+        # Cabeçalho do mês
+        col_start = col_idx
+        col_end = col_idx + ultimo_dia - 1
+        if col_start == col_end:
+            cell_ref = f"{get_column_letter(col_start)}1"
+        else:
+            cell_ref = f"{get_column_letter(col_start)}1:{get_column_letter(col_end)}1"
+        ws.merge_cells(cell_ref)
+        ws[f"{get_column_letter(col_start)}1"] = mes_nome
+        ws[f"{get_column_letter(col_start)}1"].font = header_font
+        ws[f"{get_column_letter(col_start)}1"].fill = header_fill
+        ws[f"{get_column_letter(col_start)}1"].alignment = center_align
+
+        # Dias do mês na linha 2
+        for dia in range(1, ultimo_dia + 1):
+            col_letter = get_column_letter(col_idx)
+            ws[f"{col_letter}2"] = dia
+            ws[f"{col_letter}2"].font = Font(size=8)
+            ws[f"{col_letter}2"].alignment = center_align
+            ws[f"{col_letter}2"].border = thin_border
+            col_idx += 1
+
+    # Coluna Total
+    total_col = col_idx
+    ws.merge_cells(f"{get_column_letter(total_col)}1:{get_column_letter(total_col)}2")
+    ws[f"{get_column_letter(total_col)}1"] = "Total"
+    ws[f"{get_column_letter(total_col)}1"].font = header_font
+    ws[f"{get_column_letter(total_col)}1"].fill = header_fill
+    ws[f"{get_column_letter(total_col)}1"].alignment = center_align
+
+    # Linha de dados
+    for row_idx, militar in enumerate(militares, start=3):
+        # Militar
+        col_letter = 'A'
+        ws[f"{col_letter}{row_idx}"] = militar.nome_guerra
+        ws[f"{col_letter}{row_idx}"].border = thin_border
+
+        # Posto
+        col_letter = 'B'
+        ws[f"{col_letter}{row_idx}"] = militar.posto.sigla
+        ws[f"{col_letter}{row_idx}"].alignment = center_align
+        ws[f"{col_letter}{row_idx}"].border = thin_border
+
+        # Dias
+        total_servicos = 0
+        col_idx = 3
+        for mes_num, _ in meses:
+            ultimo_dia = monthrange(ano, mes_num)[1]
+            for dia in range(1, ultimo_dia + 1):
+                data = _date(ano, mes_num, dia)
+                cor = mapa_servicos.get((militar.id, data))
+
+                col_letter = get_column_letter(col_idx)
+                if cor:
+                    ws[f"{col_letter}{row_idx}"].fill = PatternFill(start_color=cor, end_color=cor, fill_type="solid")
+                    ws[f"{col_letter}{row_idx}"].alignment = center_align
+                    total_servicos += 1
+                else:
+                    ws[f"{col_letter}{row_idx}"].value = "·"
+                    ws[f"{col_letter}{row_idx}"].alignment = Alignment(horizontal='center')
+                    ws[f"{col_letter}{row_idx}"].font = Font(color="CCCCCC")
+
+                ws[f"{col_letter}{row_idx}"].border = thin_border
+                col_idx += 1
+
+        # Total
+        col_letter = get_column_letter(total_col)
+        ws[f"{col_letter}{row_idx}"] = total_servicos
+        ws[f"{col_letter}{row_idx}"].alignment = center_align
+        ws[f"{col_letter}{row_idx}"].font = Font(bold=True)
+        ws[f"{col_letter}{row_idx}"].border = thin_border
+
+    # Ajustar larguras
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 8
+    for col in range(3, total_col + 1):
+        ws.column_dimensions[get_column_letter(col)].width = 3
+
+    # Resposta HTTP
+    from django.http import HttpResponse
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=quadinho_{ano}_{tipo_escala.slug}.xlsx'
+
+    wb.save(response)
+    return response

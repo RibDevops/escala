@@ -21,6 +21,9 @@
         <a href="{% url 'escala_detalhar' escala_atual.id %}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-calendar2-week"></i> Ver Escala
         </a>
+        <a href="{% url 'quadrinho_exportar' %}?ano={{ ano }}&tipo_escala={{ tipo_escala_atual.id }}" class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+        </a>
         {% endif %}
         <form method="get" class="d-flex gap-2 align-items-center">
             {% if tipo_escala_atual.id %}<input type="hidden" name="tipo_escala" value="{{ tipo_escala_atual.id }}">{% endif %}
