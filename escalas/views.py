@@ -2439,8 +2439,8 @@ def troca_listar(request):
             'om': om,
         })
 
-    # Se é Chefe ou Adjunto, mostra trocas aprovadas (precisam de homologação)
-    elif usuario.pode_publicar_escala():
+    # Se é Chefe, Adjunto ou Admin da OM, mostra trocas aprovadas (precisam de homologação)
+    elif usuario.pode_publicar_escala() or usuario.perfil == PerfilUsuario.ADMIN_OM:
         # Só mostra as que precisam de homologação (escala publicada)
         trocas = TrocaServico.objects.filter(
             organizacao_militar=om,
