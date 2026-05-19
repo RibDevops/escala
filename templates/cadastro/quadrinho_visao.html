@@ -298,22 +298,85 @@
                             </td>
                             {% for n in secao.colunas %}
                             {% with entrada=linha.entradas|index:forloop.counter0 %}
-                            <td class="text-center p-1">
+                            <td class="text-center p-1 qm-cell">
                                 {% if entrada %}
                                     {% if entrada.tipo == 'data' %}
-                                    <span class="badge rounded-pill"
-                                          style="background-color:{{ secao.tipo_servico.cor_hex }};color:#fff;font-size:0.72rem;white-space:nowrap;">
-                                        {{ entrada.data|date:"d/m" }}
-                                    </span>
+                                    <div class="qm-cell-inner">
+                                        <span class="badge rounded-pill qm-badge"
+                                              style="background-color:{{ secao.tipo_servico.cor_hex }};color:#fff;font-size:0.72rem;white-space:nowrap;"
+                                              title="{{ entrada.observacao|default:'Serviço da escala' }}">
+                                            {{ entrada.data|date:"d/m" }}
+                                        </span>
+                                        {% if not militar_proprio %}
+                                        <div class="qm-actions">
+                                            <button type="button"
+                                                    class="btn btn-link qm-btn text-light btn-edit-item"
+                                                    title="Editar observação"
+                                                    data-item-id="{{ entrada.id }}"
+                                                    data-obs="{{ entrada.observacao }}"
+                                                    data-label="{{ entrada.data|date:'d/m' }}"
+                                                    data-militar-nome="{{ linha.militar.posto.sigla }} {{ linha.militar.nome_guerra }}"
+                                                    data-tipo-servico-nome="{{ secao.tipo_servico.nome }}">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-link qm-btn text-warning btn-delete-item"
+                                                    title="Remover serviço da escala"
+                                                    data-item-id="{{ entrada.id }}"
+                                                    data-label="{{ entrada.data|date:'d/m' }}"
+                                                    data-militar-nome="{{ linha.militar.posto.sigla }} {{ linha.militar.nome_guerra }}"
+                                                    data-tipo-servico-nome="{{ secao.tipo_servico.nome }}">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                        {% endif %}
+                                    </div>
                                     {% else %}
-                                    <span class="badge rounded-pill"
-                                          style="background:{% if entrada.cat == 'lastro' %}#1a5fa8{% elif entrada.cat == 'atestado' %}#8a4000{% elif entrada.cat == 'ferias' %}#2e7d32{% elif entrada.cat == 'dispensa' %}#555{% elif entrada.cat == 'particular' %}#6a1b9a{% elif entrada.cat == 'chefe' %}#b71c1c{% else %}#444{% endif %};color:#fff;font-size:0.68rem;white-space:nowrap;"
-                                          title="{{ entrada.label }}">
-                                        {{ entrada.label|truncatechars:10 }}
-                                    </span>
+                                    <div class="qm-cell-inner">
+                                        <span class="badge rounded-pill qm-badge"
+                                              style="background:{% if entrada.cat == 'lastro' %}#1a5fa8{% elif entrada.cat == 'atestado' %}#8a4000{% elif entrada.cat == 'ferias' %}#2e7d32{% elif entrada.cat == 'dispensa' %}#555{% elif entrada.cat == 'particular' %}#6a1b9a{% elif entrada.cat == 'chefe' %}#b71c1c{% else %}#444{% endif %};color:#fff;font-size:0.68rem;white-space:nowrap;"
+                                              title="{{ entrada.label }}{% if entrada.observacao %} — {{ entrada.observacao }}{% endif %}">
+                                            {{ entrada.label|truncatechars:10 }}
+                                        </span>
+                                        {% if not militar_proprio %}
+                                        <div class="qm-actions">
+                                            <button type="button"
+                                                    class="btn btn-link qm-btn text-light btn-edit-lancamento"
+                                                    title="Editar lançamento"
+                                                    data-id="{{ entrada.id }}"
+                                                    data-url="{% url 'lancamento_ajax_editar_por_id' entrada.id %}">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-link qm-btn text-warning btn-delete-lancamento"
+                                                    title="Excluir lançamento"
+                                                    data-id="{{ entrada.id }}"
+                                                    data-label="{{ entrada.label }}"
+                                                    data-militar-nome="{{ linha.militar.posto.sigla }} {{ linha.militar.nome_guerra }}"
+                                                    data-tipo-servico-nome="{{ secao.tipo_servico.nome }}"
+                                                    data-url="{% url 'lancamento_ajax_excluir_por_id' entrada.id %}">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                        {% endif %}
+                                    </div>
                                     {% endif %}
                                 {% else %}
-                                <span class="text-muted" style="opacity:0.25;">·</span>
+                                {% if not militar_proprio %}
+                                <button type="button"
+                                        class="btn btn-link qm-btn-add btn-add-lancamento-matrix"
+                                        title="Adicionar lançamento manual"
+                                        data-militar="{{ linha.militar.id }}"
+                                        data-tipo-escala="{{ tipo_escala_atual.id }}"
+                                        data-tipo-servico="{{ secao.tipo_servico.id }}"
+                                        data-ano="{{ matriz_ano }}"
+                                        data-militar-nome="{{ linha.militar.posto.sigla }} {{ linha.militar.nome_guerra }}"
+                                        data-tipo-servico-nome="{{ secao.tipo_servico.nome }}">
+                                    <i class="bi bi-plus-circle"></i>
+                                </button>
+                                {% else %}
+                                <span class="text-muted" style="opacity:0.2;">·</span>
+                                {% endif %}
                                 {% endif %}
                             </td>
                             {% endwith %}
@@ -454,6 +517,117 @@
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-success" id="btn-salvar-lancamento">
                     <i class="bi bi-plus-circle"></i> Adicionar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- MODAL: EDITAR LANÇAMENTO MANUAL (por ID)                          -->
+<!-- ================================================================== -->
+<div class="modal fade" id="modalEditarLancamento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--m-escuro);color:#fff;border-bottom:3px solid var(--m-amarelo);">
+                <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar Lançamento</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3" id="modal-edit-lm-info"></p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Categoria</label>
+                    <select id="modal-edit-lm-tipo" class="form-select">
+                        <option value="lastro">Lastro</option>
+                        <option value="atestado">Atestado</option>
+                        <option value="ferias">Férias</option>
+                        <option value="dispensa">Dispensa</option>
+                        <option value="particular">Particular</option>
+                        <option value="chefe">Serviço de Chefe</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Descrição <span class="text-danger">*</span></label>
+                    <input type="text" id="modal-edit-lm-label" class="form-control" maxlength="100">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Quantidade de serviços</label>
+                    <input type="number" id="modal-edit-lm-quantidade" class="form-control" min="1" max="50">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Observação (interna)</label>
+                    <textarea id="modal-edit-lm-obs" class="form-control" rows="2"></textarea>
+                </div>
+                <div id="modal-edit-lm-erro" class="alert alert-danger d-none py-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-mil" id="btn-salvar-edit-lm">
+                    <i class="bi bi-check-lg"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- MODAL: EDITAR ESCALA ITEM (observação)                             -->
+<!-- ================================================================== -->
+<div class="modal fade" id="modalEditarItem" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--m-escuro);color:#fff;border-bottom:3px solid var(--m-amarelo);">
+                <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar Serviço da Escala</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-1" id="modal-edit-item-info"></p>
+                <div class="alert alert-info py-2 small mb-3">
+                    <i class="bi bi-info-circle"></i>
+                    A data é definida pela escala e não pode ser alterada aqui. Você pode editar apenas a observação.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Observação</label>
+                    <textarea id="modal-edit-item-obs" class="form-control" rows="3"
+                              placeholder="Ex: Substitui fulano, Serviço a pedido…"></textarea>
+                </div>
+                <div id="modal-edit-item-erro" class="alert alert-danger d-none py-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-mil" id="btn-salvar-edit-item">
+                    <i class="bi bi-check-lg"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- MODAL: CONFIRMAR EXCLUSÃO (compartilhado para lançamento e item)   -->
+<!-- ================================================================== -->
+<div class="modal fade" id="modalConfirmarExcluirMatriz" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-danger" style="background:#fff1f1;">
+                <h5 class="modal-title text-danger" id="modal-excluir-m-titulo">
+                    <i class="bi bi-trash me-2"></i>Confirmar Exclusão
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="modal-excluir-m-texto"></p>
+                <div id="modal-excluir-m-aviso" class="alert alert-warning py-2 small d-none">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Remover um serviço da escala ajusta automaticamente o contador do quadrinho.
+                </div>
+                <div id="modal-excluir-m-erro" class="alert alert-danger d-none py-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btn-confirmar-excluir-m">
+                    <i class="bi bi-trash"></i> Confirmar
                 </button>
             </div>
         </div>
@@ -705,10 +879,189 @@
         }
     });
 
+    // ── MODAL ADD LANÇAMENTO da Matriz (células vazias) ──────────────────────
+
+    document.querySelectorAll('.btn-add-lancamento-matrix').forEach(btn => {
+        btn.addEventListener('click', function () {
+            _lancamentoData = {
+                militar_id: this.dataset.militar,
+                tipo_escala_id: this.dataset.tipoEscala,
+                tipo_servico_id: this.dataset.tipoServico,
+                ano: this.dataset.ano,
+            };
+            _activeCellId = '';
+            document.getElementById('modal-lancamento-info').textContent =
+                `${this.dataset.militarNome} — ${this.dataset.tipoServicoNome}`;
+            document.getElementById('modal-lancamento-tipo').value = 'lastro';
+            document.getElementById('modal-lancamento-label').value = '';
+            document.getElementById('modal-lancamento-quantidade').value = '1';
+            document.getElementById('modal-lancamento-obs').value = '';
+            document.getElementById('modal-lancamento-erro').classList.add('d-none');
+            bsLancamento.show();
+        });
+    });
+
+    // ── MODAL EDITAR LANÇAMENTO (por ID) ─────────────────────────────────────
+
+    const bsEditarLm = new bootstrap.Modal(document.getElementById('modalEditarLancamento'));
+    let _editLmUrl = '';
+
+    document.querySelectorAll('.btn-edit-lancamento').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            _editLmUrl = this.dataset.url;
+            document.getElementById('modal-edit-lm-info').textContent = 'Carregando…';
+            document.getElementById('modal-edit-lm-erro').classList.add('d-none');
+            bsEditarLm.show();
+            try {
+                const d = await getAjax(_editLmUrl);
+                document.getElementById('modal-edit-lm-info').textContent =
+                    `${d.militar_nome} — ${d.tipo_servico_nome}`;
+                document.getElementById('modal-edit-lm-tipo').value = d.tipo;
+                document.getElementById('modal-edit-lm-label').value = d.label;
+                document.getElementById('modal-edit-lm-quantidade').value = d.quantidade;
+                document.getElementById('modal-edit-lm-obs').value = d.observacao;
+            } catch (e) {
+                document.getElementById('modal-edit-lm-info').textContent = 'Erro ao carregar.';
+            }
+        });
+    });
+
+    document.getElementById('btn-salvar-edit-lm').addEventListener('click', async function () {
+        const erroEl = document.getElementById('modal-edit-lm-erro');
+        erroEl.classList.add('d-none');
+        this.disabled = true;
+        try {
+            const d = await postAjax(_editLmUrl, {
+                tipo: document.getElementById('modal-edit-lm-tipo').value,
+                label: document.getElementById('modal-edit-lm-label').value,
+                quantidade: document.getElementById('modal-edit-lm-quantidade').value,
+                observacao: document.getElementById('modal-edit-lm-obs').value,
+            });
+            if (!d.ok) {
+                erroEl.textContent = d.erro || 'Erro desconhecido.';
+                erroEl.classList.remove('d-none');
+            } else {
+                bsEditarLm.hide();
+                location.reload();
+            }
+        } catch (e) {
+            erroEl.textContent = 'Falha na comunicação com o servidor.';
+            erroEl.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
+
+    // ── MODAL EDITAR ESCALA ITEM ──────────────────────────────────────────────
+
+    const bsEditarItem = new bootstrap.Modal(document.getElementById('modalEditarItem'));
+    let _editItemUrl = '';
+
+    document.querySelectorAll('.btn-edit-item').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const itemId = this.dataset.itemId;
+            _editItemUrl = `/quadrinho/ajax-item/${itemId}/editar/`;
+            document.getElementById('modal-edit-item-info').textContent =
+                `${this.dataset.militarNome} — ${this.dataset.tipoServicoNome} — ${this.dataset.label}`;
+            document.getElementById('modal-edit-item-obs').value = this.dataset.obs || '';
+            document.getElementById('modal-edit-item-erro').classList.add('d-none');
+            bsEditarItem.show();
+        });
+    });
+
+    document.getElementById('btn-salvar-edit-item').addEventListener('click', async function () {
+        const erroEl = document.getElementById('modal-edit-item-erro');
+        erroEl.classList.add('d-none');
+        this.disabled = true;
+        try {
+            const d = await postAjax(_editItemUrl, {
+                observacao: document.getElementById('modal-edit-item-obs').value,
+            });
+            if (!d.ok) {
+                erroEl.textContent = d.erro || 'Erro desconhecido.';
+                erroEl.classList.remove('d-none');
+            } else {
+                bsEditarItem.hide();
+                location.reload();
+            }
+        } catch (e) {
+            erroEl.textContent = 'Falha na comunicação com o servidor.';
+            erroEl.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
+
+    // ── MODAL CONFIRMAR EXCLUSÃO (compartilhado) ──────────────────────────────
+
+    const bsExcluirM = new bootstrap.Modal(document.getElementById('modalConfirmarExcluirMatriz'));
+    let _excluirMUrl = '';
+
+    function abrirExcluirMatriz({ titulo, texto, aviso, url }) {
+        document.getElementById('modal-excluir-m-titulo').innerHTML =
+            `<i class="bi bi-trash me-2"></i>${titulo}`;
+        document.getElementById('modal-excluir-m-texto').innerHTML = texto;
+        const avisoEl = document.getElementById('modal-excluir-m-aviso');
+        if (aviso) { avisoEl.classList.remove('d-none'); }
+        else { avisoEl.classList.add('d-none'); }
+        document.getElementById('modal-excluir-m-erro').classList.add('d-none');
+        _excluirMUrl = url;
+        bsExcluirM.show();
+    }
+
+    document.querySelectorAll('.btn-delete-lancamento').forEach(btn => {
+        btn.addEventListener('click', function () {
+            abrirExcluirMatriz({
+                titulo: 'Excluir Lançamento',
+                texto: `Excluir o lançamento <strong>${this.dataset.label}</strong> de
+                        <strong>${this.dataset.militarNome}</strong>
+                        (${this.dataset.tipoServicoNome})?`,
+                aviso: false,
+                url: this.dataset.url,
+            });
+        });
+    });
+
+    document.querySelectorAll('.btn-delete-item').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const itemId = this.dataset.itemId;
+            abrirExcluirMatriz({
+                titulo: 'Remover Serviço da Escala',
+                texto: `Remover o serviço de <strong>${this.dataset.label}</strong> de
+                        <strong>${this.dataset.militarNome}</strong>
+                        (${this.dataset.tipoServicoNome}) da escala?`,
+                aviso: true,
+                url: `/quadrinho/ajax-item/${itemId}/excluir/`,
+            });
+        });
+    });
+
+    document.getElementById('btn-confirmar-excluir-m').addEventListener('click', async function () {
+        const erroEl = document.getElementById('modal-excluir-m-erro');
+        erroEl.classList.add('d-none');
+        this.disabled = true;
+        try {
+            const d = await postAjax(_excluirMUrl, {});
+            if (!d.ok) {
+                erroEl.textContent = d.erro || 'Erro desconhecido.';
+                erroEl.classList.remove('d-none');
+            } else {
+                bsExcluirM.hide();
+                location.reload();
+            }
+        } catch (e) {
+            erroEl.textContent = 'Falha na comunicação com o servidor.';
+            erroEl.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
+
 })();
 </script>
 
 <style>
+/* ── Totais: células do quadrinho ───────────────── */
 .quadrinho-cell {
     white-space: nowrap;
 }
@@ -725,6 +1078,52 @@
 }
 .quadrinho-cell .btn-link:hover {
     opacity: 1;
+}
+
+/* ── Quadrinhos: células da matriz ──────────────── */
+.qm-cell {
+    vertical-align: middle;
+    min-width: 72px;
+}
+.qm-cell-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.qm-badge {
+    display: inline-block;
+}
+.qm-actions {
+    display: flex;
+    gap: 1px;
+    justify-content: center;
+}
+.qm-btn {
+    font-size: 0.7rem;
+    padding: 0 2px !important;
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.12s;
+    text-decoration: none;
+}
+.qm-btn:hover {
+    opacity: 1;
+}
+.qm-btn-add {
+    font-size: 0.8rem;
+    padding: 0 !important;
+    line-height: 1;
+    opacity: 0.25;
+    transition: opacity 0.15s;
+    text-decoration: none;
+    color: #198754;
+}
+.qm-cell:hover .qm-btn-add {
+    opacity: 0.8;
+}
+.qm-btn-add:hover {
+    opacity: 1 !important;
 }
 </style>
 {% endblock %}

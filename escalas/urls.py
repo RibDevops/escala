@@ -120,6 +120,10 @@ urlpatterns = [
         name='quadrinho_ajax_excluir',
     ),
     path('quadrinho/ajax-lancamento/', views.lancamento_ajax_criar, name='lancamento_ajax_criar'),
+    path('quadrinho/ajax-lancamento/<int:lancamento_id>/editar/', views.lancamento_ajax_editar_por_id, name='lancamento_ajax_editar_por_id'),
+    path('quadrinho/ajax-lancamento/<int:lancamento_id>/excluir/', views.lancamento_ajax_excluir_por_id, name='lancamento_ajax_excluir_por_id'),
+    path('quadrinho/ajax-item/<int:item_id>/editar/', views.escala_item_ajax_editar, name='escala_item_ajax_editar'),
+    path('quadrinho/ajax-item/<int:item_id>/excluir/', views.escala_item_ajax_excluir, name='escala_item_ajax_excluir'),
 
     # Indisponibilidades
     path('indisponibilidades/', views.indisponibilidade_listar, name='indisponibilidade_listar'),

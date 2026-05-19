@@ -935,7 +935,9 @@ def quadrinho_visao(request):
         todos_itens = (
             EscalaItem.objects.filter(**filtro_itens)
             .values(
+                'id',
                 'militar_id',
+                'observacao',
                 'calendario_dia__data',
                 'calendario_dia__tipo_servico_id',
                 'calendario_dia__tipo_servico__nome',
@@ -944,7 +946,7 @@ def quadrinho_visao(request):
             .order_by('calendario_dia__data')
         )
 
-        # Agrupar por tipo de serviço → {ts_id: {mil_id: [datas]}}
+        # Agrupar por tipo de serviço → {ts_id: {mil_id: [(data, item_id, obs)]}}
         por_ts = {}
         for item in todos_itens:
             ts_id = item['calendario_dia__tipo_servico_id']
@@ -956,7 +958,7 @@ def quadrinho_visao(request):
                     'por_militar': {},
                 }
             por_ts[ts_id]['por_militar'].setdefault(mil_id, []).append(
-                item['calendario_dia__data']
+                (item['calendario_dia__data'], item['id'], item['observacao'] or '')
             )
 
         for ts in tipos_servico:
@@ -976,11 +978,16 @@ def quadrinho_visao(request):
                             'tipo': 'manual',
                             'label': lm.label,
                             'cat': lm.tipo,
+                            'id': lm.id,
+                            'observacao': lm.observacao or '',
                         })
 
                 # Serviços reais do sistema em ordem cronológica
-                datas_reais = sorted(bloco['por_militar'].get(m.id, [])) if bloco else []
-                entradas_reais = [{'tipo': 'data', 'data': d} for d in datas_reais]
+                raw_reais = sorted(bloco['por_militar'].get(m.id, []), key=lambda x: x[0]) if bloco else []
+                entradas_reais = [
+                    {'tipo': 'data', 'data': d, 'id': eid, 'observacao': obs}
+                    for d, eid, obs in raw_reais
+                ]
 
                 # Lançamentos manuais vêm primeiro (são ajustes históricos)
                 entradas = entradas_manuais + entradas_reais
@@ -1320,6 +1327,102 @@ def lancamento_ajax_criar(request):
         'valor_manual': valor_manual,
         'total': valor_sistema + valor_manual,
     })
+
+
+# ---------------------------------------------------------------------------
+# Quadrinho Matriz — AJAX para editar/excluir lançamento e EscalaItem
+# ---------------------------------------------------------------------------
+
+@login_required
+def lancamento_ajax_editar_por_id(request, lancamento_id):
+    lm = get_object_or_404(
+        LancamentoManualQuadrinho.objects.select_related('militar__posto', 'tipo_servico'),
+        pk=lancamento_id,
+    )
+    if request.method == 'GET':
+        return JsonResponse({
+            'ok': True,
+            'tipo': lm.tipo,
+            'label': lm.label,
+            'quantidade': lm.quantidade,
+            'observacao': lm.observacao or '',
+            'militar_nome': f'{lm.militar.posto.sigla} {lm.militar.nome_guerra}',
+            'tipo_servico_nome': lm.tipo_servico.nome,
+        })
+    # POST
+    try:
+        tipo = request.POST.get('tipo', lm.tipo)
+        label = request.POST.get('label', '').strip()
+        quantidade = max(1, int(request.POST.get('quantidade', 1)))
+        observacao = request.POST.get('observacao', '')
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'erro': 'Dados inválidos.'}, status=400)
+    if not label:
+        return JsonResponse({'ok': False, 'erro': 'A descrição é obrigatória.'}, status=400)
+    lm.tipo = tipo
+    lm.label = label
+    lm.quantidade = quantidade
+    lm.observacao = observacao
+    lm.save()
+    return JsonResponse({'ok': True, 'reload': True})
+
+
+@login_required
+@require_POST
+def lancamento_ajax_excluir_por_id(request, lancamento_id):
+    lm = get_object_or_404(LancamentoManualQuadrinho, pk=lancamento_id)
+    lm.delete()
+    return JsonResponse({'ok': True, 'reload': True})
+
+
+@login_required
+def escala_item_ajax_editar(request, item_id):
+    item = get_object_or_404(
+        EscalaItem.objects.select_related(
+            'militar__posto', 'calendario_dia__tipo_servico'
+        ),
+        pk=item_id,
+    )
+    if request.method == 'GET':
+        return JsonResponse({
+            'ok': True,
+            'data': item.calendario_dia.data.strftime('%d/%m/%Y'),
+            'observacao': item.observacao or '',
+            'militar_nome': f'{item.militar.posto.sigla} {item.militar.nome_guerra}',
+            'tipo_servico_nome': item.calendario_dia.tipo_servico.nome,
+        })
+    # POST
+    item.observacao = request.POST.get('observacao', '').strip()
+    item.save()
+    return JsonResponse({'ok': True, 'reload': True})
+
+
+@login_required
+@require_POST
+def escala_item_ajax_excluir(request, item_id):
+    item = get_object_or_404(
+        EscalaItem.objects.select_related(
+            'militar', 'escala__tipo_escala', 'calendario_dia__tipo_servico'
+        ),
+        pk=item_id,
+    )
+    militar = item.militar
+    tipo_escala = item.escala.tipo_escala
+    tipo_servico = item.calendario_dia.tipo_servico
+    ano = item.calendario_dia.data.year
+    item.delete()
+    # Recalcula quantidade no quadrinho após remoção
+    new_count = EscalaItem.objects.filter(
+        militar=militar,
+        escala__tipo_escala=tipo_escala,
+        calendario_dia__tipo_servico=tipo_servico,
+        calendario_dia__data__year=ano,
+    ).count()
+    Quadrinho.objects.filter(
+        militar=militar, tipo_escala=tipo_escala,
+        tipo_servico=tipo_servico, ano=ano,
+    ).update(quantidade=new_count)
+    return JsonResponse({'ok': True, 'reload': True})
 
 
 @login_required
