@@ -1189,6 +1189,139 @@ def quadrinho_editar(request, militar_id, tipo_escala_id, tipo_servico_id, ano):
     )
 
 
+# ---------------------------------------------------------------------------
+# Quadrinho — views AJAX para modais (editar, excluir, add lançamento)
+# ---------------------------------------------------------------------------
+
+@login_required
+def quadrinho_ajax_editar(request, militar_id, tipo_escala_id, tipo_servico_id, ano):
+    militar = get_object_or_404(Militar.objects.select_related('posto'), pk=militar_id)
+    tipo_escala = get_object_or_404(TipoEscala, pk=tipo_escala_id)
+    tipo_servico = get_object_or_404(TipoServico, pk=tipo_servico_id)
+
+    quadrinho, _ = Quadrinho.objects.get_or_create(
+        militar=militar,
+        tipo_escala=tipo_escala,
+        tipo_servico=tipo_servico,
+        ano=ano,
+        defaults={'quantidade': 0, 'ajuste_inicial': 0},
+    )
+
+    def _valor_manual():
+        return sum(
+            lm.quantidade
+            for lm in LancamentoManualQuadrinho.objects.filter(
+                militar=militar, tipo_escala=tipo_escala,
+                tipo_servico=tipo_servico, ano=ano,
+            )
+        )
+
+    if request.method == 'POST':
+        try:
+            ajuste = max(0, int(request.POST.get('ajuste_inicial', 0)))
+            quantidade = max(0, int(request.POST.get('quantidade', 0)))
+        except (ValueError, TypeError):
+            return JsonResponse({'ok': False, 'erro': 'Valores inválidos.'}, status=400)
+        quadrinho.ajuste_inicial = ajuste
+        quadrinho.quantidade = quantidade
+        quadrinho.save()
+        vm = _valor_manual()
+        return JsonResponse({
+            'ok': True,
+            'ajuste_inicial': quadrinho.ajuste_inicial,
+            'quantidade': quadrinho.quantidade,
+            'valor_sistema': quadrinho.total,
+            'valor_manual': vm,
+            'total': quadrinho.total + vm,
+        })
+
+    vm = _valor_manual()
+    return JsonResponse({
+        'ok': True,
+        'militar_nome': f'{militar.posto.sigla} {militar.nome_guerra}',
+        'tipo_servico_nome': tipo_servico.nome,
+        'ajuste_inicial': quadrinho.ajuste_inicial,
+        'quantidade': quadrinho.quantidade,
+        'valor_sistema': quadrinho.total,
+        'valor_manual': vm,
+        'total': quadrinho.total + vm,
+    })
+
+
+@login_required
+@require_POST
+def quadrinho_ajax_excluir(request, militar_id, tipo_escala_id, tipo_servico_id, ano):
+    militar = get_object_or_404(Militar, pk=militar_id)
+    tipo_escala = get_object_or_404(TipoEscala, pk=tipo_escala_id)
+    tipo_servico = get_object_or_404(TipoServico, pk=tipo_servico_id)
+    Quadrinho.objects.filter(
+        militar=militar, tipo_escala=tipo_escala,
+        tipo_servico=tipo_servico, ano=ano,
+    ).update(ajuste_inicial=0, quantidade=0)
+    vm = sum(
+        lm.quantidade
+        for lm in LancamentoManualQuadrinho.objects.filter(
+            militar=militar, tipo_escala=tipo_escala,
+            tipo_servico=tipo_servico, ano=ano,
+        )
+    )
+    return JsonResponse({'ok': True, 'total': vm, 'valor_sistema': 0, 'valor_manual': vm})
+
+
+@login_required
+@require_POST
+def lancamento_ajax_criar(request):
+    try:
+        militar_id = int(request.POST['militar_id'])
+        tipo_escala_id = int(request.POST['tipo_escala_id'])
+        tipo_servico_id = int(request.POST['tipo_servico_id'])
+        ano = int(request.POST['ano'])
+        tipo = request.POST.get('tipo', 'lastro')
+        label = request.POST.get('label', '').strip()
+        quantidade = max(1, int(request.POST.get('quantidade', 1)))
+        observacao = request.POST.get('observacao', '')
+    except (KeyError, ValueError, TypeError):
+        return JsonResponse({'ok': False, 'erro': 'Dados inválidos.'}, status=400)
+
+    if not label:
+        return JsonResponse({'ok': False, 'erro': 'A descrição é obrigatória.'}, status=400)
+
+    militar = get_object_or_404(Militar, pk=militar_id)
+    tipo_escala = get_object_or_404(TipoEscala, pk=tipo_escala_id)
+    tipo_servico = get_object_or_404(TipoServico, pk=tipo_servico_id)
+
+    LancamentoManualQuadrinho.objects.create(
+        militar=militar,
+        tipo_escala=tipo_escala,
+        tipo_servico=tipo_servico,
+        ano=ano,
+        tipo=tipo,
+        label=label,
+        quantidade=quantidade,
+        observacao=observacao,
+        criado_por=request.user,
+    )
+
+    qd = Quadrinho.objects.filter(
+        militar=militar, tipo_escala=tipo_escala,
+        tipo_servico=tipo_servico, ano=ano,
+    ).first()
+    valor_sistema = qd.total if qd else 0
+    valor_manual = sum(
+        lm.quantidade
+        for lm in LancamentoManualQuadrinho.objects.filter(
+            militar=militar, tipo_escala=tipo_escala,
+            tipo_servico=tipo_servico, ano=ano,
+        )
+    )
+    return JsonResponse({
+        'ok': True,
+        'valor_sistema': valor_sistema,
+        'valor_manual': valor_manual,
+        'total': valor_sistema + valor_manual,
+    })
+
+
 @login_required
 def militar_form(request, militar_id=None):
     om = obter_om_ativa(request)

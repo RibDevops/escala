@@ -107,6 +107,19 @@ urlpatterns = [
         name='quadrinho_editar',
     ),
     path('quadrinho/exportar/', views.quadrinho_exportar, name='quadrinho_exportar'),
+    path(
+        'quadrinho/<int:militar_id>/<int:tipo_escala_id>/'
+        '<int:tipo_servico_id>/<int:ano>/ajax-editar/',
+        views.quadrinho_ajax_editar,
+        name='quadrinho_ajax_editar',
+    ),
+    path(
+        'quadrinho/<int:militar_id>/<int:tipo_escala_id>/'
+        '<int:tipo_servico_id>/<int:ano>/ajax-excluir/',
+        views.quadrinho_ajax_excluir,
+        name='quadrinho_ajax_excluir',
+    ),
+    path('quadrinho/ajax-lancamento/', views.lancamento_ajax_criar, name='lancamento_ajax_criar'),
 
     # Indisponibilidades
     path('indisponibilidades/', views.indisponibilidade_listar, name='indisponibilidade_listar'),

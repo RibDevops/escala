@@ -106,7 +106,7 @@
                             <th style="width:60px;">Posto</th>
                             <th>Militar</th>
                             {% for ts in tipos_servico %}
-                                <th class="text-center" style="width:110px;">
+                                <th class="text-center" style="width:140px;">
                                     <span class="badge rounded-pill" style="background-color: {{ ts.cor_hex }}; color: #fff;">
                                         {{ ts.nome }}
                                     </span>
@@ -132,25 +132,64 @@
                                 {% endif %}
                             </td>
                             {% for c in linha.celulas %}
-                                <td class="text-center">
+                                <td class="text-center quadrinho-cell"
+                                    id="cell-{{ linha.militar.id }}-{{ c.tipo_servico.id }}"
+                                    data-militar="{{ linha.militar.id }}"
+                                    data-tipo-escala="{{ tipo_escala_atual.id }}"
+                                    data-tipo-servico="{{ c.tipo_servico.id }}"
+                                    data-ano="{{ ano }}"
+                                    data-valor="{{ c.valor }}">
                                     {% if militar_proprio %}
                                         <span class="fw-bold fs-5 {% if c.valor == 0 %}text-muted{% endif %}"
                                               title="Saldo inicial: {{ c.ajuste_inicial }} · Sistema: {{ c.quantidade }}">
                                             {{ c.valor }}
                                         </span>
                                     {% else %}
-                                    <a href="{% url 'quadrinho_editar' linha.militar.id tipo_escala_atual.id c.tipo_servico.id ano %}"
-                                       class="text-decoration-none"
-                                       title="Saldo inicial: {{ c.ajuste_inicial }} · Sistema: {{ c.quantidade }}">
-                                        <span class="fw-bold fs-5 {% if c.valor == 0 %}text-muted{% endif %}">
+                                    <div class="d-flex align-items-center justify-content-center gap-1">
+                                        <span class="cell-valor fw-bold fs-5 {% if c.valor == 0 %}text-muted{% endif %}"
+                                              title="Ajuste legado: {{ c.ajuste_inicial }} · Sistema: {{ c.quantidade }} · Manual: {{ c.valor_manual }}">
                                             {{ c.valor }}
                                         </span>
-                                        <i class="bi bi-pencil-square small text-muted ms-1"></i>
-                                    </a>
+                                        <div class="cell-actions">
+                                            <button type="button"
+                                                    class="btn btn-link btn-sm p-0 text-primary btn-editar-celula"
+                                                    title="Editar quadrinho"
+                                                    data-militar="{{ linha.militar.id }}"
+                                                    data-tipo-escala="{{ tipo_escala_atual.id }}"
+                                                    data-tipo-servico="{{ c.tipo_servico.id }}"
+                                                    data-ano="{{ ano }}"
+                                                    data-url-editar="{% url 'quadrinho_ajax_editar' linha.militar.id tipo_escala_atual.id c.tipo_servico.id ano %}">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-link btn-sm p-0 text-danger btn-excluir-celula"
+                                                    title="Zerar quadrinho (ajuste + sistema → 0)"
+                                                    data-militar="{{ linha.militar.id }}"
+                                                    data-tipo-escala="{{ tipo_escala_atual.id }}"
+                                                    data-tipo-servico="{{ c.tipo_servico.id }}"
+                                                    data-ano="{{ ano }}"
+                                                    data-militar-nome="{{ linha.militar.posto.sigla }} {{ linha.militar.nome_guerra }}"
+                                                    data-tipo-servico-nome="{{ c.tipo_servico.nome }}"
+                                                    data-url-excluir="{% url 'quadrinho_ajax_excluir' linha.militar.id tipo_escala_atual.id c.tipo_servico.id ano %}">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-link btn-sm p-0 text-success btn-add-lancamento"
+                                                    title="Adicionar lançamento manual"
+                                                    data-militar="{{ linha.militar.id }}"
+                                                    data-tipo-escala="{{ tipo_escala_atual.id }}"
+                                                    data-tipo-servico="{{ c.tipo_servico.id }}"
+                                                    data-ano="{{ ano }}"
+                                                    data-militar-nome="{{ linha.militar.posto.sigla }} {{ linha.militar.nome_guerra }}"
+                                                    data-tipo-servico-nome="{{ c.tipo_servico.nome }}">
+                                                <i class="bi bi-plus-circle"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                     {% endif %}
                                 </td>
                             {% endfor %}
-                            <td class="text-center">
+                            <td class="text-center" id="total-row-{{ linha.militar.id }}">
                                 <span class="badge bg-dark fs-6">{{ linha.total }}</span>
                             </td>
                         </tr>
@@ -165,9 +204,9 @@
                         <tr class="table-light fw-bold">
                             <td colspan="2" class="text-end">Total geral</td>
                             {% for tc in totais_coluna %}
-                                <td class="text-center">{{ tc.valor }}</td>
+                                <td class="text-center" id="total-col-{{ tc.tipo_servico.id }}">{{ tc.valor }}</td>
                             {% endfor %}
-                            <td class="text-center">
+                            <td class="text-center" id="total-geral">
                                 <span class="badge bg-dark fs-6">{{ total_geral }}</span>
                             </td>
                         </tr>
@@ -179,9 +218,10 @@
 
         <div class="alert alert-info mt-3 small">
             <i class="bi bi-info-circle"></i>
-            Cada número é o <strong>total</strong> do quadrinho (saldo inicial do legado +
-            serviços contados pelo sistema). Clique em qualquer número para ajustar
-            manualmente o saldo inicial e/ou a quantidade.
+            Clique em <i class="bi bi-pencil-square text-primary"></i> para editar ajuste/sistema,
+            <i class="bi bi-plus-circle text-success"></i> para adicionar lançamento manual,
+            <i class="bi bi-trash text-danger"></i> para zerar o quadrinho (ajuste + sistema).
+            Lançamentos manuais existentes não são removidos pelo ícone de lixeira.
         </div>
     </div>
 
@@ -197,7 +237,6 @@
             <label class="small text-muted mb-0">Período:</label>
             <select name="matriz_mes" class="form-select form-select-sm" style="width:auto;">
                 <option value="0" {% if not matriz_mes %}selected{% endif %}>Todos os meses</option>
-                {% for i in "123456789abc" %}{% endfor %}
                 <option value="1"  {% if matriz_mes == 1  %}selected{% endif %}>Janeiro</option>
                 <option value="2"  {% if matriz_mes == 2  %}selected{% endif %}>Fevereiro</option>
                 <option value="3"  {% if matriz_mes == 3  %}selected{% endif %}>Março</option>
@@ -305,4 +344,384 @@
 
 {% endif %}
 {% endif %}
+
+<!-- ================================================================== -->
+<!-- MODAL: EDITAR QUADRINHO                                            -->
+<!-- ================================================================== -->
+<div class="modal fade" id="modalEditarQuadrinho" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--m-escuro);color:#fff;border-bottom:3px solid var(--m-amarelo);">
+                <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar Quadrinho</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3" id="modal-editar-info"></p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Saldo inicial (legado)</label>
+                    <input type="number" id="modal-ajuste-inicial" class="form-control" min="0" value="0">
+                    <div class="form-text">Serviços do militar antes do sistema entrar no ar.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Quantidade pelo sistema</label>
+                    <input type="number" id="modal-quantidade" class="form-control" min="0" value="0">
+                    <div class="form-text">Total contado automaticamente. Pode ser corrigido manualmente.</div>
+                </div>
+                <div id="modal-editar-erro" class="alert alert-danger d-none py-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-mil" id="btn-salvar-quadrinho">
+                    <i class="bi bi-check-lg"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- MODAL: ZERAR / EXCLUIR QUADRINHO                                   -->
+<!-- ================================================================== -->
+<div class="modal fade" id="modalExcluirQuadrinho" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-danger" style="background:#fff1f1;">
+                <h5 class="modal-title text-danger"><i class="bi bi-trash me-2"></i>Zerar Quadrinho</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja zerar o quadrinho de <strong id="modal-excluir-nome"></strong> — tipo <strong id="modal-excluir-tipo"></strong>?</p>
+                <div class="alert alert-warning py-2 small">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Isso redefine o <strong>ajuste legado</strong> e a <strong>quantidade do sistema</strong> para zero.
+                    Lançamentos manuais existentes <em>não</em> são removidos.
+                </div>
+                <div id="modal-excluir-erro" class="alert alert-danger d-none py-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btn-confirmar-excluir">
+                    <i class="bi bi-trash"></i> Confirmar Zerar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- MODAL: ADICIONAR LANÇAMENTO MANUAL                                 -->
+<!-- ================================================================== -->
+<div class="modal fade" id="modalLancamento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--m-escuro);color:#fff;border-bottom:3px solid var(--m-amarelo);">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Adicionar Lançamento Manual</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3" id="modal-lancamento-info"></p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Categoria</label>
+                    <select id="modal-lancamento-tipo" class="form-select">
+                        <option value="lastro">Lastro</option>
+                        <option value="atestado">Atestado</option>
+                        <option value="ferias">Férias</option>
+                        <option value="dispensa">Dispensa</option>
+                        <option value="particular">Particular</option>
+                        <option value="chefe">Serviço de Chefe</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Descrição <span class="text-danger">*</span></label>
+                    <input type="text" id="modal-lancamento-label" class="form-control"
+                           placeholder="Ex: Lastro jan/25, Férias mar/25…" maxlength="100">
+                    <div class="form-text">Texto exibido na célula da matriz.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Quantidade de serviços</label>
+                    <input type="number" id="modal-lancamento-quantidade" class="form-control" min="1" max="50" value="1">
+                    <div class="form-text">Quantos serviços este lançamento representa.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Observação (interna)</label>
+                    <textarea id="modal-lancamento-obs" class="form-control" rows="2"
+                              placeholder="Opcional — não aparece na matriz"></textarea>
+                </div>
+                <div id="modal-lancamento-erro" class="alert alert-danger d-none py-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="btn-salvar-lancamento">
+                    <i class="bi bi-plus-circle"></i> Adicionar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+
+    const csrfToken = '{{ csrf_token }}';
+
+    // Estado atual dos modais
+    let _editarUrl = '';
+    let _excluirUrl = '';
+    let _lancamentoData = {};
+    let _activeCellId = '';
+
+    // ── helpers ─────────────────────────────────────────────────────────────
+
+    function getCellId(milId, tsId) {
+        return `cell-${milId}-${tsId}`;
+    }
+
+    function setCellValor(milId, tsId, total) {
+        const cell = document.getElementById(getCellId(milId, tsId));
+        if (!cell) return;
+        cell.dataset.valor = total;
+        const span = cell.querySelector('.cell-valor');
+        if (span) {
+            span.textContent = total;
+            span.classList.toggle('text-muted', total === 0);
+        }
+    }
+
+    function recalcTotals() {
+        // Totals por coluna e por linha
+        const table = document.querySelector('#pills-totais table tbody');
+        if (!table) return;
+
+        const rows = table.querySelectorAll('tr');
+        const colSums = {};  // tsId → sum
+
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td.quadrinho-cell');
+            let rowSum = 0;
+            cells.forEach(cell => {
+                const tsId = cell.dataset.tipoServico;
+                const val = parseInt(cell.dataset.valor || '0', 10);
+                rowSum += val;
+                colSums[tsId] = (colSums[tsId] || 0) + val;
+            });
+            // Update row total
+            const milId = cells.length > 0 ? cells[0].dataset.militar : null;
+            if (milId) {
+                const rowTotalEl = document.getElementById(`total-row-${milId}`);
+                if (rowTotalEl) rowTotalEl.innerHTML = `<span class="badge bg-dark fs-6">${rowSum}</span>`;
+            }
+        });
+
+        // Update column totals
+        let grandTotal = 0;
+        Object.entries(colSums).forEach(([tsId, sum]) => {
+            const el = document.getElementById(`total-col-${tsId}`);
+            if (el) el.textContent = sum;
+            grandTotal += sum;
+        });
+        const gtEl = document.getElementById('total-geral');
+        if (gtEl) gtEl.innerHTML = `<span class="badge bg-dark fs-6">${grandTotal}</span>`;
+    }
+
+    async function postAjax(url, data) {
+        const body = new URLSearchParams({ csrfmiddlewaretoken: csrfToken, ...data });
+        const res = await fetch(url, { method: 'POST', body, headers: { 'X-CSRFToken': csrfToken } });
+        return res.json();
+    }
+
+    async function getAjax(url) {
+        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        return res.json();
+    }
+
+    // ── MODAL EDITAR ─────────────────────────────────────────────────────────
+
+    const bsEditar = new bootstrap.Modal(document.getElementById('modalEditarQuadrinho'));
+
+    document.querySelectorAll('.btn-editar-celula').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            _editarUrl = this.dataset.urlEditar;
+            _activeCellId = getCellId(this.dataset.militar, this.dataset.tipoServico);
+
+            document.getElementById('modal-editar-erro').classList.add('d-none');
+            document.getElementById('modal-editar-info').textContent = 'Carregando…';
+            document.getElementById('modal-ajuste-inicial').value = 0;
+            document.getElementById('modal-quantidade').value = 0;
+            bsEditar.show();
+
+            try {
+                const data = await getAjax(_editarUrl);
+                document.getElementById('modal-editar-info').textContent =
+                    `${data.militar_nome} — ${data.tipo_servico_nome}  (Sistema: ${data.valor_sistema}  Manual: ${data.valor_manual})`;
+                document.getElementById('modal-ajuste-inicial').value = data.ajuste_inicial;
+                document.getElementById('modal-quantidade').value = data.quantidade;
+            } catch (e) {
+                document.getElementById('modal-editar-info').textContent = 'Erro ao carregar dados.';
+            }
+        });
+    });
+
+    document.getElementById('btn-salvar-quadrinho').addEventListener('click', async function () {
+        const erroEl = document.getElementById('modal-editar-erro');
+        erroEl.classList.add('d-none');
+        this.disabled = true;
+        try {
+            const data = await postAjax(_editarUrl, {
+                ajuste_inicial: document.getElementById('modal-ajuste-inicial').value,
+                quantidade: document.getElementById('modal-quantidade').value,
+            });
+            if (!data.ok) {
+                erroEl.textContent = data.erro || 'Erro desconhecido.';
+                erroEl.classList.remove('d-none');
+            } else {
+                const cell = document.getElementById(_activeCellId);
+                if (cell) {
+                    cell.dataset.valor = data.total;
+                    const span = cell.querySelector('.cell-valor');
+                    if (span) {
+                        span.textContent = data.total;
+                        span.classList.toggle('text-muted', data.total === 0);
+                    }
+                }
+                recalcTotals();
+                bsEditar.hide();
+            }
+        } catch (e) {
+            erroEl.textContent = 'Falha na comunicação com o servidor.';
+            erroEl.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
+
+    // ── MODAL EXCLUIR ────────────────────────────────────────────────────────
+
+    const bsExcluir = new bootstrap.Modal(document.getElementById('modalExcluirQuadrinho'));
+
+    document.querySelectorAll('.btn-excluir-celula').forEach(btn => {
+        btn.addEventListener('click', function () {
+            _excluirUrl = this.dataset.urlExcluir;
+            _activeCellId = getCellId(this.dataset.militar, this.dataset.tipoServico);
+            document.getElementById('modal-excluir-nome').textContent = this.dataset.militarNome;
+            document.getElementById('modal-excluir-tipo').textContent = this.dataset.tipoServicoNome;
+            document.getElementById('modal-excluir-erro').classList.add('d-none');
+            bsExcluir.show();
+        });
+    });
+
+    document.getElementById('btn-confirmar-excluir').addEventListener('click', async function () {
+        const erroEl = document.getElementById('modal-excluir-erro');
+        erroEl.classList.add('d-none');
+        this.disabled = true;
+        try {
+            const data = await postAjax(_excluirUrl, {});
+            if (!data.ok) {
+                erroEl.textContent = data.erro || 'Erro desconhecido.';
+                erroEl.classList.remove('d-none');
+            } else {
+                const cell = document.getElementById(_activeCellId);
+                if (cell) {
+                    cell.dataset.valor = data.total;
+                    const span = cell.querySelector('.cell-valor');
+                    if (span) {
+                        span.textContent = data.total;
+                        span.classList.toggle('text-muted', data.total === 0);
+                    }
+                }
+                recalcTotals();
+                bsExcluir.hide();
+            }
+        } catch (e) {
+            erroEl.textContent = 'Falha na comunicação com o servidor.';
+            erroEl.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
+
+    // ── MODAL LANÇAMENTO ─────────────────────────────────────────────────────
+
+    const bsLancamento = new bootstrap.Modal(document.getElementById('modalLancamento'));
+    const urlLancamento = '{% url "lancamento_ajax_criar" %}';
+
+    document.querySelectorAll('.btn-add-lancamento').forEach(btn => {
+        btn.addEventListener('click', function () {
+            _lancamentoData = {
+                militar_id: this.dataset.militar,
+                tipo_escala_id: this.dataset.tipoEscala,
+                tipo_servico_id: this.dataset.tipoServico,
+                ano: this.dataset.ano,
+            };
+            _activeCellId = getCellId(this.dataset.militar, this.dataset.tipoServico);
+            document.getElementById('modal-lancamento-info').textContent =
+                `${this.dataset.militarNome} — ${this.dataset.tipoServicoNome}`;
+            document.getElementById('modal-lancamento-tipo').value = 'lastro';
+            document.getElementById('modal-lancamento-label').value = '';
+            document.getElementById('modal-lancamento-quantidade').value = '1';
+            document.getElementById('modal-lancamento-obs').value = '';
+            document.getElementById('modal-lancamento-erro').classList.add('d-none');
+            bsLancamento.show();
+        });
+    });
+
+    document.getElementById('btn-salvar-lancamento').addEventListener('click', async function () {
+        const erroEl = document.getElementById('modal-lancamento-erro');
+        erroEl.classList.add('d-none');
+        this.disabled = true;
+        try {
+            const data = await postAjax(urlLancamento, {
+                ..._lancamentoData,
+                tipo: document.getElementById('modal-lancamento-tipo').value,
+                label: document.getElementById('modal-lancamento-label').value,
+                quantidade: document.getElementById('modal-lancamento-quantidade').value,
+                observacao: document.getElementById('modal-lancamento-obs').value,
+            });
+            if (!data.ok) {
+                erroEl.textContent = data.erro || 'Erro desconhecido.';
+                erroEl.classList.remove('d-none');
+            } else {
+                const cell = document.getElementById(_activeCellId);
+                if (cell) {
+                    cell.dataset.valor = data.total;
+                    const span = cell.querySelector('.cell-valor');
+                    if (span) {
+                        span.textContent = data.total;
+                        span.classList.toggle('text-muted', data.total === 0);
+                    }
+                }
+                recalcTotals();
+                bsLancamento.hide();
+            }
+        } catch (e) {
+            erroEl.textContent = 'Falha na comunicação com o servidor.';
+            erroEl.classList.remove('d-none');
+        } finally {
+            this.disabled = false;
+        }
+    });
+
+})();
+</script>
+
+<style>
+.quadrinho-cell .cell-actions {
+    display: inline-flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.quadrinho-cell:hover .cell-actions,
+.quadrinho-cell:focus-within .cell-actions {
+    opacity: 1;
+}
+.quadrinho-cell .btn-link {
+    line-height: 1;
+    font-size: 0.82rem;
+}
+</style>
 {% endblock %}
