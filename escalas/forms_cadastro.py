@@ -294,6 +294,58 @@ class EscalaCriarForm(BootstrapFormMixin, forms.Form):
 # Indisponibilidade — registro pelo escalante ou pelo próprio militar
 # ---------------------------------------------------------------------------
 
+class LancamentoManualForm(BootstrapFormMixin, forms.ModelForm):
+    """Formulário para registro manual de quadrinho (lastro, atestado, férias, etc.)."""
+
+    class Meta:
+        from .models import LancamentoManualQuadrinho
+        model = LancamentoManualQuadrinho
+        fields = ['militar', 'tipo_escala', 'tipo_servico', 'ano', 'tipo', 'label', 'quantidade', 'observacao']
+        labels = {
+            'militar': 'Militar',
+            'tipo_escala': 'Tipo de Escala',
+            'tipo_servico': 'Tipo de Serviço',
+            'ano': 'Ano',
+            'tipo': 'Categoria',
+            'label': 'Descrição na matriz',
+            'quantidade': 'Quantidade de serviços',
+            'observacao': 'Observação (interna)',
+        }
+        help_texts = {
+            'label': 'Texto exibido na célula — ex: "Lastro", "Férias jan/25", "Atestado mar/25"',
+            'quantidade': 'Quantos serviços este lançamento representa. Lastro +3 → coloque 3.',
+        }
+        widgets = {
+            'observacao': forms.Textarea(attrs={'rows': 2}),
+            'ano': forms.NumberInput(attrs={'min': 2020, 'max': 2040}),
+            'quantidade': forms.NumberInput(attrs={'min': 1, 'max': 50}),
+        }
+
+    def __init__(self, *args, om=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from datetime import date
+        from .models import OrganizacaoMilitar, Militar, TipoEscala, TipoServico
+        if om:
+            self.fields['militar'].queryset = (
+                Militar.objects.filter(organizacao_militar=om, ativo=True)
+                .select_related('posto')
+                .order_by('posto__ordem_hierarquica', 'nome_guerra')
+            )
+            self.fields['tipo_servico'].queryset = TipoServico.objects.filter(
+                organizacao_militar=om, ativo=True
+            ).order_by('ordem')
+        self.fields['tipo_escala'].queryset = TipoEscala.objects.filter(ativo=True).order_by('nome')
+        if not self.instance.pk:
+            self.fields['ano'].initial = date.today().year
+            self.fields['quantidade'].initial = 1
+
+    def clean_quantidade(self):
+        v = self.cleaned_data.get('quantidade')
+        if v is None or v < 1:
+            raise ValidationError('A quantidade deve ser pelo menos 1.')
+        return v
+
+
 class UsuarioForm(BootstrapFormMixin, forms.ModelForm):
     """Formulário para criação/edição de usuários (autenticação via LDAP)."""
 

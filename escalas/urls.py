@@ -129,6 +129,12 @@ urlpatterns = [
     path('escalas/<int:escala_id>/publicar/', views.escala_publicar, name='escala_publicar'),
     path('escalas/<int:escala_id>/matriz/', views.escala_matriz, name='escala_matriz'),
 
+    # Lançamentos manuais de quadrinho
+    path('lancamentos-manuais/', views.lancamento_manual_listar, name='lancamento_manual_listar'),
+    path('lancamentos-manuais/novo/', views.lancamento_manual_form, name='lancamento_manual_novo'),
+    path('lancamentos-manuais/<int:lancamento_id>/editar/', views.lancamento_manual_form, name='lancamento_manual_editar'),
+    path('lancamentos-manuais/<int:lancamento_id>/excluir/', views.lancamento_manual_excluir, name='lancamento_manual_excluir'),
+
     # Usuários do sistema
     path('usuarios/', views.usuario_listar, name='usuario_listar'),
     path('usuarios/novo/', views.usuario_form, name='usuario_novo'),

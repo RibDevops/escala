@@ -258,18 +258,26 @@
                                 {{ linha.militar|posto_nome }}
                             </td>
                             {% for n in secao.colunas %}
+                            {% with entrada=linha.entradas|index:forloop.counter0 %}
                             <td class="text-center p-1">
-                                {% with data=linha.datas|index:forloop.counter0 %}
-                                {% if data %}
-                                <span class="badge rounded-pill"
-                                      style="background-color:{{ secao.tipo_servico.cor_hex }};color:#fff;font-size:0.72rem;white-space:nowrap;">
-                                    {{ data|date:"d/m" }}
-                                </span>
+                                {% if entrada %}
+                                    {% if entrada.tipo == 'data' %}
+                                    <span class="badge rounded-pill"
+                                          style="background-color:{{ secao.tipo_servico.cor_hex }};color:#fff;font-size:0.72rem;white-space:nowrap;">
+                                        {{ entrada.data|date:"d/m" }}
+                                    </span>
+                                    {% else %}
+                                    <span class="badge rounded-pill"
+                                          style="background:{% if entrada.cat == 'lastro' %}#1a5fa8{% elif entrada.cat == 'atestado' %}#8a4000{% elif entrada.cat == 'ferias' %}#2e7d32{% elif entrada.cat == 'dispensa' %}#555{% elif entrada.cat == 'particular' %}#6a1b9a{% elif entrada.cat == 'chefe' %}#b71c1c{% else %}#444{% endif %};color:#fff;font-size:0.68rem;white-space:nowrap;"
+                                          title="{{ entrada.label }}">
+                                        {{ entrada.label|truncatechars:10 }}
+                                    </span>
+                                    {% endif %}
                                 {% else %}
                                 <span class="text-muted" style="opacity:0.25;">·</span>
                                 {% endif %}
-                                {% endwith %}
                             </td>
+                            {% endwith %}
                             {% endfor %}
                             <td class="text-center fw-bold">
                                 {% if linha.total > 0 %}

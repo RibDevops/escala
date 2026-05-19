@@ -1362,10 +1362,10 @@ class Quadrinho(models.Model):
     
     @staticmethod
     def obter_ranking(
-        tipo_escala: TipoEscala,
-        tipo_servico: TipoServico,
+        tipo_escala: 'TipoEscala',
+        tipo_servico: 'TipoServico',
         ano: int,
-        om: OrganizacaoMilitar = None
+        om: 'OrganizacaoMilitar' = None
     ) -> models.QuerySet:
         """
         Retorna militares ordenados por quantidade (menor primeiro).
@@ -1381,6 +1381,93 @@ class Quadrinho(models.Model):
             qs = qs.filter(militar__organizacao_militar=om)
         
         return qs
+
+
+# ============================================================================
+# LANÇAMENTOS MANUAIS DE QUADRINHO
+# ============================================================================
+
+class LancamentoManualQuadrinho(models.Model):
+    """
+    Lançamentos manuais que aparecem na matriz e contam no total do quadrinho.
+    Usados para: lastro, atestado, férias, dispensa, particular, serviço de chefe, etc.
+    Cada lançamento tem um label editável (texto livre) e uma quantidade (padrão=1).
+    Um lastro com quantidade=3 gera 3 colunas na matriz e soma 3 ao total.
+    """
+
+    TIPO_CHOICES = [
+        ('lastro',     'Lastro'),
+        ('atestado',   'Atestado'),
+        ('ferias',     'Férias'),
+        ('dispensa',   'Dispensa'),
+        ('particular', 'Particular'),
+        ('chefe',      'Serviço de Chefe'),
+        ('outro',      'Outro'),
+    ]
+
+    militar = models.ForeignKey(
+        'Militar',
+        on_delete=models.CASCADE,
+        related_name='lancamentos_manuais',
+    )
+    tipo_escala = models.ForeignKey(
+        'TipoEscala',
+        on_delete=models.CASCADE,
+        related_name='lancamentos_manuais',
+    )
+    tipo_servico = models.ForeignKey(
+        'TipoServico',
+        on_delete=models.CASCADE,
+        related_name='lancamentos_manuais',
+    )
+    ano = models.PositiveIntegerField(
+        help_text="Ano de referência do lançamento",
+    )
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default='lastro',
+        verbose_name='Tipo',
+    )
+    label = models.CharField(
+        max_length=100,
+        verbose_name='Descrição (exibida na matriz)',
+        help_text="Texto exibido na célula da matriz — ex: 'Lastro', 'Férias jan/25', 'Atestado'",
+    )
+    quantidade = models.PositiveIntegerField(
+        default=1,
+        verbose_name='Quantidade',
+        help_text="Quantos serviços este lançamento representa (ex: Lastro +3 → quantidade=3)",
+    )
+    observacao = models.TextField(
+        blank=True,
+        verbose_name='Observação',
+        help_text="Detalhe opcional (não exibido na matriz)",
+    )
+    criado_por = models.ForeignKey(
+        'UsuarioCustomizado',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lancamentos_criados',
+    )
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_atualizacao = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'lancamento_manual_quadrinho'
+        ordering = ['ano', 'militar__nome_guerra', 'data_criacao']
+        indexes = [
+            models.Index(fields=['militar', 'tipo_escala', 'tipo_servico', 'ano']),
+        ]
+        verbose_name = 'Lançamento Manual de Quadrinho'
+        verbose_name_plural = 'Lançamentos Manuais de Quadrinho'
+
+    def __str__(self):
+        return (
+            f"{self.militar.nome_guerra} — {self.label} "
+            f"(×{self.quantidade}) [{self.tipo_escala.nome}/{self.tipo_servico.nome} {self.ano}]"
+        )
 
 
 # ============================================================================

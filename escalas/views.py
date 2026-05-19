@@ -24,6 +24,7 @@ from .forms_cadastro import (
     EscalaCriarForm,
     EspecialidadeForm,
     IndisponibilidadeRegistrarForm,
+    LancamentoManualForm,
     MilitarForm,
     OrganizacaoMilitarForm,
     PostoForm,
@@ -40,6 +41,7 @@ from .models import (
     EscalaItem,
     Especialidade,
     Indisponibilidade,
+    LancamentoManualQuadrinho,
     Militar,
     OrganizacaoMilitar,
     PerfilUsuario,
@@ -770,6 +772,18 @@ def quadrinho_visao(request):
         ):
             quadrinhos_map[(qd.militar_id, qd.tipo_servico_id)] = qd
 
+    # Lançamentos manuais somados por (militar, tipo_servico)
+    lancamentos_totais_map = {}  # (mil_id, ts_id) -> soma de quantidades
+    if om and tipo_escala_atual and militares and tipos_servico:
+        for lm in LancamentoManualQuadrinho.objects.filter(
+            militar__in=militares,
+            tipo_escala=tipo_escala_atual,
+            tipo_servico__in=tipos_servico,
+            ano=ano,
+        ):
+            chave = (lm.militar_id, lm.tipo_servico_id)
+            lancamentos_totais_map[chave] = lancamentos_totais_map.get(chave, 0) + lm.quantidade
+
     linhas = []
     totais_coluna = {ts.id: 0 for ts in tipos_servico}
     total_geral = 0
@@ -778,11 +792,15 @@ def quadrinho_visao(request):
         total_militar = 0
         for ts in tipos_servico:
             qd = quadrinhos_map.get((m.id, ts.id))
-            valor = qd.total if qd else 0
+            valor_sistema = qd.total if qd else 0
+            valor_manual = lancamentos_totais_map.get((m.id, ts.id), 0)
+            valor = valor_sistema + valor_manual
             celulas.append({
                 'tipo_servico': ts,
                 'quadrinho': qd,
                 'valor': valor,
+                'valor_sistema': valor_sistema,
+                'valor_manual': valor_manual,
                 'ajuste_inicial': qd.ajuste_inicial if qd else 0,
                 'quantidade': qd.quantidade if qd else 0,
             })
@@ -881,6 +899,19 @@ def quadrinho_visao(request):
         if om else []
     )
 
+    # Lançamentos manuais da matriz, agrupados por (mil_id, ts_id)
+    lancamentos_matriz = {}  # (mil_id, ts_id) -> list of LancamentoManualQuadrinho
+    if om and tipo_escala_atual and militares_antiguidade and tipos_servico:
+        filtro_lm = dict(
+            militar_id__in=[m.id for m in militares_antiguidade],
+            tipo_escala=tipo_escala_atual,
+            tipo_servico_id__in=[ts.id for ts in tipos_servico],
+            ano=matriz_ano,
+        )
+        for lm in LancamentoManualQuadrinho.objects.filter(**filtro_lm).select_related('tipo_servico'):
+            chave = (lm.militar_id, lm.tipo_servico_id)
+            lancamentos_matriz.setdefault(chave, []).append(lm)
+
     # Seções por tipo de serviço
     matriz_secoes = []
     if om and tipo_escala_atual and militares_antiguidade and tipos_servico:
@@ -921,37 +952,44 @@ def quadrinho_visao(request):
 
         for ts in tipos_servico:
             bloco = por_ts.get(ts.id)
-            if not bloco:
-                matriz_secoes.append({
-                    'tipo_servico': ts,
-                    'max_servicos': 0,
-                    'colunas': [],
-                    'linhas': [{'militar': m, 'datas': [], 'total': 0}
-                               for m in militares_antiguidade],
-                    'total_geral': 0,
-                })
-                continue
 
-            # Cada militar tem suas datas em ordem cronológica
             linhas_ts = []
             total_geral_ts = 0
-            max_servicos = 0
+            max_entradas = 0
+
             for m in militares_antiguidade:
-                datas_mil = sorted(bloco['por_militar'].get(m.id, []))
-                total_geral_ts += len(datas_mil)
-                max_servicos = max(max_servicos, len(datas_mil))
+                # Lançamentos manuais expandidos (cada lm com qtd=N vira N células)
+                lms = lancamentos_matriz.get((m.id, ts.id), [])
+                entradas_manuais = []
+                for lm in lms:
+                    for _ in range(lm.quantidade):
+                        entradas_manuais.append({
+                            'tipo': 'manual',
+                            'label': lm.label,
+                            'cat': lm.tipo,
+                        })
+
+                # Serviços reais do sistema em ordem cronológica
+                datas_reais = sorted(bloco['por_militar'].get(m.id, [])) if bloco else []
+                entradas_reais = [{'tipo': 'data', 'data': d} for d in datas_reais]
+
+                # Lançamentos manuais vêm primeiro (são ajustes históricos)
+                entradas = entradas_manuais + entradas_reais
+                total = len(entradas)
+                total_geral_ts += total
+                max_entradas = max(max_entradas, total)
+
                 linhas_ts.append({
                     'militar': m,
-                    'datas': datas_mil,
-                    'total': len(datas_mil),
+                    'entradas': entradas,
+                    'total': total,
                 })
 
-            # Cabeçalho: 1º, 2º, 3º… N-ésimo serviço
-            colunas = list(range(1, max_servicos + 1))
+            colunas = list(range(1, max_entradas + 1))
 
             matriz_secoes.append({
                 'tipo_servico': ts,
-                'max_servicos': max_servicos,
+                'max_entradas': max_entradas,
                 'colunas': colunas,
                 'linhas': linhas_ts,
                 'total_geral': total_geral_ts,
@@ -2122,6 +2160,85 @@ def matriz_publica(request, slug):
         'max_eventos': max_eventos,
         'max_eventos_range': range(max_eventos),
         'nomes_meses': NOMES_MESES,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Lançamentos Manuais de Quadrinho
+# ---------------------------------------------------------------------------
+
+@login_required
+def lancamento_manual_listar(request):
+    om = obter_om_ativa(request)
+    tipo_escala_filtro = request.GET.get('tipo_escala', '')
+    tipo_servico_filtro = request.GET.get('tipo_servico', '')
+    ano_atual = _date.today().year
+    try:
+        ano_filtro = int(request.GET.get('ano') or ano_atual)
+    except ValueError:
+        ano_filtro = ano_atual
+
+    qs = LancamentoManualQuadrinho.objects.filter(
+        militar__organizacao_militar=om
+    ).select_related(
+        'militar__posto', 'tipo_escala', 'tipo_servico'
+    ).order_by('militar__posto__ordem_hierarquica', 'militar__nome_guerra', 'data_criacao')
+
+    if tipo_escala_filtro:
+        qs = qs.filter(tipo_escala_id=tipo_escala_filtro)
+    if tipo_servico_filtro:
+        qs = qs.filter(tipo_servico_id=tipo_servico_filtro)
+    qs = qs.filter(ano=ano_filtro)
+
+    tipos_escala = list(TipoEscala.objects.filter(ativo=True).order_by('nome'))
+    tipos_servico = list(om.tipos_servico.filter(ativo=True).order_by('ordem')) if om else []
+    anos = list(range(ano_atual + 1, ano_atual - 5, -1))
+
+    return render(request, 'cadastro/lancamento_manual_list.html', {
+        'lancamentos': qs,
+        'om': om,
+        'tipos_escala': tipos_escala,
+        'tipos_servico': tipos_servico,
+        'tipo_escala_filtro': tipo_escala_filtro,
+        'tipo_servico_filtro': tipo_servico_filtro,
+        'ano_filtro': ano_filtro,
+        'anos': anos,
+    })
+
+
+@login_required
+def lancamento_manual_form(request, lancamento_id=None):
+    om = obter_om_ativa(request)
+    instancia = get_object_or_404(LancamentoManualQuadrinho, pk=lancamento_id) if lancamento_id else None
+    if request.method == 'POST':
+        form = LancamentoManualForm(request.POST, instance=instancia, om=om)
+        if form.is_valid():
+            lm = form.save(commit=False)
+            if not instancia:
+                lm.criado_por = request.user if request.user.is_authenticated else None
+            lm.save()
+            acao = 'atualizado' if instancia else 'registrado'
+            messages.success(request, f'Lançamento "{lm.label}" {acao} com sucesso.')
+            return redirect('lancamento_manual_listar')
+    else:
+        form = LancamentoManualForm(instance=instancia, om=om)
+    return render(request, 'cadastro/lancamento_manual_form.html', {
+        'form': form,
+        'lancamento': instancia,
+        'om': om,
+    })
+
+
+@login_required
+def lancamento_manual_excluir(request, lancamento_id):
+    lancamento = get_object_or_404(LancamentoManualQuadrinho, pk=lancamento_id)
+    if request.method == 'POST':
+        label = lancamento.label
+        lancamento.delete()
+        messages.success(request, f'Lançamento "{label}" excluído.')
+        return redirect('lancamento_manual_listar')
+    return render(request, 'cadastro/lancamento_manual_confirm_delete.html', {
+        'lancamento': lancamento,
     })
 
 

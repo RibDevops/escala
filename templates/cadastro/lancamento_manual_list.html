@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load escala_filters %}
+{% block titulo %}Lançamentos Manuais de Quadrinho{% endblock %}
+{% block conteudo %}
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+        <h1><i class="bi bi-pencil-square"></i> Lançamentos Manuais</h1>
+        <div class="subtitle">
+            Lastro, atestado, férias, dispensa e outros ajustes do quadrinho
+            &middot; {% if om %}{{ om.sigla }}{% else %}—{% endif %}
+        </div>
+    </div>
+    <a href="{% url 'lancamento_manual_novo' %}" class="btn btn-mil-dourado">
+        <i class="bi bi-plus-lg"></i> Novo lançamento
+    </a>
+</div>
+
+<!-- Filtros -->
+<div class="card-mil mb-3 p-3">
+    <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
+        <select name="tipo_escala" class="form-select form-select-sm" style="max-width:200px;" onchange="this.form.submit()">
+            <option value="">Todos os tipos de escala</option>
+            {% for te in tipos_escala %}
+            <option value="{{ te.id }}" {% if te.id|stringformat:"i" == tipo_escala_filtro %}selected{% endif %}>{{ te.nome }}</option>
+            {% endfor %}
+        </select>
+        <select name="tipo_servico" class="form-select form-select-sm" style="max-width:160px;" onchange="this.form.submit()">
+            <option value="">Todos os tipos</option>
+            {% for ts in tipos_servico %}
+            <option value="{{ ts.id }}" {% if ts.id|stringformat:"i" == tipo_servico_filtro %}selected{% endif %}>{{ ts.nome }}</option>
+            {% endfor %}
+        </select>
+        <select name="ano" class="form-select form-select-sm" style="max-width:100px;" onchange="this.form.submit()">
+            {% for a in anos %}
+            <option value="{{ a }}" {% if a == ano_filtro %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+        </select>
+        {% if tipo_escala_filtro or tipo_servico_filtro %}
+        <a href="{% url 'lancamento_manual_listar' %}" class="btn btn-sm btn-mil-outline">Limpar</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if lancamentos %}
+<!-- Tabela agrupada por militar -->
+{% regroup lancamentos by militar as por_militar %}
+{% for grupo in por_militar %}
+<div class="card-mil mb-3">
+    <div class="card-mil-header d-flex align-items-center justify-content-between">
+        <span>
+            <i class="bi bi-person"></i>
+            <strong>{{ grupo.grouper|posto_nome }}</strong>
+        </span>
+        <span class="badge bg-secondary">{{ grupo.list|length }} lançamento(s)</span>
+    </div>
+    <table class="table table-sm table-mil mb-0">
+        <thead>
+            <tr>
+                <th>Categoria</th>
+                <th>Descrição (matriz)</th>
+                <th class="text-center" style="width:80px;">Qtd</th>
+                <th style="width:130px;">Tipo Escala</th>
+                <th style="width:100px;">Tipo Serv.</th>
+                <th class="text-center" style="width:60px;">Ano</th>
+                <th>Observação</th>
+                <th style="width:80px;" class="text-end">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in grupo.list %}
+            <tr>
+                <td>
+                    {% if l.tipo == 'lastro' %}
+                        <span class="badge-mil" style="background:#1a5fa8;">Lastro</span>
+                    {% elif l.tipo == 'atestado' %}
+                        <span class="badge-mil" style="background:#8a4000;">Atestado</span>
+                    {% elif l.tipo == 'ferias' %}
+                        <span class="badge-mil" style="background:#2e7d32;">Férias</span>
+                    {% elif l.tipo == 'dispensa' %}
+                        <span class="badge-mil" style="background:#555;">Dispensa</span>
+                    {% elif l.tipo == 'particular' %}
+                        <span class="badge-mil" style="background:#6a1b9a;">Particular</span>
+                    {% elif l.tipo == 'chefe' %}
+                        <span class="badge-mil" style="background:#b71c1c;">Chefe</span>
+                    {% else %}
+                        <span class="badge-mil">{{ l.get_tipo_display }}</span>
+                    {% endif %}
+                </td>
+                <td><strong>{{ l.label }}</strong></td>
+                <td class="text-center">
+                    <span class="badge bg-dark rounded-pill">{{ l.quantidade }}</span>
+                </td>
+                <td class="small">{{ l.tipo_escala.nome }}</td>
+                <td class="small">{{ l.tipo_servico.nome }}</td>
+                <td class="text-center small">{{ l.ano }}</td>
+                <td class="text-muted small">{{ l.observacao|default:"—" }}</td>
+                <td class="text-end">
+                    <a href="{% url 'lancamento_manual_editar' l.id %}" class="btn btn-sm btn-mil-outline" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <a href="{% url 'lancamento_manual_excluir' l.id %}" class="btn btn-sm btn-mil-danger" title="Excluir">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endfor %}
+{% else %}
+<div class="card-mil p-4 text-center text-muted">
+    <i class="bi bi-inbox" style="font-size:2rem;"></i>
+    <div class="mt-2">Nenhum lançamento manual cadastrado para este filtro.</div>
+    <a href="{% url 'lancamento_manual_novo' %}" class="btn btn-mil-dourado mt-3">
+        <i class="bi bi-plus-lg"></i> Criar primeiro lançamento
+    </a>
+</div>
+{% endif %}
+
+<!-- Legenda -->
+<div class="card-mil p-3 mt-2">
+    <div class="row g-3 align-items-start">
+        <div class="col-md-8">
+            <h6 class="mb-2" style="color:var(--m-escuro);text-transform:uppercase;font-size:0.78rem;letter-spacing:0.05em;">
+                <i class="bi bi-info-circle"></i> Como funciona
+            </h6>
+            <div class="small text-muted">
+                Cada lançamento aparece na aba <strong>Quadrinhos</strong> como uma ou mais colunas com o texto da descrição
+                (ex: "Lastro"), e soma ao total do militar na aba <strong>Totais</strong>.
+                Um <em>Lastro</em> com quantidade <strong>3</strong> gera 3 colunas "Lastro" na matriz e adiciona 3 ao total.
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="p-2 rounded small" style="background:rgba(255,241,18,0.12);border:1px solid var(--m-amarelo);">
+                <i class="bi bi-exclamation-triangle"></i>
+                Ao excluir um lançamento, o total do militar é reduzido automaticamente na próxima visualização do quadrinho.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

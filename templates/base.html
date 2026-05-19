@@ -102,6 +102,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if 'lancamento_manual' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lancamento_manual_listar' %}">
+                            <i class="bi bi-pencil-square"></i> Lançamentos
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'sobreaviso_publico' %}active{% endif %}" href="{% url 'sobreaviso_publico' %}">
                             <i class="bi bi-broadcast"></i> Sobreaviso
                         </a>
