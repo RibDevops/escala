@@ -709,19 +709,22 @@
 </script>
 
 <style>
+.quadrinho-cell {
+    white-space: nowrap;
+}
 .quadrinho-cell .cell-actions {
     display: inline-flex;
-    gap: 2px;
-    opacity: 0;
-    transition: opacity 0.15s;
-}
-.quadrinho-cell:hover .cell-actions,
-.quadrinho-cell:focus-within .cell-actions {
-    opacity: 1;
+    gap: 1px;
 }
 .quadrinho-cell .btn-link {
     line-height: 1;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
+    padding: 0 2px !important;
+    opacity: 0.55;
+    transition: opacity 0.12s;
+}
+.quadrinho-cell .btn-link:hover {
+    opacity: 1;
 }
 </style>
 {% endblock %}
