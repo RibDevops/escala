@@ -310,7 +310,7 @@
                                         {% if not militar_proprio %}
                                         <div class="qm-actions">
                                             <button type="button"
-                                                    class="btn btn-link qm-btn text-light btn-edit-item"
+                                                    class="btn btn-link qm-btn qm-btn-edit btn-edit-item"
                                                     title="Editar observação"
                                                     data-item-id="{{ entrada.id }}"
                                                     data-obs="{{ entrada.observacao }}"
@@ -341,7 +341,7 @@
                                         {% if not militar_proprio %}
                                         <div class="qm-actions">
                                             <button type="button"
-                                                    class="btn btn-link qm-btn text-light btn-edit-lancamento"
+                                                    class="btn btn-link qm-btn qm-btn-edit btn-edit-lancamento"
                                                     title="Editar lançamento"
                                                     data-id="{{ entrada.id }}"
                                                     data-url="{% url 'lancamento_ajax_editar_por_id' entrada.id %}">
@@ -1103,12 +1103,18 @@
     font-size: 0.7rem;
     padding: 0 2px !important;
     line-height: 1;
-    opacity: 0.6;
+    opacity: 0.7;
     transition: opacity 0.12s;
     text-decoration: none;
 }
 .qm-btn:hover {
     opacity: 1;
+}
+.qm-btn-edit {
+    color: #003a78 !important;
+}
+.qm-btn-edit:hover {
+    color: #001f45 !important;
 }
 .qm-btn-add {
     font-size: 0.8rem;
