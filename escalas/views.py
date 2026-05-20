@@ -1371,7 +1371,11 @@ def lancamento_ajax_editar_por_id(request, lancamento_id):
 @require_POST
 def lancamento_ajax_excluir_por_id(request, lancamento_id):
     lm = get_object_or_404(LancamentoManualQuadrinho, pk=lancamento_id)
-    lm.delete()
+    if lm.quantidade > 1:
+        lm.quantidade -= 1
+        lm.save(update_fields=['quantidade'])
+    else:
+        lm.delete()
     return JsonResponse({'ok': True, 'reload': True})
 
 
