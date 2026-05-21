@@ -20,8 +20,10 @@ MATRIZ OPERACIONAL (temporária, em memória):
 
 ALGORITMO POR DIA
 =================
-    1. Ordenar militares: MENOR quantidade total de serviços reais
-    2. Desempate: BASE → TOPO (mais moderno → mais antigo)
+    1. Ordenar militares: MENOR quantidade total de serviços reais (Quadrinho.total
+       acumulado de TODOS os tipos de serviço do tipo_escala + ano corrente)
+    2. Desempate: BASE → TOPO (mais moderno/júnior vem PRIMEIRO quando counts iguais)
+       "de baixo para cima" = começa pelo Cb/Sd (mais moderno, fundo da lista)
     3. Verificar: sem indisponibilidade E sem folga global
     4. Primeiro válido recebe o serviço
     5. Folga marcada na matriz operacional (temporária, não conta como serviço)
@@ -86,9 +88,11 @@ class MotorEscalaVertical:
         self.mes = escala.mes
         self.config = ConfiguracaoEscala.obter_para_om(self.om)
 
-        # Militares (índice 0 = TOPO/mais antigo, índice -1 = BASE/mais moderno)
+        # Militares (índice 0 = TOPO/mais antigo, índice n-1 = BASE/mais moderno)
+        # Desempate: BASE → TOPO (mais moderno ganha quando counts iguais)
         self.lista_militares: List[Militar] = []
         self.indice_por_id: Dict[int, int] = {}
+        self.desempate_por_id: Dict[int, int] = {}  # 0=BASE(prioridade), n-1=TOPO
 
         # MATRIZ HISTÓRICA: Quadrinho.total somado por militar (todos os tipos de serviço)
         self.counts_historicos: Dict[int, int] = {}
@@ -188,10 +192,13 @@ class MotorEscalaVertical:
         Carrega militares ativos ordenados por antiguidade.
 
         Ordem: posto__ordem_hierarquica ASC → data_ultima_promocao ASC → nome_guerra ASC
-          Índice 0 = TOPO (mais antigo)
-          Índice -1 = BASE (mais moderno)
+          Índice 0  = TOPO (mais antigo, Ten/Cel/etc.)
+          Índice -1 = BASE (mais moderno, Cb/Sd/mais júnior)
 
-        Para percorrer BASE→TOPO: desempate usa -indice_por_id[m.id]
+        A varredura de desempate é BASE → TOPO (mais moderno primeiro).
+        Na chave de ordenação usamos +indice_por_id para que o maior índice
+        (BASE / mais moderno) fique com valor MENOR e ganhe a disputa:
+          sorted key = (count, n - 1 - indice)  →  índice maior = valor menor
         """
         self.lista_militares = list(
             Militar.objects.filter(organizacao_militar=self.om, ativo=True)
@@ -202,17 +209,22 @@ class MotorEscalaVertical:
         if not self.lista_militares:
             raise ValidationError("Nenhum militar ativo nesta OM.")
 
+        n = len(self.lista_militares)
         self.indice_por_id = {m.id: i for i, m in enumerate(self.lista_militares)}
+        # Chave de desempate: inverte o índice para que a BASE (mais moderno) venha primeiro.
+        # Cb João (índice n-1) → desempate_key = 0  (menor = prioridade mais alta)
+        # Ten Silva (índice 0) → desempate_key = n-1 (maior = prioridade mais baixa)
+        self.desempate_por_id = {m.id: (n - 1 - i) for i, m in enumerate(self.lista_militares)}
 
         for m in self.lista_militares:
             self.counts_historicos[m.id] = 0
             self.counts_operacional[m.id] = 0
             self.folga_global[m.id] = set()
 
-        self._log(f"\nMilitares ({len(self.lista_militares)}):")
+        self._log(f"\nMilitares ({len(self.lista_militares)}) — TOPO=mais antigo, BASE=mais moderno:")
         for i, m in enumerate(self.lista_militares):
             posicao = "TOPO" if i == 0 else ("BASE" if i == len(self.lista_militares) - 1 else f"idx {i}")
-            self._log(f"  {i}: {m.posto.sigla} {m.nome_guerra} [{posicao}]")
+            self._log(f"  {i}: {m.posto.sigla} {m.nome_guerra} [{posicao}] (desempate={self.desempate_por_id[m.id]})")
 
     # ==========================================================================
     # PASSO 3 — MATRIZ HISTÓRICA (Quadrinho → counts_historicos)
@@ -421,12 +433,14 @@ class MotorEscalaVertical:
         data = dia.data
         self._log(f"\n  {data.strftime('%d/%m/%Y')} ({dia.tipo_servico.nome})")
 
-        # Ordenar: menor count → BASE (maior índice) primeiro em empate
+        # Ordenar: menor count → BASE (mais moderno) primeiro em empate
+        # desempate_por_id: 0 = BASE (mais júnior, maior prioridade),
+        #                   n-1 = TOPO (mais antigo, menor prioridade)
         militares_ordenados = sorted(
             self.lista_militares,
             key=lambda m: (
                 self.counts_operacional[m.id],
-                -self.indice_por_id[m.id],
+                self.desempate_por_id[m.id],
             )
         )
 
