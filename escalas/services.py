@@ -59,6 +59,7 @@ from .models import (
     CalendarioDia,
     ConfiguracaoEscala,
     Escala,
+    EscalaCalendarioOverride,
     EscalaItem,
     Indisponibilidade,
     Militar,
@@ -359,25 +360,30 @@ class MotorEscalaVertical:
 
     def _processar_todos_os_tipos(self):
         """
-        Carrega dias do mês e processa tipo por tipo em ordem.
+        Carrega dias do mês, aplica overrides por escala, e processa tipo por tipo.
 
         Ordem: TipoServico.ordem ASC
           → Preto (ordem=0) completo primeiro
           → Vermelho (ordem=1) completo depois
           → etc.
 
+        Override: se o escalante trocou o tipo de um dia nesta escala específica
+          (EscalaCalendarioOverride), o CalendarioDia desse dia é substituído
+          pelo CalendarioDia com o novo tipo — sem alterar o calendário global da OM.
+
         A folga_global é COMPARTILHADA entre todos os tipos:
         um serviço Preto bloqueia dias Vermelhos seguintes.
         """
         primeiro_dia, ultimo_dia = self._intervalo_mes()
 
+        # Carregar todos os dias da OM para o mês
         todos_os_dias = list(
             CalendarioDia.objects.filter(
                 organizacao_militar=self.om,
                 data__range=(primeiro_dia, ultimo_dia),
             )
             .select_related('tipo_servico')
-            .order_by('tipo_servico__ordem', 'data')
+            .order_by('data')
         )
 
         if not todos_os_dias:
@@ -386,10 +392,36 @@ class MotorEscalaVertical:
                 "Gere o calendário automático primeiro."
             )
 
+        # Aplicar overrides desta escala (não afeta o calendário global da OM)
+        overrides = {
+            ov.data: ov.tipo_servico
+            for ov in EscalaCalendarioOverride.objects.filter(
+                escala=self.escala,
+            ).select_related('tipo_servico')
+        }
+
+        if overrides:
+            self._log(f"\nOverrides de calendário nesta escala: {len(overrides)} dia(s)")
+            # Para cada dia com override, encontra o CalendarioDia que já aponta
+            # para o tipo correto (o override pode ter já atualizado o cd.tipo_servico)
+            # ou usa o cd existente (que foi atualizado pela view ajax).
+            dias_com_override = []
+            for cd in todos_os_dias:
+                if cd.data in overrides:
+                    tipo_override = overrides[cd.data]
+                    self._log(
+                        f"  {cd.data:%d/%m}: {cd.tipo_servico.nome} → {tipo_override.nome}"
+                    )
+                    # O CalendarioDia já foi atualizado pela view ajax — usar como está
+                    dias_com_override.append(cd)
+                else:
+                    dias_com_override.append(cd)
+            todos_os_dias = dias_com_override
+
         # Agrupar por tipo mantendo a ordem por `tipo_servico.ordem`
         tipos_em_ordem: List[TipoServico] = []
         dias_por_tipo: Dict[str, List[CalendarioDia]] = {}
-        for dia in todos_os_dias:
+        for dia in sorted(todos_os_dias, key=lambda d: (d.tipo_servico.ordem, d.data)):
             nome = dia.tipo_servico.nome
             if nome not in dias_por_tipo:
                 tipos_em_ordem.append(dia.tipo_servico)

@@ -4,7 +4,7 @@
 
 {% block conteudo %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
+    <div class="col-lg-10">
 
         {% if resultado %}
         <!-- ══════════════════════════════════════════════════════════════
@@ -95,9 +95,9 @@
 
         {% else %}
         <!-- ══════════════════════════════════════════════════════════════
-             TELA DE CONFIRMAÇÃO
+             TELA DE CONFIRMAÇÃO + CALENDÁRIO
         ══════════════════════════════════════════════════════════════════ -->
-        <div class="card shadow-sm border-warning">
+        <div class="card shadow-sm border-warning mb-3">
             <div class="card-header" style="background:#ffd200;color:#003a78;">
                 <i class="bi bi-lightning-charge"></i>
                 Gerar Escala Automática — {{ escala.tipo_escala.nome }}
@@ -174,8 +174,200 @@
 
             </div>
         </div>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             CALENDÁRIO DO MÊS — ajuste de tipo por dia
+        ══════════════════════════════════════════════════════════════════ -->
+        {% if dias_calendario %}
+        <div class="card shadow-sm">
+            <div class="card-header" style="background:#003a78;color:#fff;">
+                <i class="bi bi-calendar3"></i>
+                Calendário — {{ nomes_meses|index:escala.mes }}/{{ escala.ano }}
+                {% if pode_editar_calendario %}
+                <span class="badge bg-warning text-dark ms-2 small">Clique em um dia para alterar o tipo</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-2">
+
+                <!-- Legenda -->
+                <div class="d-flex flex-wrap gap-2 mb-3 small">
+                    {% for ts in tipos_servico_om %}
+                    <span class="badge" style="background:{{ ts.cor_hex }};color:#fff;font-size:0.8rem;">
+                        {{ ts.nome }}
+                    </span>
+                    {% endfor %}
+                    <span class="badge border text-dark" style="font-size:0.8rem;">
+                        <i class="bi bi-pencil-fill text-warning"></i> Ajustado manualmente
+                    </span>
+                </div>
+
+                <!-- Grade de dias — 7 colunas -->
+                <div class="row row-cols-7 g-1" id="grade-calendario">
+                    <!-- Cabeçalho da semana -->
+                    {% for dow in "Dom Seg Ter Qua Qui Sex Sáb"|split:" " %}
+                    <div class="col text-center">
+                        <div class="small fw-bold text-muted" style="font-size:0.7rem;">{{ dow }}</div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Espaços em branco antes do dia 1 (domingo=0 ... sábado=6) -->
+                    {% with offset=dias_calendario.0.data|weekday_offset %}
+                    {% for i in offset|range_filter %}
+                    <div class="col"><div class="p-1"></div></div>
+                    {% endfor %}
+                    {% endwith %}
+
+                    <!-- Dias do mês -->
+                    {% for item in dias_calendario %}
+                    <div class="col">
+                        <div class="dia-cal text-center rounded p-1 position-relative"
+                             data-data="{{ item.data|date:'Y-m-d' }}"
+                             data-tipo-id="{{ item.tipo.id|default:'' }}"
+                             data-tipo-nome="{{ item.tipo.nome|default:'—' }}"
+                             data-override="{{ item.override|yesno:'true,false' }}"
+                             style="background:{{ item.tipo.cor_hex|default:'#eee' }};color:#fff;
+                                    cursor:{% if pode_editar_calendario %}pointer{% else %}default{% endif %};
+                                    min-height:46px;font-size:0.8rem;"
+                             {% if pode_editar_calendario %}
+                             data-bs-toggle="popover"
+                             data-bs-trigger="click"
+                             data-bs-placement="top"
+                             data-bs-html="true"
+                             data-bs-content="<div id='pop-{{ item.data|date:'Ymd' }}'></div>"
+                             title="{{ item.data|date:'d/m/Y' }} ({{ item.dia_semana }})"
+                             {% endif %}>
+                            <div class="fw-bold">{{ item.data|date:"d" }}</div>
+                            <div style="font-size:0.65rem;opacity:0.9;">{{ item.tipo.nome|default:"—"|truncatechars:5 }}</div>
+                            {% if item.override %}
+                            <span class="position-absolute top-0 end-0 p-1" style="font-size:0.6rem;">
+                                <i class="bi bi-pencil-fill text-warning"></i>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+            </div>
+        </div>
+        {% endif %}
         {% endif %}
 
     </div>
 </div>
+
+{% if pode_editar_calendario and dias_calendario %}
+<!-- Modal de troca de tipo -->
+<div class="modal fade" id="modalTipoServico" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2" style="background:#003a78;color:#fff;">
+                <h6 class="modal-title mb-0">
+                    <i class="bi bi-calendar-event"></i>
+                    Alterar tipo — <span id="modal-data-fmt"></span>
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-2">
+                <p class="small text-muted mb-2">Selecione o novo tipo de serviço para este dia nesta escala:</p>
+                <div id="modal-tipos" class="d-grid gap-2">
+                    {% for ts in tipos_servico_om %}
+                    <button class="btn btn-sm btn-tipo-sel fw-semibold"
+                            data-tipo-id="{{ ts.id }}"
+                            style="background:{{ ts.cor_hex }};color:#fff;border:none;">
+                        {{ ts.nome }}
+                    </button>
+                    {% endfor %}
+                    <button class="btn btn-sm btn-outline-secondary" id="btn-remover-override">
+                        <i class="bi bi-arrow-counterclockwise"></i> Restaurar padrão da OM
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const ESCALA_ID = {{ escala.id }};
+    const URL_TROCAR = "{% url 'escala_calendario_trocar_tipo' escala.id %}";
+    const CSRF = "{{ csrf_token }}";
+
+    let dataAtual = null;
+    let diaAtualEl = null;
+    const modal = new bootstrap.Modal(document.getElementById('modalTipoServico'));
+
+    // Abre modal ao clicar em qualquer dia
+    document.querySelectorAll('.dia-cal').forEach(el => {
+        el.addEventListener('click', function () {
+            dataAtual = this.dataset.data;
+            diaAtualEl = this;
+            // Formata data para exibição
+            const [y, m, d] = dataAtual.split('-');
+            document.getElementById('modal-data-fmt').textContent = `${d}/${m}/${y}`;
+            modal.show();
+        });
+    });
+
+    async function trocar(tipoId, remover) {
+        const body = remover
+            ? { data: dataAtual, remover: true }
+            : { data: dataAtual, tipo_servico_id: tipoId };
+
+        try {
+            const resp = await fetch(URL_TROCAR, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF,
+                },
+                body: JSON.stringify(body),
+            });
+            const data = await resp.json();
+            if (!data.ok) {
+                alert('Erro: ' + (data.erro || 'desconhecido'));
+                return;
+            }
+
+            // Atualiza visual do dia
+            diaAtualEl.style.background = data.tipo_cor;
+            diaAtualEl.dataset.override = data.override ? 'true' : 'false';
+
+            const nomeEl = diaAtualEl.querySelector('div:last-of-type');
+            if (nomeEl) nomeEl.textContent = (data.tipo_nome || '—').substring(0, 5);
+
+            // Ícone de override
+            let icone = diaAtualEl.querySelector('.bi-pencil-fill')?.closest('span');
+            if (data.override) {
+                if (!icone) {
+                    icone = document.createElement('span');
+                    icone.className = 'position-absolute top-0 end-0 p-1';
+                    icone.style.fontSize = '0.6rem';
+                    icone.innerHTML = '<i class="bi bi-pencil-fill text-warning"></i>';
+                    diaAtualEl.appendChild(icone);
+                }
+            } else {
+                if (icone) icone.remove();
+            }
+
+            modal.hide();
+        } catch (e) {
+            alert('Erro de comunicação com o servidor.');
+        }
+    }
+
+    // Botões de tipo
+    document.querySelectorAll('.btn-tipo-sel').forEach(btn => {
+        btn.addEventListener('click', function () {
+            trocar(parseInt(this.dataset.tipoId), false);
+        });
+    });
+
+    // Restaurar padrão
+    document.getElementById('btn-remover-override').addEventListener('click', function () {
+        trocar(null, true);
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

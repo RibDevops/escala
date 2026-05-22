@@ -45,3 +45,26 @@ def range_filter(value):
         return list(range(1, int(value) + 1))
     except (ValueError, TypeError):
         return []
+
+
+@register.filter
+def split(value, sep=','):
+    """Divide uma string pelo separador — ex: {{ 'a,b,c'|split:',' }}"""
+    try:
+        return value.split(sep)
+    except (AttributeError, TypeError):
+        return []
+
+
+@register.filter
+def weekday_offset(data):
+    """
+    Retorna o offset do dia da semana em formato Domingo=0 ... Sábado=6
+    (formato do calendário com domingo como primeira coluna).
+    """
+    try:
+        # Python: Monday=0 ... Sunday=6
+        # Calendário: Sunday=0 ... Saturday=6
+        return (data.weekday() + 1) % 7
+    except AttributeError:
+        return 0

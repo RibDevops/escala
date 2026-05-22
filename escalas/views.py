@@ -38,6 +38,7 @@ from .models import (
     ConfiguracaoEscala,
     Divisao,
     Escala,
+    EscalaCalendarioOverride,
     EscalaItem,
     Especialidade,
     Indisponibilidade,
@@ -1901,12 +1902,165 @@ def escala_gerar_vertical(request, escala_id):
 
     militares_count = Militar.objects.filter(organizacao_militar=om, ativo=True).count()
     tem_itens = escala.itens.exists()
+
+    # Calendário do mês para visualização/edição na tela de gerar
+    import calendar as _cal
+    primeiro_dia = date(escala.ano, escala.mes, 1)
+    ultimo_num = _cal.monthrange(escala.ano, escala.mes)[1]
+    ultimo_dia = date(escala.ano, escala.mes, ultimo_num)
+
+    dias_om = {
+        cd.data: cd
+        for cd in CalendarioDia.objects.filter(
+            organizacao_militar=om,
+            data__range=(primeiro_dia, ultimo_dia),
+        ).select_related('tipo_servico')
+    }
+    overrides = {
+        ov.data: ov
+        for ov in EscalaCalendarioOverride.objects.filter(
+            escala=escala,
+        ).select_related('tipo_servico')
+    }
+
+    tipos_servico_om = list(
+        TipoServico.objects.filter(organizacao_militar=om, ativo=True).order_by('ordem')
+    )
+
+    dias_calendario = []
+    for n in range(1, ultimo_num + 1):
+        d = date(escala.ano, escala.mes, n)
+        cd = dias_om.get(d)
+        ov = overrides.get(d)
+        tipo_atual = ov.tipo_servico if ov else (cd.tipo_servico if cd else None)
+        dias_calendario.append({
+            'data': d,
+            'tipo': tipo_atual,
+            'override': ov is not None,
+            'dia_semana': d.strftime('%a'),
+        })
+
+    # Verifica permissão de edição do calendário (Chefe, Adjunto ou Escalante)
+    pode_editar_calendario = request.user.perfil in (
+        PerfilUsuario.CHEFE, PerfilUsuario.ADJUNTO, PerfilUsuario.ESCALANTE, PerfilUsuario.ADMIN_OM,
+    )
+
     return render(request, 'escala/gerar_vertical.html', {
-        'escala':           escala,
-        'militares_count':  militares_count,
-        'tem_itens':        tem_itens,
-        'nomes_meses':      NOMES_MESES,
-        'resultado':        resultado,
+        'escala':                   escala,
+        'militares_count':          militares_count,
+        'tem_itens':                tem_itens,
+        'nomes_meses':              NOMES_MESES,
+        'resultado':                resultado,
+        'dias_calendario':          dias_calendario,
+        'tipos_servico_om':         tipos_servico_om,
+        'pode_editar_calendario':   pode_editar_calendario,
+    })
+
+
+@login_required
+def escala_calendario_trocar_tipo(request, escala_id):
+    """
+    AJAX — Troca o tipo de serviço de um dia específico dentro desta escala.
+
+    POST  : { data: 'YYYY-MM-DD', tipo_servico_id: <int> }
+    DELETE: { data: 'YYYY-MM-DD' }  → remove o override (volta ao padrão da OM)
+
+    Permissão: Chefe, Adjunto, Escalante ou Admin OM.
+    Escopo: POR ESCALA — não altera o calendário global da OM.
+
+    Efeito colateral: se a escala já tem itens gerados no dia alterado,
+    o EscalaItem existente tem seu CalendarioDia trocado para o novo tipo.
+    """
+    import json
+
+    escala = get_object_or_404(Escala, pk=escala_id)
+
+    if escala.status not in ('rascunho', 'previsao'):
+        return JsonResponse({'ok': False, 'erro': 'Apenas Rascunho ou Previsão.'}, status=400)
+
+    perfis_permitidos = (
+        PerfilUsuario.CHEFE, PerfilUsuario.ADJUNTO,
+        PerfilUsuario.ESCALANTE, PerfilUsuario.ADMIN_OM,
+    )
+    if request.user.perfil not in perfis_permitidos:
+        return JsonResponse({'ok': False, 'erro': 'Sem permissão.'}, status=403)
+
+    try:
+        body = json.loads(request.body)
+        data_str = body.get('data', '')
+        d = date.fromisoformat(data_str)
+    except (ValueError, KeyError):
+        return JsonResponse({'ok': False, 'erro': 'Data inválida.'}, status=400)
+
+    om = escala.organizacao_militar
+
+    # ── REMOVER override (volta ao padrão da OM) ─────────────────────────────
+    if request.method == 'DELETE' or body.get('remover'):
+        EscalaCalendarioOverride.objects.filter(escala=escala, data=d).delete()
+
+        # Reverte itens existentes neste dia para o CalendarioDia padrão da OM
+        cd_padrao = CalendarioDia.objects.filter(organizacao_militar=om, data=d).first()
+        if cd_padrao:
+            EscalaItem.objects.filter(
+                escala=escala,
+                calendario_dia__data=d,
+            ).update(calendario_dia=cd_padrao)
+
+        tipo_padrao = cd_padrao.tipo_servico if cd_padrao else None
+        return JsonResponse({
+            'ok': True,
+            'removido': True,
+            'tipo_nome': tipo_padrao.nome if tipo_padrao else '',
+            'tipo_cor': tipo_padrao.cor_hex if tipo_padrao else '#888',
+        })
+
+    # ── APLICAR override ─────────────────────────────────────────────────────
+    try:
+        tipo_servico_id = int(body.get('tipo_servico_id', 0))
+        novo_tipo = TipoServico.objects.get(pk=tipo_servico_id, organizacao_militar=om, ativo=True)
+    except (ValueError, TipoServico.DoesNotExist):
+        return JsonResponse({'ok': False, 'erro': 'Tipo de serviço inválido.'}, status=400)
+
+    # Obtém ou cria o CalendarioDia para o novo tipo (pode não existir se for
+    # uma data que a OM ainda não tem no calendário — improvável mas seguro)
+    cd_novo, _ = CalendarioDia.objects.get_or_create(
+        organizacao_militar=om,
+        data=d,
+        defaults={'tipo_servico': novo_tipo, 'origem_tipo': 'MANUAL'},
+    )
+    # Se já existia com outro tipo, precisamos de um CalendarioDia com o novo tipo.
+    # Como unique_together=(om, data) existe, usamos o override para mapear.
+    # Os itens apontarão para cd_novo apenas se o tipo coincidir.
+    # Estratégia: atualizar o CalendarioDia existente se origem=AUTO e o tipo muda.
+    if cd_novo.tipo_servico != novo_tipo:
+        # Precisa encontrar ou criar um cd com esse tipo; como unique_together impede
+        # dois cd para o mesmo (om, data), atualizamos apenas se for AUTO.
+        if cd_novo.origem_tipo == 'AUTO':
+            cd_novo.tipo_servico = novo_tipo
+            cd_novo.origem_tipo = 'MANUAL'
+            cd_novo.save(update_fields=['tipo_servico', 'origem_tipo'])
+
+    # Salva o override para rastrear a mudança por escala
+    EscalaCalendarioOverride.objects.update_or_create(
+        escala=escala,
+        data=d,
+        defaults={
+            'tipo_servico': novo_tipo,
+            'criado_por': request.user,
+        },
+    )
+
+    # Atualiza itens existentes neste dia para o novo CalendarioDia
+    EscalaItem.objects.filter(
+        escala=escala,
+        calendario_dia__data=d,
+    ).update(calendario_dia=cd_novo)
+
+    return JsonResponse({
+        'ok': True,
+        'tipo_nome': novo_tipo.nome,
+        'tipo_cor': novo_tipo.cor_hex,
+        'override': True,
     })
 
 

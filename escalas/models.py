@@ -808,6 +808,49 @@ class CalendarioDia(models.Model):
             data_atual += timedelta(days=1)
 
 
+class EscalaCalendarioOverride(models.Model):
+    """
+    Ajuste pontual do tipo de serviço de um dia DENTRO DE UMA ESCALA específica.
+
+    Por padrão cada dia segue o CalendarioDia da OM (Preto seg-sex / Vermelho sab-dom).
+    Quando o escalante precisa trocar um dia (ex: feriado especial que vira Vermelho),
+    cria-se um registro aqui sem alterar o calendário global da OM.
+
+    Impacto:
+      - O motor de geração usa este override ao construir a lista de dias do mês.
+      - Se o dia já tinha um EscalaItem gerado (Preto → Vermelho), o item existente
+        tem seu calendario_dia trocado automaticamente (troca_tipo_servico_em_itens).
+      - Escopo: POR ESCALA — não afeta outras escalas da OM.
+    """
+    escala = models.ForeignKey(
+        'Escala',
+        on_delete=models.CASCADE,
+        related_name='calendario_overrides',
+    )
+    data = models.DateField()
+    tipo_servico = models.ForeignKey(
+        'TipoServico',
+        on_delete=models.PROTECT,
+        related_name='calendario_overrides',
+    )
+    criado_por = models.ForeignKey(
+        'UsuarioCustomizado',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    observacao = models.CharField(max_length=120, blank=True)
+
+    class Meta:
+        db_table = 'escala_calendario_override'
+        unique_together = ['escala', 'data']
+        ordering = ['data']
+
+    def __str__(self):
+        return f"{self.escala} — {self.data:%d/%m/%Y} → {self.tipo_servico.nome}"
+
+
 class TipoIndisponibilidade(models.Model):
     """Tipos de indisponibilidade: Férias, Licença, Missão, Dispensa, etc."""
     

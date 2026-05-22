@@ -142,6 +142,7 @@ urlpatterns = [
     path('escalas/item/<int:item_id>/trocar-militar/', views.escala_item_trocar_militar, name='escala_item_trocar_militar'),
     path('escalas/item/<int:item_id>/substituto/', views.escala_item_definir_substituto, name='escala_item_definir_substituto'),
     path('escalas/<int:escala_id>/excluir/', views.escala_excluir, name='escala_excluir'),
+    path('escalas/<int:escala_id>/calendario/trocar-tipo/', views.escala_calendario_trocar_tipo, name='escala_calendario_trocar_tipo'),
     path('escalas/<int:escala_id>/previsao/', views.escala_marcar_previsao, name='escala_marcar_previsao'),
     path('escalas/<int:escala_id>/publicar/', views.escala_publicar, name='escala_publicar'),
     path('escalas/<int:escala_id>/matriz/', views.escala_matriz, name='escala_matriz'),
