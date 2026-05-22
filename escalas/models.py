@@ -128,14 +128,20 @@ class UsuarioCustomizado(AbstractUser):
         return self.perfil == PerfilUsuario.ESCALANTE and self.ativo
     
     def obter_oms_acesso(self):
-        """Retorna as OMs que o usuário pode acessar"""
+        """Retorna as OMs que o usuário pode acessar.
+
+        Fonte de verdade: Militar.user (relação reversa acessada como usuario.militar).
+        Os campos legados eh_militar / militar_associado são mantidos apenas
+        por compatibilidade — não devem ser usados como lógica primária.
+        """
         if self.pode_administrar():
-            # Admin de OM só acessa sua OM principal
             return OrganizacaoMilitar.objects.filter(id=self.om_principal_id, ativo=True)
-        elif self.eh_militar and self.militar_associado:
-            # Militar só acessa sua própria OM
+
+        # Relação reversa: Militar.user → acesso via usuario.militar
+        militar = getattr(self, 'militar', None)
+        if militar is not None:
             return OrganizacaoMilitar.objects.filter(
-                id=self.militar_associado.organizacao_militar_id,
+                id=militar.organizacao_militar_id,
                 ativo=True
             )
         return OrganizacaoMilitar.objects.none()
@@ -546,6 +552,9 @@ class Militar(models.Model):
             last_name=last_name,
             perfil=PerfilUsuario.MILITAR,
             om_principal=self.organizacao_militar,
+            # Preenche os campos legados para retrocompatibilidade
+            eh_militar=True,
+            militar_associado=self,
         )
 
         self.user = usuario

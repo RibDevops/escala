@@ -31,8 +31,9 @@ def usuario_pode_acessar_om(usuario, om):
     """Verifica se usuário tem acesso à OM"""
     if usuario.pode_administrar():
         return usuario.om_principal_id == om.id
-    elif usuario.eh_militar and usuario.militar_associado:
-        return usuario.militar_associado.organizacao_militar_id == om.id
+    militar = getattr(usuario, 'militar', None)
+    if militar is not None:
+        return militar.organizacao_militar_id == om.id
     return False
 
 
@@ -144,9 +145,9 @@ def listar_escalas(request):
             id=request.user.om_principal_id,
             ativo=True
         )
-    elif request.user.eh_militar and request.user.militar_associado:
+    elif (m := getattr(request.user, 'militar', None)) is not None:
         oms = OrganizacaoMilitar.objects.filter(
-            id=request.user.militar_associado.organizacao_militar_id,
+            id=m.organizacao_militar_id,
             ativo=True
         )
     else:
@@ -483,8 +484,7 @@ def dashboard(request):
             status='publicada'
         ).order_by('-ano', '-mes')[:12]
     
-    elif request.user.eh_militar and request.user.militar_associado:
-        militar = request.user.militar_associado
+    elif (militar := getattr(request.user, 'militar', None)) is not None:
         escalas_mes = EscalaItem.objects.filter(
             militar=militar
         ).select_related(

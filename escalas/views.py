@@ -2956,7 +2956,7 @@ def troca_listar(request):
         return redirect('dashboard')
 
     usuario = request.user
-    militar_logado = getattr(usuario, 'militar_associado', None)
+    militar_logado = getattr(usuario, 'militar', None)
 
     # Se é militar comum, mostra só as suas próprias trocas
     if usuario.perfil == PerfilUsuario.MILITAR and militar_logado:
@@ -3062,7 +3062,7 @@ def troca_servicos_militar(request):
         return JsonResponse({'erro': 'Nenhuma OM ativa'}, status=400)
 
     usuario = request.user
-    militar_logado = getattr(usuario, 'militar_associado', None)
+    militar_logado = getattr(usuario, 'militar', None)
     if not militar_logado:
         return JsonResponse({'erro': 'Usuário não é militar'}, status=400)
 
@@ -3116,7 +3116,7 @@ def troca_solicitar(request):
         return redirect('dashboard')
 
     usuario = request.user
-    militar_logado = getattr(usuario, 'militar_associado', None)
+    militar_logado = getattr(usuario, 'militar', None)
     if not militar_logado:
         messages.error(request, "Apenas militares podem solicitar troca.")
         return redirect('dashboard')
@@ -3203,7 +3203,7 @@ def troca_aceitar(request, troca_id):
         return JsonResponse({'erro': 'Nenhuma OM ativa'}, status=400)
 
     usuario = request.user
-    militar_logado = getattr(usuario, 'militar_associado', None)
+    militar_logado = getattr(usuario, 'militar', None)
     if not militar_logado:
         return JsonResponse({'erro': 'Usuário não é militar'}, status=400)
 

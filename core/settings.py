@@ -174,9 +174,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # )
 
 # AUTH_LDAP_USER_ATTR_MAP = {
-#     "username":   "sAMAccountName",
-#     "first_name": "name",
-#     "last_name":  "physicalDeliveryOfficeName",
+#     # Sincroniza nome e e-mail do AD para UsuarioCustomizado a cada login
+#     "first_name": "givenName",    # Primeiro nome no AD
+#     "last_name":  "sn",           # Sobrenome no AD
 #     "email":      "mail",
 # }
 
@@ -187,5 +187,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ]
 
 # Configurações opcionais do django-auth-ldap:
-# AUTH_LDAP_ALWAYS_UPDATE_USER = True   # Sincroniza atributos do AD a cada login
+# AUTH_LDAP_ALWAYS_UPDATE_USER = True   # Sincroniza first_name/last_name/email a cada login
 # AUTH_LDAP_CACHE_TIMEOUT = 3600        # Cache de grupo em segundos
