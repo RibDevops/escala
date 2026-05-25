@@ -290,7 +290,7 @@
 {% endblock %}
 
 {% block scripts %}
-{% if pode_editar %}
+{% if pode_editar_calendario and dias_calendario %}
 <script>
 (function () {
     const ESCALA_ID = {{ escala.id }};
