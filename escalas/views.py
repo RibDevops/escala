@@ -1581,7 +1581,7 @@ def escala_criar(request):
                     mes=mes,
                     ano=ano,
                     observacao=obs,
-                    status='rascunho',
+                    status='previsao',
                 )
                 messages.success(
                     request,
@@ -1629,7 +1629,7 @@ def escala_detalhar(request, escala_id):
         'itens': itens,
         'contagem_lista': contagem_lista,
         'nomes_meses': NOMES_MESES,
-        'pode_editar': escala.status in ('rascunho', 'previsao'),
+        'pode_editar': escala.status == 'previsao',
         'militares_om': militares_om,
     })
 
@@ -1648,7 +1648,7 @@ def escala_item_trocar_militar(request, item_id):
     item = get_object_or_404(EscalaItem, pk=item_id)
     escala = item.escala
 
-    if escala.status not in ('rascunho', 'previsao'):
+    if escala.status != 'previsao':
         return JsonResponse({'ok': False, 'erro': 'Escala não editável.'}, status=400)
 
     try:
@@ -1857,8 +1857,8 @@ def escala_gerar_vertical(request, escala_id):
     escala = get_object_or_404(Escala, pk=escala_id)
     om = escala.organizacao_militar
 
-    if escala.status not in ('rascunho', 'previsao'):
-        messages.error(request, 'Somente escalas em Rascunho ou Previsão podem ser geradas.')
+    if escala.status != 'previsao':
+        messages.error(request, 'Somente escalas em Previsão podem ser geradas.')
         return redirect('escala_detalhar', escala_id=escala_id)
 
     if request.method == 'POST':
@@ -1975,8 +1975,8 @@ def escala_calendario_trocar_tipo(request, escala_id):
 
     escala = get_object_or_404(Escala, pk=escala_id)
 
-    if escala.status not in ('rascunho', 'previsao'):
-        return JsonResponse({'ok': False, 'erro': 'Apenas Rascunho ou Previsão.'}, status=400)
+    if escala.status != 'previsao':
+        return JsonResponse({'ok': False, 'erro': 'Apenas Previsão.'}, status=400)
 
     perfis_permitidos = (
         PerfilUsuario.CHEFE, PerfilUsuario.ADJUNTO,
@@ -2067,9 +2067,9 @@ def escala_calendario_trocar_tipo(request, escala_id):
 @login_required
 @require_POST
 def escala_limpar(request, escala_id):
-    """Remove todos os itens da escala (só rascunho/previsão)."""
+    """Remove todos os itens da escala (só Previsão)."""
     escala = get_object_or_404(Escala, pk=escala_id)
-    if escala.status not in ('rascunho', 'previsao'):
+    if escala.status != 'previsao':
         messages.error(request, 'Não é possível limpar uma escala publicada.')
     else:
         total = escala.itens.count()
@@ -2084,7 +2084,7 @@ def escala_item_forcar(request, item_id):
     """Toggle do flag forcar_escala em um EscalaItem."""
     item = get_object_or_404(EscalaItem, pk=item_id)
     escala = item.escala
-    if escala.status in ('rascunho', 'previsao'):
+    if escala.status == 'previsao':
         item.forcar_escala = not item.forcar_escala
         item.save(update_fields=['forcar_escala'])
         if item.forcar_escala:
@@ -2103,18 +2103,6 @@ def escala_item_forcar(request, item_id):
         messages.error(request, 'Não é possível alterar itens de uma escala publicada.')
     return redirect('escala_detalhar', escala_id=escala.id)
 
-
-@login_required
-@require_POST
-def escala_marcar_previsao(request, escala_id):
-    """Muda status para Previsão."""
-    escala = get_object_or_404(Escala, pk=escala_id)
-    try:
-        escala.marcar_previsao()
-        messages.success(request, 'Escala marcada como Previsão.')
-    except Exception as e:
-        messages.error(request, str(e))
-    return redirect('escala_detalhar', escala_id=escala_id)
 
 
 @login_required
@@ -2431,13 +2419,13 @@ def escala_publica(request, slug):
         data_fim_atual = _d(escala_atual.ano, escala_atual.mes, ultimo_dia_mes_atual)
         itens_atual = _extrair_itens(escala_atual, data_inicio=data_inicio_atual, data_fim=data_fim_atual)
 
-        # Busca escala do próximo mês (rascunho, previsão ou publicada)
+        # Busca escala do próximo mês (previsão ou publicada)
         prox_data = data_fim_atual + _td(days=1)
         proxima_escala = (
             Escala.objects.filter(
                 organizacao_militar=om,
                 tipo_escala=tipo_escala,
-                status__in=('rascunho', 'previsao', 'publicada'),
+                status__in=('previsao', 'publicada'),
                 ano=prox_data.year,
                 mes=prox_data.month,
             ).first()

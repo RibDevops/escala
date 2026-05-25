@@ -71,14 +71,10 @@
                 </td>
                 <td>{{ e.tipo_escala.nome }}</td>
                 <td>
-                    {% if e.status == 'rascunho' %}
-                        <span class="badge bg-secondary">Rascunho</span>
-                    {% elif e.status == 'previsao' %}
-                        <span class="badge bg-info text-dark">Previsão</span>
-                    {% elif e.status == 'publicada' %}
-                        <span class="badge bg-success">Oficial</span>
+                    {% if e.status == 'publicada' %}
+                        <span class="badge bg-success">Escala (Oficial)</span>
                     {% else %}
-                        <span class="badge bg-dark">Arquivada</span>
+                        <span class="badge bg-warning text-dark">Previsão</span>
                     {% endif %}
                 </td>
                 <td class="text-center">{{ e.itens.count }}</td>
@@ -91,7 +87,7 @@
                         <i class="bi bi-grid-3x3"></i> Matriz
                     </a>
                     {% endif %}
-                    {% if e.status in 'rascunho previsao' %}
+                    {% if e.status == 'previsao' %}
                     <a href="{% url 'escala_gerar' e.id %}" class="btn btn-sm btn-outline-warning">
                         <i class="bi bi-lightning-charge"></i> Gerar
                     </a>

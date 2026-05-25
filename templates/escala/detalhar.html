@@ -30,14 +30,6 @@
                 </button>
             </form>
             {% endif %}
-            {% if escala.status == 'rascunho' and itens %}
-            <form method="post" action="{% url 'escala_marcar_previsao' escala.id %}">
-                {% csrf_token %}
-                <button class="btn btn-info btn-sm text-dark">
-                    <i class="bi bi-clock"></i> Marcar Previsão
-                </button>
-            </form>
-            {% endif %}
             {% if itens %}
             <form method="post" action="{% url 'escala_publicar' escala.id %}"
                   onsubmit="return confirm('Publicar esta escala? Ela ficará oficial e não poderá mais ser alterada.')">
@@ -105,14 +97,10 @@
 
 {# Badge de status #}
 <div class="mb-4">
-    {% if escala.status == 'rascunho' %}
-        <span class="badge bg-secondary fs-6">Rascunho</span>
-    {% elif escala.status == 'previsao' %}
-        <span class="badge bg-info text-dark fs-6">Previsão</span>
-    {% elif escala.status == 'publicada' %}
+    {% if escala.status == 'publicada' %}
         <span class="badge bg-success fs-6"><i class="bi bi-shield-check"></i> Escala Oficial</span>
     {% else %}
-        <span class="badge bg-dark fs-6">Arquivada</span>
+        <span class="badge bg-warning text-dark fs-6"><i class="bi bi-pencil"></i> Previsão</span>
     {% endif %}
     {% if escala.observacao %}
     <span class="text-muted small ms-2">{{ escala.observacao }}</span>

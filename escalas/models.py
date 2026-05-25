@@ -956,10 +956,8 @@ class Escala(models.Model):
     """Cabeçalho da escala mensal para um tipo de escala específico"""
     
     STATUS_CHOICES = [
-        ('rascunho', 'Rascunho'),
         ('previsao', 'Previsão'),
         ('publicada', 'Escala (Oficial)'),
-        ('arquivada', 'Arquivada'),
     ]
     
     organizacao_militar = models.ForeignKey(
@@ -986,7 +984,7 @@ class Escala(models.Model):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='rascunho'
+        default='previsao'
     )
     
     usuario_criacao = models.ForeignKey(
@@ -1021,22 +1019,12 @@ class Escala(models.Model):
     def __str__(self):
         return f"{self.organizacao_militar.sigla} - {self.tipo_escala.nome} ({self.mes:02d}/{self.ano})"
     
-    def marcar_previsao(self):
-        """Marca como Previsão (fase intermediária antes de virar Escala oficial)."""
-        if self.status not in ('rascunho', 'publicada'):
-            raise ValidationError(
-                "Só é possível marcar como Previsão a partir de Rascunho ou Escala (Oficial)."
-            )
-        self.status = 'previsao'
-        self.save()
-
     def publicar(self):
         """Muda status para Escala (Oficial) e registra data."""
-        if self.status not in ('rascunho', 'previsao'):
+        if self.status != 'previsao':
             raise ValidationError(
-                "Apenas escalas em Rascunho ou Previsão podem virar Escala (Oficial)."
+                "Apenas escalas em Previsão podem virar Escala (Oficial)."
             )
-
         self.status = 'publicada'
         self.data_publicacao = timezone.now()
         self.save()
