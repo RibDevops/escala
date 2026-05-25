@@ -2441,24 +2441,48 @@ def escala_publica(request, slug):
                 data_fim=data_fim_prox,
             )
 
-    # Ranking por tipo de serviço (5 com menor carga neste tipo_escala)
+    # Ranking "Próximos a Escalar" — usa EXATAMENTE a mesma chave de ordenação do motor.
+    #
+    # O MotorEscalaVertical (_processar_dia em services.py) ordena por:
+    #   (counts_operacional, desempate_por_id)
+    # onde:
+    #   lista_militares  = order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+    #   desempate_por_id = { m.id: (n-1-i) }  →  BASE (mais moderno, índice n-1) = 0 = máxima prioridade
+    #
+    # Portanto a fila exibida aqui é idêntica à fila que o motor usará no próximo mês.
     ano_atual = hoje.year
+
+    # Militares na mesma ordem que o motor usa (é crítico para calcular desempate_por_id)
     militares_om = (
-        list(Militar.objects.filter(organizacao_militar=om, ativo=True).select_related('posto'))
+        list(
+            Militar.objects.filter(organizacao_militar=om, ativo=True)
+            .select_related('posto')
+            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+        )
         if om else []
     )
+    n_mil = len(militares_om)
+    # desempate: índice 0 = TOPO (mais antigo, menor prioridade no empate)
+    #            índice n-1 = BASE (mais moderno, maior prioridade no empate → menor desempate_key)
+    desempate_key = {m.id: (n_mil - 1 - i) for i, m in enumerate(militares_om)}
 
     proximos_por_servico = []
     for ts in tipos_servico:
+        # Soma todos os tipos de serviço do tipo_escala — igual ao _carregar_matriz_historica
         totais = {m.id: {'militar': m, 'total': 0} for m in militares_om}
         for qd in Quadrinho.objects.filter(
             militar__in=militares_om,
-            tipo_servico=ts,
             tipo_escala=tipo_escala,
             ano=ano_atual,
         ).select_related('militar__posto'):
-            totais[qd.militar_id]['total'] += qd.total
-        proximos = sorted(totais.values(), key=lambda x: (x['total'], x['militar'].nome_guerra))[:5]
+            if qd.militar_id in totais:
+                totais[qd.militar_id]['total'] += qd.total
+
+        # Ordenação idêntica ao motor: menor total → desempate BASE→TOPO (menor desempate_key)
+        proximos = sorted(
+            totais.values(),
+            key=lambda x: (x['total'], desempate_key.get(x['militar'].id, 0)),
+        )[:5]
         proximos_por_servico.append({'tipo_servico': ts, 'proximos': proximos})
 
     return render(request, 'escala/escala_publica.html', {
