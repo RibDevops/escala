@@ -165,9 +165,10 @@ urlpatterns = [
 
     # Páginas públicas dinâmicas por slug de TipoEscala (sem login)
     # Criadas automaticamente ao cadastrar um novo tipo de escala
-    # Exemplos: /escala/permanencia/  /escala/eletricista/  /matriz/sobreaviso/
-    path('escala/<slug:slug>/', views.escala_publica, name='escala_publica'),
+    path('escala-do-mes/<slug:slug>/', views.escala_publica, name='escala_publica'),
     path('matriz/<slug:slug>/', views.matriz_publica, name='matriz_publica'),
+    # Redirecionamentos legados
+    path('escala/<slug:slug>/', views.escala_publica_redirect, name='escala_publica_legacy'),
 
     # Troca de Serviço
     path('troca/', views.troca_listar, name='troca_listar'),

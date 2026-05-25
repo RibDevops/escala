@@ -711,7 +711,7 @@ class TipoEscala(models.Model):
         super().save(*args, **kwargs)
 
     def get_escala_publica_url(self):
-        return f'/escala/{self.slug}/'
+        return f'/escala-do-mes/{self.slug}/'
 
     def get_matriz_publica_url(self):
         return f'/matriz/{self.slug}/'

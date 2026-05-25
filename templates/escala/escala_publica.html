@@ -32,7 +32,6 @@
         .pub-header .subtitle { font-size: 0.85rem; opacity: 0.8; margin-top: 0.2rem; }
         .pub-header .data-hora { margin-left: auto; text-align: right; font-size: 0.9rem; white-space: nowrap; }
 
-        /* Navegação entre tipos */
         .tipo-nav {
             background: #fff;
             border-bottom: 1px solid #dee2e6;
@@ -59,13 +58,7 @@
             font-weight: 700;
             color: var(--m-azul-fab, #003a78);
         }
-        .tipo-nav .sep {
-            width: 1px;
-            background: #e9ecef;
-            margin: 0.4rem 0;
-        }
 
-        /* Subtítulo da seção */
         .section-title {
             font-family: 'Cinzel', serif;
             font-size: 0.95rem;
@@ -78,7 +71,24 @@
             margin-bottom: 1rem;
         }
 
-        /* Tabela dos dias */
+        .mes-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px 8px 0 0;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .mes-header.atual {
+            background: #003a78;
+            color: #fff;
+        }
+        .mes-header.previsao {
+            background: #f0a500;
+            color: #fff;
+        }
+
         .escala-card {
             background: #fff;
             border-radius: 10px;
@@ -99,7 +109,6 @@
         }
         tr.hoje-row { background-color: #fffbea !important; }
 
-        /* Ranking dos próximos */
         .proximos-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -145,7 +154,6 @@
         }
         .prox-total { margin-left: auto; font-size: 0.76rem; color: #888; white-space: nowrap; }
 
-        /* Links vista matriz */
         .view-toggle {
             display: flex;
             gap: 0.5rem;
@@ -188,7 +196,6 @@
     </div>
 </header>
 
-<!-- Navegação entre todos os tipos de escala -->
 <nav class="tipo-nav">
     {% for te in todos_tipos %}
     <a href="{{ te.get_escala_publica_url }}"
@@ -204,7 +211,6 @@
     <div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> Nenhuma Organização Militar cadastrada.</div>
 {% else %}
 
-<!-- Barra: status da escala + link para matriz -->
 <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
     {% if escala_atual %}
         <span class="fw-semibold">
@@ -215,10 +221,9 @@
             {{ escala_atual.get_status_display }}
         </span>
         {% if proxima_escala %}
-        <span class="text-muted small">
+        <span class="badge bg-secondary">
             <i class="bi bi-arrow-right-circle"></i>
-            Próxima: {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }}
-            — {{ proxima_escala.get_status_display }}
+            Previsão {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }} disponível
         </span>
         {% endif %}
     {% else %}
@@ -233,14 +238,26 @@
 
 {% if escala_atual %}
 
-<!-- Tabela de serviços dos próximos 15 dias -->
-<p class="section-title"><i class="bi bi-table"></i> Próximos Serviços</p>
+<!-- ══ Seção: Mês atual ══ -->
+<div class="d-flex align-items-center gap-2 mb-2 mt-1">
+    <p class="section-title mb-0 flex-grow-1">
+        <i class="bi bi-calendar-check"></i>
+        {% with escala_atual.mes|stringformat:"02d" as mm %}
+        {{ mm }}/{{ escala_atual.ano }}
+        {% endwith %}
+        — Em andamento
+    </p>
+    <span class="badge {% if escala_atual.status == 'publicada' %}bg-success{% else %}bg-warning text-dark{% endif %} mb-3">
+        {{ escala_atual.get_status_display }}
+    </span>
+</div>
 
-{% if itens_15 %}
+{% if itens_atual %}
 <div class="escala-card">
-    <div class="card-header-pub">
-        <i class="bi bi-calendar-week"></i> Escala do mês
-        <span class="badge bg-primary">{{ itens_15|length }} dia(s)</span>
+    <div class="card-header-pub mes-header atual">
+        <i class="bi bi-calendar-week"></i>
+        Restante de {{ escala_atual.mes|stringformat:"02d" }}/{{ escala_atual.ano }}
+        <span class="badge bg-light text-dark ms-auto">{{ itens_atual|length }} dia(s)</span>
     </div>
     <div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle">
@@ -254,7 +271,7 @@
                 </tr>
             </thead>
             <tbody>
-            {% for d in itens_15 %}
+            {% for d in itens_atual %}
                 <tr {% if d.data == hoje %}class="hoje-row"{% endif %}>
                     <td class="fw-semibold">
                         {{ d.data|date:"d/m/Y" }}
@@ -280,16 +297,73 @@
     </div>
 </div>
 {% else %}
-<div class="alert alert-light border small">
-    <i class="bi bi-calendar-x"></i> Nenhum serviço lançado para os próximos 15 dias.
+<div class="alert alert-light border small mb-3">
+    <i class="bi bi-calendar-x"></i> Nenhum serviço lançado para os dias restantes deste mês.
+</div>
+{% endif %}
+
+<!-- ══ Seção: Próximo mês (previsão) ══ -->
+{% if proxima_escala and itens_proximo %}
+<div class="d-flex align-items-center gap-2 mb-2 mt-4">
+    <p class="section-title mb-0 flex-grow-1" style="border-bottom-color:#f0a500;">
+        <i class="bi bi-calendar2-plus"></i>
+        {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }}
+        — Previsão
+    </p>
+    <span class="badge bg-warning text-dark mb-3">
+        {{ proxima_escala.get_status_display }}
+    </span>
+</div>
+<div class="escala-card">
+    <div class="card-header-pub mes-header previsao">
+        <i class="bi bi-calendar2-plus"></i>
+        {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }} — Previsão
+        <span class="badge bg-light text-dark ms-auto">{{ itens_proximo|length }} dia(s)</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead style="background:#5a4200;color:#fff;">
+                <tr>
+                    <th>Data</th>
+                    <th>Dia</th>
+                    <th>Tipo</th>
+                    <th>Militar</th>
+                    <th>Posto</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for d in itens_proximo %}
+                <tr>
+                    <td class="fw-semibold">{{ d.data|date:"d/m/Y" }}</td>
+                    <td class="text-muted small">{{ d.dia_semana }}</td>
+                    <td>
+                        {% if d.tipo_servico %}
+                        <span class="badge rounded-pill"
+                              style="background-color:{{ d.tipo_servico.cor_hex|default:'#555' }};color:#fff;">
+                            {{ d.tipo_servico.nome }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ d.militar.nome_guerra }}</strong></td>
+                    <td class="small text-muted">{{ d.militar.posto.sigla }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% elif proxima_escala %}
+<div class="alert alert-warning border small mt-4">
+    <i class="bi bi-calendar2-plus"></i>
+    Previsão de {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }} criada, mas ainda sem serviços lançados.
 </div>
 {% endif %}
 
 {% endif %}
 
-<!-- Ranking por tipo de serviço -->
+<!-- ══ Ranking por tipo de serviço ══ -->
 {% if proximos_por_servico %}
-<p class="section-title mt-2"><i class="bi bi-clock-history"></i> Próximos a Escalar</p>
+<p class="section-title mt-4"><i class="bi bi-clock-history"></i> Próximos a Escalar</p>
 <div class="proximos-grid">
     {% for bloco in proximos_por_servico %}
     {% if bloco.proximos %}

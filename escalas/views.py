@@ -2350,17 +2350,23 @@ def quadrinho_publico(request):
 # Páginas públicas dinâmicas por slug de TipoEscala
 # ---------------------------------------------------------------------------
 
+def escala_publica_redirect(request, slug):
+    """Redireciona URLs legadas /escala/<slug>/ para a nova /escala-do-mes/<slug>/."""
+    return redirect('escala_publica', slug=slug)
+
+
 def escala_publica(request, slug):
     """
     Página pública (sem login) de escala para um tipo específico.
-    URL: /escala/<slug>/   ex: /escala/permanencia/
-    Mostra: próximos 15 dias + próxima escala + ranking por tipo de serviço.
-    Gerada automaticamente para cada TipoEscala cadastrado.
+    URL: /escala-do-mes/<slug>/
+    Mostra: dias do mês atual (escala publicada/previsão) + seção separada do
+    próximo mês se houver previsão, com todos os dias de cada mês completos.
     """
     import calendar as _cal
     from datetime import date as _d, timedelta as _td
 
     hoje = _d.today()
+    DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
 
     tipo_escala = get_object_or_404(TipoEscala, slug=slug, ativo=True)
     om = OrganizacaoMilitar.objects.filter(ativo=True).order_by('id').first()
@@ -2368,56 +2374,84 @@ def escala_publica(request, slug):
     todos_tipos = list(TipoEscala.objects.filter(ativo=True).order_by('nome'))
     tipos_servico = list(om.tipos_servico.filter(ativo=True).order_by('ordem')) if om else []
 
-    escala_atual = (
-        Escala.objects.filter(
+    # Busca a escala do mês corrente; se não existir, pega a mais recente
+    escala_atual = None
+    if om:
+        escala_atual = Escala.objects.filter(
             organizacao_militar=om,
             tipo_escala=tipo_escala,
             status__in=('publicada', 'previsao'),
-        ).order_by('-ano', '-mes').first()
-        if om else None
-    )
+            ano=hoje.year,
+            mes=hoje.month,
+        ).first()
+        if not escala_atual:
+            # Fallback: mês mais recente que não seja futuro
+            escala_atual = Escala.objects.filter(
+                organizacao_militar=om,
+                tipo_escala=tipo_escala,
+                status__in=('publicada', 'previsao'),
+            ).filter(
+                ano__lt=hoje.year
+            ).order_by('-ano', '-mes').first() or Escala.objects.filter(
+                organizacao_militar=om,
+                tipo_escala=tipo_escala,
+                status__in=('publicada', 'previsao'),
+                ano=hoje.year,
+                mes__lte=hoje.month,
+            ).order_by('-mes').first()
 
-    itens_15 = []
-    proxima_escala = None
-
-    if escala_atual:
-        data_ini = max(hoje, _d(escala_atual.ano, escala_atual.mes, 1))
-        data_fim = data_ini + _td(days=14)
-
-        itens_qs = (
-            EscalaItem.objects.filter(
-                escala=escala_atual,
-                calendario_dia__data__range=(data_ini, data_fim),
-            )
-            .select_related('militar__posto', 'calendario_dia__tipo_servico')
-            .order_by('calendario_dia__data')
-        )
-
+    def _extrair_itens(escala, data_inicio=None, data_fim=None):
+        """Extrai itens de uma escala como lista de dicts, opcionalmente filtrando por intervalo."""
+        qs = EscalaItem.objects.filter(escala=escala)
+        if data_inicio:
+            qs = qs.filter(calendario_dia__data__gte=data_inicio)
+        if data_fim:
+            qs = qs.filter(calendario_dia__data__lte=data_fim)
+        qs = qs.select_related('militar__posto', 'calendario_dia__tipo_servico').order_by('calendario_dia__data')
         dias_map = {}
-        for item in itens_qs:
+        for item in qs:
             dt = item.calendario_dia.data
             if dt not in dias_map:
                 dias_map[dt] = {
                     'data': dt,
-                    'dia_semana': ['Segunda', 'Terça', 'Quarta', 'Quinta',
-                                   'Sexta', 'Sábado', 'Domingo'][dt.weekday()],
+                    'dia_semana': DIAS_SEMANA[dt.weekday()],
                     'tipo_servico': item.calendario_dia.tipo_servico,
                     'militar': item.militar,
                 }
-        itens_15 = [dias_map[d] for d in sorted(dias_map)]
+        return [dias_map[d] for d in sorted(dias_map)]
 
-        ultimo_dia_mes = _cal.monthrange(escala_atual.ano, escala_atual.mes)[1]
-        prox_data = _d(escala_atual.ano, escala_atual.mes, ultimo_dia_mes) + _td(days=1)
+    itens_atual = []
+    proxima_escala = None
+    itens_proximo = []
+
+    if escala_atual:
+        # Mês atual: todos os dias a partir de hoje até o fim do mês
+        ultimo_dia_mes_atual = _cal.monthrange(escala_atual.ano, escala_atual.mes)[1]
+        data_inicio_atual = max(hoje, _d(escala_atual.ano, escala_atual.mes, 1))
+        data_fim_atual = _d(escala_atual.ano, escala_atual.mes, ultimo_dia_mes_atual)
+        itens_atual = _extrair_itens(escala_atual, data_inicio=data_inicio_atual, data_fim=data_fim_atual)
+
+        # Busca escala do próximo mês
+        prox_data = data_fim_atual + _td(days=1)
         proxima_escala = (
             Escala.objects.filter(
                 organizacao_militar=om,
                 tipo_escala=tipo_escala,
                 status__in=('publicada', 'previsao'),
-                ano__gte=prox_data.year,
-            ).order_by('ano', 'mes').first()
+                ano=prox_data.year,
+                mes=prox_data.month,
+            ).first()
         )
-        if proxima_escala and (proxima_escala.ano, proxima_escala.mes) <= (escala_atual.ano, escala_atual.mes):
-            proxima_escala = None
+
+        if proxima_escala:
+            # Próximo mês: todos os dias do mês completo
+            ultimo_dia_prox = _cal.monthrange(proxima_escala.ano, proxima_escala.mes)[1]
+            data_fim_prox = _d(proxima_escala.ano, proxima_escala.mes, ultimo_dia_prox)
+            itens_proximo = _extrair_itens(
+                proxima_escala,
+                data_inicio=_d(proxima_escala.ano, proxima_escala.mes, 1),
+                data_fim=data_fim_prox,
+            )
 
     # Ranking por tipo de serviço (5 com menor carga neste tipo_escala)
     ano_atual = hoje.year
@@ -2445,8 +2479,9 @@ def escala_publica(request, slug):
         'todos_tipos': todos_tipos,
         'tipo_escala': tipo_escala,
         'escala_atual': escala_atual,
-        'itens_15': itens_15,
+        'itens_atual': itens_atual,
         'proxima_escala': proxima_escala,
+        'itens_proximo': itens_proximo,
         'proximos_por_servico': proximos_por_servico,
     })
 
