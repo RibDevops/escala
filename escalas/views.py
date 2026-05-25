@@ -2431,13 +2431,13 @@ def escala_publica(request, slug):
         data_fim_atual = _d(escala_atual.ano, escala_atual.mes, ultimo_dia_mes_atual)
         itens_atual = _extrair_itens(escala_atual, data_inicio=data_inicio_atual, data_fim=data_fim_atual)
 
-        # Busca escala do próximo mês
+        # Busca escala do próximo mês (rascunho, previsão ou publicada)
         prox_data = data_fim_atual + _td(days=1)
         proxima_escala = (
             Escala.objects.filter(
                 organizacao_militar=om,
                 tipo_escala=tipo_escala,
-                status__in=('publicada', 'previsao'),
+                status__in=('rascunho', 'previsao', 'publicada'),
                 ano=prox_data.year,
                 mes=prox_data.month,
             ).first()

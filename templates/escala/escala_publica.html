@@ -223,7 +223,7 @@
         {% if proxima_escala %}
         <span class="badge bg-secondary">
             <i class="bi bi-arrow-right-circle"></i>
-            Previsão {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }} disponível
+            {{ proxima_escala.get_status_display }} {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }} disponível
         </span>
         {% endif %}
     {% else %}
@@ -308,16 +308,16 @@
     <p class="section-title mb-0 flex-grow-1" style="border-bottom-color:#f0a500;">
         <i class="bi bi-calendar2-plus"></i>
         {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }}
-        — Previsão
+        — {{ proxima_escala.get_status_display }}
     </p>
-    <span class="badge bg-warning text-dark mb-3">
+    <span class="badge {% if proxima_escala.status == 'publicada' %}bg-success{% elif proxima_escala.status == 'previsao' %}bg-warning text-dark{% else %}bg-secondary{% endif %} mb-3">
         {{ proxima_escala.get_status_display }}
     </span>
 </div>
 <div class="escala-card">
     <div class="card-header-pub mes-header previsao">
         <i class="bi bi-calendar2-plus"></i>
-        {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }} — Previsão
+        {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }} — {{ proxima_escala.get_status_display }}
         <span class="badge bg-light text-dark ms-auto">{{ itens_proximo|length }} dia(s)</span>
     </div>
     <div class="table-responsive">
