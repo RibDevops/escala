@@ -286,7 +286,11 @@
         </div>
     </div>
 </div>
+{% endif %}
+{% endblock %}
 
+{% block scripts %}
+{% if pode_editar %}
 <script>
 (function () {
     const ESCALA_ID = {{ escala.id }};
