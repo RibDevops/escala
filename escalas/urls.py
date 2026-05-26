@@ -158,6 +158,9 @@ urlpatterns = [
     path('usuarios/<int:usuario_id>/editar/', views.usuario_form, name='usuario_editar'),
     path('usuarios/<int:usuario_id>/excluir/', views.usuario_excluir, name='usuario_excluir'),
 
+    # Documentação do motor
+    path('documentacao/', views.documentacao_motor, name='documentacao_motor'),
+
     # Redirecionamentos legados (mantidos para não quebrar links antigos)
     path('sobreaviso/', views.sobreaviso_publico, name='sobreaviso_publico'),
     path('quadrinho-publico/', views.quadrinho_publico, name='quadrinho_publico'),

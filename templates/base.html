@@ -178,6 +178,16 @@
                         </a>
                     </li>
 
+                    {# ---- Documentação ---- #}
+                    {% if not militar_do_usuario %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'documentacao_motor' %}active{% endif %}"
+                           href="{% url 'documentacao_motor' %}">
+                            <i class="bi bi-book"></i> Documentação
+                        </a>
+                    </li>
+                    {% endif %}
+
                     {# ---- Troca (todos os perfis) ---- #}
                     {% if user.perfil == 'militar' or user.perfil == 'escalante' or user.perfil == 'chefe' or user.perfil == 'adjunto' or user.perfil == 'admin_om' %}
                     <li class="nav-item">

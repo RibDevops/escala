@@ -2315,6 +2315,16 @@ def escala_matriz(request, escala_id):
 
 
 # ---------------------------------------------------------------------------
+# Documentação do Motor de Escala
+# ---------------------------------------------------------------------------
+
+@login_required
+def documentacao_motor(request):
+    """Página de documentação técnica do motor de geração de escalas."""
+    return render(request, 'documentacao/motor_escala.html')
+
+
+# ---------------------------------------------------------------------------
 # Tela pública — Escala de Sobreaviso
 # ---------------------------------------------------------------------------
 
