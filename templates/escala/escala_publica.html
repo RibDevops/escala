@@ -142,35 +142,36 @@
         }
 
         /* ── Tabela de escala ───────────────────────────── */
-        .escala-table { width: 100%; border-collapse: collapse; }
+        .escala-table { width: 100%; border-collapse: collapse; background: #fff; }
         .escala-table thead tr {
-            background: var(--dk-surface3);
+            background: #f0f2f4;
         }
         .escala-table thead th {
             font-size: .74rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .06em;
-            color: var(--dk-muted);
+            color: #555;
             padding: .5rem .85rem;
-            border-bottom: 1px solid var(--dk-border);
+            border-bottom: 2px solid #d8dde2;
         }
         .escala-table tbody tr {
-            border-bottom: 1px solid rgba(255,241,18,.06);
+            border-bottom: 1px solid #e8eaec;
             transition: background .12s;
         }
-        .escala-table tbody tr:hover { background: rgba(255,241,18,.04); }
+        .escala-table tbody tr:hover { background: #f8f9fa; }
         .escala-table td {
             padding: .5rem .85rem;
             font-size: .88rem;
             vertical-align: middle;
-            color: var(--dk-text);
+            color: #1a1b1a;
         }
         .escala-table td.col-data { font-weight: 700; white-space: nowrap; }
-        .escala-table td.col-dia  { color: var(--dk-muted); font-size: .78rem; }
+        .escala-table td.col-dia  { color: #888; font-size: .78rem; }
         .escala-table td.col-nome { font-weight: 700; }
-        .escala-table td.col-posto { color: var(--dk-muted); font-size: .78rem; }
-        tr.hoje-row { background: rgba(255,241,18,.07) !important; }
+        .escala-table td.col-posto { color: #888; font-size: .78rem; }
+        tr.hoje-row { background: #fffbe6 !important; }
+        tr.hoje-row td { color: #1a1b1a; }
         .badge-hoje {
             background: var(--dk-yellow);
             color: #1a1b1a;
