@@ -2,112 +2,332 @@
 {% block titulo %}Configurações de Escala — {{ block.super }}{% endblock %}
 
 {% block conteudo %}
+<style>
+.cfg-card {
+    background: #252625;
+    border: 1px solid rgba(255,241,18,.18);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,.45);
+}
+.cfg-card-header {
+    background: #1a1b1a;
+    border-bottom: 2px solid #FFF112;
+    padding: .7rem 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    font-weight: 700;
+    font-size: .85rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #e8e8e6;
+}
+.cfg-card-body { padding: 1.4rem; }
+
+.cfg-form-label {
+    display: block;
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: rgba(232,232,230,.65);
+    margin-bottom: .4rem;
+}
+.cfg-input {
+    background: #1a1b1a;
+    border: 1px solid rgba(255,241,18,.25);
+    border-radius: 5px;
+    color: #e8e8e6;
+    padding: .5rem .8rem;
+    font-size: .95rem;
+    width: 100%;
+    transition: border-color .15s;
+}
+.cfg-input:focus {
+    outline: none;
+    border-color: #FFF112;
+    box-shadow: 0 0 0 3px rgba(255,241,18,.12);
+}
+.cfg-hint {
+    font-size: .75rem;
+    color: rgba(232,232,230,.45);
+    margin-top: .35rem;
+}
+.cfg-calc {
+    font-size: .78rem;
+    font-weight: 700;
+    color: #FFF112;
+    margin-top: .3rem;
+    min-height: 1.1em;
+}
+.cfg-divider {
+    border: 0;
+    border-top: 1px solid rgba(255,241,18,.12);
+    margin: 1.2rem 0;
+}
+.cfg-switch-row {
+    display: flex;
+    align-items: flex-start;
+    gap: .9rem;
+}
+.cfg-switch-toggle {
+    position: relative;
+    flex-shrink: 0;
+    width: 44px; height: 24px;
+    margin-top: .15rem;
+}
+.cfg-switch-toggle input { opacity: 0; width: 0; height: 0; }
+.cfg-switch-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: #3a3b3a;
+    border: 1px solid rgba(255,241,18,.2);
+    cursor: pointer;
+    transition: background .2s, border-color .2s;
+}
+.cfg-switch-track::after {
+    content: '';
+    position: absolute;
+    left: 3px; top: 3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: rgba(232,232,230,.45);
+    transition: transform .2s, background .2s;
+}
+.cfg-switch-toggle input:checked + .cfg-switch-track {
+    background: rgba(255,241,18,.18);
+    border-color: #FFF112;
+}
+.cfg-switch-toggle input:checked + .cfg-switch-track::after {
+    transform: translateX(20px);
+    background: #FFF112;
+}
+.cfg-switch-label strong {
+    display: block;
+    font-size: .88rem;
+    font-weight: 700;
+    color: #e8e8e6;
+    margin-bottom: .2rem;
+}
+.cfg-switch-label span {
+    font-size: .78rem;
+    color: rgba(232,232,230,.5);
+}
+
+.cfg-example {
+    background: #1a1b1a;
+    border: 1px solid rgba(255,241,18,.15);
+    border-left: 3px solid #FFF112;
+    border-radius: 6px;
+    padding: .75rem 1rem;
+    font-size: .82rem;
+    color: rgba(232,232,230,.75);
+}
+.cfg-example strong { color: #e8e8e6; }
+
+.cfg-info-card {
+    background: #1e1f1e;
+    border: 1px solid rgba(255,241,18,.12);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.cfg-info-header {
+    background: #252625;
+    border-bottom: 1px solid rgba(255,241,18,.15);
+    padding: .6rem 1rem;
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: rgba(232,232,230,.55);
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+.cfg-info-body {
+    padding: 1rem 1.1rem;
+}
+.cfg-info-body ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: .82rem;
+    color: rgba(232,232,230,.6);
+}
+.cfg-info-body li { margin-bottom: .5rem; }
+.cfg-info-body li strong { color: rgba(232,232,230,.85); }
+
+.btn-cfg-save {
+    background: #FFF112;
+    color: #1a1b1a;
+    border: none;
+    font-weight: 800;
+    font-size: .82rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: .55rem 1.3rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+}
+.btn-cfg-save:hover { background: #e6d800; }
+.btn-cfg-cancel {
+    background: transparent;
+    border: 1px solid rgba(232,232,230,.2);
+    color: rgba(232,232,230,.65);
+    font-size: .82rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: .55rem 1.1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    transition: border-color .15s, color .15s;
+}
+.btn-cfg-cancel:hover {
+    border-color: rgba(232,232,230,.45);
+    color: #e8e8e6;
+}
+.btn-cfg-back {
+    background: transparent;
+    border: 1px solid rgba(232,232,230,.18);
+    color: rgba(232,232,230,.55);
+    font-size: .82rem;
+    padding: .35rem .7rem;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: border-color .15s, color .15s;
+}
+.btn-cfg-back:hover { border-color: rgba(232,232,230,.45); color: #e8e8e6; }
+
+.page-title-dark {
+    font-family: 'Cinzel', serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #e8e8e6;
+    margin: 0;
+}
+.om-tag {
+    font-size: .8rem;
+    color: rgba(232,232,230,.5);
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    margin-bottom: 1.5rem;
+}
+.om-tag strong { color: rgba(232,232,230,.75); }
+</style>
+
 <div class="row justify-content-center">
     <div class="col-md-8 col-lg-7">
 
-        <div class="d-flex align-items-center gap-2 mb-4">
-            <a href="{% url 'escala_listar' %}" class="btn btn-outline-secondary btn-sm">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <a href="{% url 'escala_listar' %}" class="btn-cfg-back">
                 <i class="bi bi-arrow-left"></i>
             </a>
-            <h2 class="mb-0"><i class="bi bi-sliders"></i> Configurações de Escala</h2>
+            <h2 class="page-title-dark"><i class="bi bi-sliders"></i> Configurações de Escala</h2>
         </div>
 
         {% if om %}
-        <p class="text-muted">
-            <i class="bi bi-buildings"></i> OM ativa: <strong>{{ om.sigla }} — {{ om.nome }}</strong>
+        <p class="om-tag">
+            <i class="bi bi-buildings"></i>
+            OM ativa: <strong>{{ om.sigla }} — {{ om.nome }}</strong>
         </p>
         {% endif %}
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-header fw-semibold" style="background:#003a78;color:#fff;">
+        <div class="cfg-card mb-4">
+            <div class="cfg-card-header">
                 <i class="bi bi-clock-history"></i> Regras de Folga
             </div>
-            <div class="card-body">
+            <div class="cfg-card-body">
                 <form method="post">
                     {% csrf_token %}
 
-                    <div class="row g-3">
+                    <div class="row g-4">
 
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold" for="id_folga_minima_horas">
+                            <label class="cfg-form-label" for="id_folga_minima_horas">
                                 Folga mínima entre serviços (horas)
                             </label>
-                            <input type="number" class="form-control" id="id_folga_minima_horas"
+                            <input type="number" class="cfg-input" id="id_folga_minima_horas"
                                    name="folga_minima_horas" min="0" max="720"
                                    value="{{ config.folga_minima_horas }}">
-                            <div class="form-text">
-                                Horas de descanso obrigatório após encerramento de um serviço ou
-                                retorno de férias/indisponibilidade.
-                                <strong>Padrão: 48 h (2 dias)</strong>.
+                            <div class="cfg-hint">
+                                Horas de descanso obrigatório após encerramento de um serviço.
+                                <strong style="color:rgba(232,232,230,.7)">Padrão: 48 h (2 dias)</strong>.
                             </div>
-                            <div class="mt-1">
-                                <small class="text-primary fw-semibold" id="folga-calc"></small>
-                            </div>
+                            <div class="cfg-calc" id="folga-calc"></div>
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold" for="id_duracao_servico_horas">
+                            <label class="cfg-form-label" for="id_duracao_servico_horas">
                                 Duração do serviço (horas)
                             </label>
-                            <input type="number" class="form-control" id="id_duracao_servico_horas"
+                            <input type="number" class="cfg-input" id="id_duracao_servico_horas"
                                    name="duracao_servico_horas" min="1" max="168"
                                    value="{{ config.duracao_servico_horas }}">
-                            <div class="form-text">
+                            <div class="cfg-hint">
                                 Quantas horas dura um serviço padrão.
-                                <strong>Padrão: 24 h</strong>.
+                                <strong style="color:rgba(232,232,230,.7)">Padrão: 24 h</strong>.
                             </div>
                         </div>
 
                         <div class="col-12">
-                            <div class="alert alert-info small py-2 mb-0" id="exemplo-calculo">
-                            </div>
+                            <div class="cfg-example" id="exemplo-calculo"></div>
                         </div>
 
                         <div class="col-12">
-                            <hr>
-                            <p class="fw-semibold mb-2"><i class="bi bi-calendar-x"></i> Bloqueio em relação a férias/indisponibilidades</p>
+                            <hr class="cfg-divider">
+                            <p style="font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(232,232,230,.55);margin-bottom:1rem;">
+                                <i class="bi bi-calendar-x"></i> Bloqueio em relação a férias / indisponibilidades
+                            </p>
                         </div>
 
                         <div class="col-md-6">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" role="switch"
-                                       id="id_bloquear_pre_ferias" name="bloquear_pre_ferias"
-                                       {% if config.bloquear_pre_ferias %}checked{% endif %}>
-                                <label class="form-check-label fw-semibold" for="id_bloquear_pre_ferias">
-                                    Bloquear pré-férias
+                            <div class="cfg-switch-row">
+                                <label class="cfg-switch-toggle">
+                                    <input type="checkbox" id="id_bloquear_pre_ferias"
+                                           name="bloquear_pre_ferias"
+                                           {% if config.bloquear_pre_ferias %}checked{% endif %}>
+                                    <span class="cfg-switch-track"></span>
                                 </label>
-                            </div>
-                            <div class="form-text ms-4">
-                                Impede que o militar seja escalado nos dias anteriores ao início
-                                de férias/indisponibilidade, garantindo que ele não fique em
-                                serviço quando o período começar.
+                                <div class="cfg-switch-label">
+                                    <strong>Bloquear pré-férias</strong>
+                                    <span>Impede escalar nos dias anteriores ao início das férias, garantindo folga antes do afastamento.</span>
+                                </div>
                             </div>
                         </div>
 
                         <div class="col-md-6">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" role="switch"
-                                       id="id_bloquear_pos_ferias" name="bloquear_pos_ferias"
-                                       {% if config.bloquear_pos_ferias %}checked{% endif %}>
-                                <label class="form-check-label fw-semibold" for="id_bloquear_pos_ferias">
-                                    Bloquear pós-férias
+                            <div class="cfg-switch-row">
+                                <label class="cfg-switch-toggle">
+                                    <input type="checkbox" id="id_bloquear_pos_ferias"
+                                           name="bloquear_pos_ferias"
+                                           {% if config.bloquear_pos_ferias %}checked{% endif %}>
+                                    <span class="cfg-switch-track"></span>
                                 </label>
-                            </div>
-                            <div class="form-text ms-4">
-                                Impede que o militar seja escalado logo após retorno de
-                                férias/indisponibilidade, garantindo o período mínimo de
-                                descanso antes do próximo serviço.
+                                <div class="cfg-switch-label">
+                                    <strong>Bloquear pós-férias</strong>
+                                    <span>Impede escalar logo após o retorno, garantindo o período mínimo de descanso antes do próximo serviço.</span>
+                                </div>
                             </div>
                         </div>
 
                     </div>
 
-                    <hr>
+                    <hr class="cfg-divider">
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary fw-semibold">
+                        <button type="submit" class="btn-cfg-save">
                             <i class="bi bi-floppy"></i> Salvar Configurações
                         </button>
-                        <a href="{% url 'escala_listar' %}" class="btn btn-outline-secondary">
+                        <a href="{% url 'escala_listar' %}" class="btn-cfg-cancel">
                             Cancelar
                         </a>
                     </div>
@@ -115,20 +335,20 @@
             </div>
         </div>
 
-        <div class="card shadow-sm border-secondary mb-4">
-            <div class="card-header fw-semibold small">
+        <div class="cfg-info-card mb-4">
+            <div class="cfg-info-header">
                 <i class="bi bi-info-circle"></i> Como as regras funcionam
             </div>
-            <div class="card-body small text-secondary">
-                <ul class="mb-0">
-                    <li class="mb-1">
+            <div class="cfg-info-body">
+                <ul>
+                    <li>
                         <strong>Folga entre serviços:</strong> após um serviço de 24 h (encerra no dia seguinte),
                         o militar não pode ser escalado durante a folga mínima configurada.
                         Ex.: serviço em 07/06 → encerra 08/06 → com 48 h de folga, próximo serviço a partir de 11/06.
                     </li>
-                    <li class="mb-1">
-                        <strong>Bloqueio pré-férias:</strong> o sistema bloqueia automaticamente os dias imediatamente
-                        antes do início de férias/indisponibilidade, equivalentes à folga mínima.
+                    <li>
+                        <strong>Bloqueio pré-férias:</strong> o sistema bloqueia automaticamente os dias
+                        imediatamente antes do início de férias, equivalentes à folga mínima.
                         Ex.: férias em 15/06 com folga de 48 h → não pode ser escalado em 13/06 e 14/06.
                     </li>
                     <li>
@@ -147,15 +367,15 @@
 {% block scripts %}
 <script>
 (function () {
-    const folgaInput = document.getElementById('id_folga_minima_horas');
+    const folgaInput  = document.getElementById('id_folga_minima_horas');
     const duracaoInput = document.getElementById('id_duracao_servico_horas');
-    const exemploDiv = document.getElementById('exemplo-calculo');
-    const folgaCalc = document.getElementById('folga-calc');
+    const exemploDiv  = document.getElementById('exemplo-calculo');
+    const folgaCalc   = document.getElementById('folga-calc');
 
     function atualizar() {
-        const folga = parseInt(folgaInput.value) || 0;
-        const duracao = parseInt(duracaoInput.value) || 24;
-        const folgaDias = Math.ceil(folga / 24);
+        const folga    = parseInt(folgaInput.value)   || 0;
+        const duracao  = parseInt(duracaoInput.value) || 24;
+        const folgaDias   = Math.ceil(folga / 24);
         const duracaoDias = Math.ceil(duracao / 24);
         const bloqueioTotal = duracaoDias + folgaDias;
 

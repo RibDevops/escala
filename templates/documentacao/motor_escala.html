@@ -4,15 +4,30 @@
 
 {% block conteudo %}
 <style>
-/* ── Layout geral ──────────────────────────────────────────────────────── */
+:root {
+    --dk-bg:      #111211;
+    --dk-s1:      #1c1d1c;
+    --dk-s2:      #232423;
+    --dk-s3:      #2a2b2a;
+    --dk-border:  rgba(255,241,18,.15);
+    --dk-yellow:  #FFF112;
+    --dk-text:    #e4e4e2;
+    --dk-muted:   rgba(228,228,226,.5);
+    --dk-muted2:  rgba(228,228,226,.7);
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────────── */
 .doc-hero {
-    background: linear-gradient(135deg, #003a78 0%, #005cbf 100%);
-    color: #fff;
-    border-radius: 12px;
-    padding: 2.2rem 2.5rem;
+    background: linear-gradient(135deg, #111b2e 0%, #1a2840 100%);
+    border: 1px solid rgba(255,241,18,.18);
+    border-left: 4px solid var(--dk-yellow);
+    color: var(--dk-text);
+    border-radius: 10px;
+    padding: 2rem 2.4rem;
     margin-bottom: 2rem;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,.5);
 }
 .doc-hero::after {
     content: '⚙';
@@ -20,293 +35,346 @@
     right: 2rem; top: 50%;
     transform: translateY(-50%);
     font-size: 6rem;
-    opacity: 0.08;
+    opacity: 0.05;
+    pointer-events: none;
 }
-.doc-hero h1 { font-family: 'Cinzel', serif; font-size: 1.8rem; font-weight: 700; margin:0 0 .4rem; }
-.doc-hero p  { margin:0; opacity: .85; font-size: .95rem; }
+.doc-hero h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 .4rem;
+    color: #fff;
+}
+.doc-hero p { margin: 0; color: var(--dk-muted2); font-size: .95rem; }
 
-/* ── Sidebar / navegação ───────────────────────────────────────────────── */
-.doc-sidebar {
-    position: sticky;
-    top: 1rem;
-}
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+.doc-sidebar { position: sticky; top: 1rem; }
 .doc-nav { list-style: none; padding: 0; margin: 0; }
-.doc-nav li + li { margin-top: .2rem; }
+.doc-nav li + li { margin-top: .15rem; }
 .doc-nav a {
     display: block;
-    padding: .4rem .8rem;
-    border-radius: 6px;
-    color: #003a78;
+    padding: .38rem .8rem;
+    border-radius: 5px;
+    color: var(--dk-muted);
     text-decoration: none;
-    font-size: .85rem;
+    font-size: .82rem;
     font-weight: 500;
-    transition: background .15s;
+    transition: background .15s, color .15s;
 }
-.doc-nav a:hover, .doc-nav a.active { background: #e8eef5; color: #003a78; }
+.doc-nav a:hover { background: rgba(255,241,18,.06); color: var(--dk-yellow); }
+.doc-nav a.active { background: rgba(255,241,18,.08); color: var(--dk-yellow); }
 .doc-nav .nav-section {
-    font-size: .7rem;
+    font-size: .68rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .08em;
-    color: #999;
+    color: rgba(228,228,226,.25);
     padding: .8rem .8rem .2rem;
 }
 
-/* ── Seções ────────────────────────────────────────────────────────────── */
-.doc-section {
-    margin-bottom: 3rem;
-    scroll-margin-top: 1.5rem;
-}
+/* ── Seções ─────────────────────────────────────────────────────────────── */
+.doc-section { margin-bottom: 3rem; scroll-margin-top: 1.5rem; }
 .doc-section-title {
     font-family: 'Cinzel', serif;
-    font-size: 1.25rem;
+    font-size: 1.2rem;
     font-weight: 700;
-    color: #003a78;
-    border-bottom: 3px solid #ffd200;
-    padding-bottom: .5rem;
-    margin-bottom: 1.5rem;
+    color: var(--dk-text);
+    border-bottom: 2px solid var(--dk-yellow);
+    padding-bottom: .45rem;
+    margin-bottom: 1.4rem;
     display: flex;
     align-items: center;
     gap: .6rem;
 }
+.doc-section-title i { color: var(--dk-yellow); }
 .doc-subsection-title {
-    font-size: 1rem;
+    font-size: .95rem;
     font-weight: 700;
-    color: #003a78;
-    margin: 1.5rem 0 .8rem;
+    color: var(--dk-muted2);
+    margin: 1.4rem 0 .7rem;
 }
+p.text-muted, .text-muted { color: var(--dk-muted) !important; }
 
-/* ── Cards de princípio ────────────────────────────────────────────────── */
+/* ── Cards de princípio ─────────────────────────────────────────────────── */
 .principio-card {
-    background: #fff;
-    border: 1px solid #e0e7f0;
-    border-left: 4px solid #003a78;
-    border-radius: 8px;
-    padding: .9rem 1.1rem;
-    margin-bottom: .6rem;
+    background: var(--dk-s2);
+    border: 1px solid var(--dk-border);
+    border-left: 3px solid rgba(255,241,18,.4);
+    border-radius: 7px;
+    padding: .8rem 1rem;
+    margin-bottom: .5rem;
     display: flex;
     align-items: flex-start;
-    gap: .8rem;
+    gap: .75rem;
 }
-.principio-card .pi-icon {
-    font-size: 1.3rem;
-    flex-shrink: 0;
-    margin-top: .1rem;
-}
-.principio-card .pi-title { font-weight: 700; font-size: .9rem; color: #003a78; }
-.principio-card .pi-desc  { font-size: .82rem; color: #555; margin-top: .15rem; }
-.principio-card.danger  { border-left-color: #b30000; }
-.principio-card.success { border-left-color: #1a7a2e; }
-.principio-card.warning { border-left-color: #ffd200; }
+.principio-card .pi-icon { font-size: 1.25rem; flex-shrink: 0; margin-top: .05rem; }
+.principio-card .pi-title { font-weight: 700; font-size: .87rem; color: var(--dk-text); }
+.principio-card .pi-desc  { font-size: .8rem; color: var(--dk-muted); margin-top: .12rem; }
+.principio-card.danger  { border-left-color: #c0392b; }
+.principio-card.success { border-left-color: #27ae60; }
+.principio-card.warning { border-left-color: #f39c12; }
 
-/* ── Passos do algoritmo ───────────────────────────────────────────────── */
-.passo-item {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1.2rem;
-}
+/* ── Passos do algoritmo ────────────────────────────────────────────────── */
+.passo-item { display: flex; gap: .9rem; margin-bottom: 1.1rem; }
 .passo-num {
-    width: 36px; height: 36px;
+    width: 34px; height: 34px;
     border-radius: 50%;
-    background: #003a78;
-    color: #fff;
+    background: var(--dk-yellow);
+    color: #1a1b1a;
     font-weight: 800;
-    font-size: .9rem;
+    font-size: .85rem;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
 }
 .passo-body { flex: 1; }
-.passo-body strong { display: block; color: #003a78; margin-bottom: .3rem; }
-.passo-body p, .passo-body ul { font-size: .88rem; color: #444; margin: 0; }
-.passo-body ul { padding-left: 1.2rem; margin-top: .3rem; }
-
-/* ── Planilha visual ───────────────────────────────────────────────────── */
-.planilha-wrap { overflow-x: auto; }
-.planilha {
-    border-collapse: collapse;
-    min-width: 100%;
-    font-size: .82rem;
+.passo-body strong { display: block; color: var(--dk-text); margin-bottom: .25rem; font-size: .9rem; }
+.passo-body p, .passo-body ul { font-size: .85rem; color: var(--dk-muted2); margin: 0; }
+.passo-body ul { padding-left: 1.2rem; margin-top: .25rem; }
+.passo-body code {
+    background: rgba(255,241,18,.08);
+    color: var(--dk-yellow);
+    border-radius: 3px;
+    padding: .1rem .35rem;
+    font-size: .8rem;
 }
+
+/* ── Planilha ────────────────────────────────────────────────────────────── */
+.planilha-wrap { overflow-x: auto; }
+.planilha { border-collapse: collapse; min-width: 100%; font-size: .8rem; }
 .planilha th {
-    background: #003a78;
-    color: #fff;
+    background: var(--dk-s3);
+    color: rgba(228,228,226,.7);
     padding: .5rem .8rem;
     text-align: center;
     white-space: nowrap;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    border-bottom: 2px solid var(--dk-yellow);
 }
 .planilha td {
-    padding: .45rem .8rem;
-    border: 1px solid #dee2e6;
+    padding: .42rem .8rem;
+    border: 1px solid rgba(255,241,18,.07);
     text-align: center;
     vertical-align: middle;
+    color: var(--dk-text);
 }
-.planilha tr:nth-child(even) td { background: #f8f9fa; }
-.planilha td.nome { text-align: left; font-weight: 600; white-space: nowrap; }
-.planilha td.base-tag { background: #e8f0fe !important; }
+.planilha tr:nth-child(even) td { background: rgba(255,241,18,.025); }
+.planilha td.nome { text-align: left; font-weight: 700; white-space: nowrap; }
 
 .cel-servico {
-    background: #003a78 !important;
-    color: #fff;
+    background: rgba(255,241,18,.12) !important;
+    color: var(--dk-yellow);
     font-weight: 700;
     border-radius: 4px;
-    padding: .3rem .6rem;
+    padding: .25rem .55rem;
     display: inline-block;
-    font-size: .78rem;
+    font-size: .76rem;
     white-space: nowrap;
+    border: 1px solid rgba(255,241,18,.25);
 }
 .cel-folga {
-    background: #fff3cd !important;
-    color: #856404;
+    background: rgba(243,156,18,.1) !important;
+    color: #f0c040;
     font-weight: 600;
     border-radius: 4px;
-    padding: .3rem .5rem;
+    padding: .25rem .45rem;
     display: inline-block;
-    font-size: .75rem;
+    font-size: .73rem;
+    border: 1px solid rgba(243,156,18,.2);
 }
 .cel-ferias {
-    background: #f8d7da !important;
-    color: #721c24;
+    background: rgba(192,57,43,.15) !important;
+    color: #e74c3c;
     font-weight: 600;
     border-radius: 4px;
-    padding: .3rem .5rem;
+    padding: .25rem .45rem;
     display: inline-block;
-    font-size: .75rem;
+    font-size: .73rem;
+    border: 1px solid rgba(192,57,43,.25);
 }
 .cel-selecionado {
-    background: #d1fae5 !important;
-    color: #065f46;
+    background: rgba(39,174,96,.12) !important;
+    color: #2ecc71;
     font-weight: 700;
     border-radius: 4px;
-    padding: .3rem .6rem;
+    padding: .25rem .55rem;
     display: inline-block;
-    font-size: .78rem;
-    border: 2px solid #10b981;
+    font-size: .76rem;
+    border: 2px solid rgba(39,174,96,.3);
 }
 .cel-quebrou {
-    background: #fff3cd !important;
-    color: #92400e;
+    background: rgba(243,156,18,.1) !important;
+    color: #f0c040;
     font-weight: 700;
     border-radius: 4px;
-    padding: .3rem .6rem;
+    padding: .25rem .55rem;
     display: inline-block;
-    font-size: .78rem;
-    border: 2px dashed #f59e0b;
+    font-size: .76rem;
+    border: 2px dashed rgba(243,156,18,.35);
 }
-
-.planilha th.col-count { background: #001f42; }
+.planilha th.col-count { background: #1a1b1a; color: var(--dk-yellow); }
 .planilha td.col-count {
     font-weight: 800;
-    font-size: 1rem;
-    background: #f0f4ff !important;
-    color: #003a78;
+    font-size: .95rem;
+    color: var(--dk-yellow);
+    background: rgba(255,241,18,.04) !important;
 }
 
-/* ── Linha de varredura animada ────────────────────────────────────────── */
+/* ── Varredura demo ──────────────────────────────────────────────────────── */
 .varredura-demo {
-    background: #f0f4ff;
-    border: 1px solid #c7d7f0;
-    border-radius: 10px;
-    padding: 1.2rem 1.4rem;
-    margin: 1rem 0;
+    background: var(--dk-s2);
+    border: 1px solid var(--dk-border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: .8rem 0;
 }
 .varredura-demo .vd-title {
     font-weight: 700;
-    font-size: .85rem;
-    color: #003a78;
+    font-size: .78rem;
+    color: var(--dk-muted);
     text-transform: uppercase;
     letter-spacing: .06em;
-    margin-bottom: .8rem;
+    margin-bottom: .7rem;
 }
 .varredura-linha {
     display: flex;
     align-items: center;
-    gap: .6rem;
-    padding: .4rem .6rem;
-    border-radius: 6px;
-    margin-bottom: .3rem;
-    font-size: .85rem;
+    gap: .55rem;
+    padding: .35rem .55rem;
+    border-radius: 5px;
+    margin-bottom: .25rem;
+    font-size: .83rem;
 }
-.varredura-linha.ok     { background: #d1fae5; color: #065f46; font-weight: 700; }
-.varredura-linha.folga  { background: #fef3c7; color: #92400e; }
-.varredura-linha.ferias { background: #fee2e2; color: #991b1b; }
-.varredura-linha.quebrou { background: #fef3c7; color: #78350f; font-weight: 700; border: 1px dashed #f59e0b; }
-.vd-icon { font-size: 1rem; flex-shrink: 0; }
+.varredura-linha.ok     { background: rgba(39,174,96,.1); color: #2ecc71; font-weight: 700; }
+.varredura-linha.folga  { background: rgba(243,156,18,.08); color: #f0c040; }
+.varredura-linha.ferias { background: rgba(192,57,43,.1); color: #e74c3c; }
+.varredura-linha.quebrou { background: rgba(243,156,18,.1); color: #f0c040; font-weight: 700; border: 1px dashed rgba(243,156,18,.3); }
+.vd-icon { font-size: .95rem; flex-shrink: 0; }
 .vd-rank {
-    width: 22px; height: 22px;
+    width: 20px; height: 20px;
     border-radius: 50%;
-    background: rgba(0,0,0,.08);
-    font-size: .72rem;
+    background: rgba(228,228,226,.07);
+    font-size: .68rem;
     font-weight: 800;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
+    color: var(--dk-muted);
 }
 
-/* ── Alerta / destaque ─────────────────────────────────────────────────── */
+/* ── Alertas ─────────────────────────────────────────────────────────────── */
 .doc-alert {
-    border-radius: 8px;
-    padding: .9rem 1.1rem;
-    margin: .8rem 0;
-    font-size: .88rem;
+    border-radius: 7px;
+    padding: .8rem 1rem;
+    margin: .7rem 0;
+    font-size: .85rem;
     display: flex;
-    gap: .7rem;
+    gap: .65rem;
     align-items: flex-start;
 }
-.doc-alert.info    { background: #e8eef5; border-left: 4px solid #003a78; }
-.doc-alert.danger  { background: #fee2e2; border-left: 4px solid #b30000; }
-.doc-alert.warning { background: #fef3c7; border-left: 4px solid #f59e0b; }
-.doc-alert.success { background: #d1fae5; border-left: 4px solid #10b981; }
+.doc-alert.info    { background: rgba(52,152,219,.1); border-left: 3px solid #3498db; color: #7ec8f0; }
+.doc-alert.danger  { background: rgba(192,57,43,.1);  border-left: 3px solid #c0392b; color: #e88; }
+.doc-alert.warning { background: rgba(243,156,18,.1); border-left: 3px solid #f39c12; color: #f0c040; }
+.doc-alert.success { background: rgba(39,174,96,.1);  border-left: 3px solid #27ae60; color: #2ecc71; }
 .doc-alert i { flex-shrink: 0; margin-top: .1rem; }
+.doc-alert strong { color: inherit; }
 
-/* ── Pseudocódigo ──────────────────────────────────────────────────────── */
-.pseudocode {
-    background: #0d1117;
-    color: #e6edf3;
+/* ── Cards de exemplo ────────────────────────────────────────────────────── */
+.exemplo-card {
+    background: var(--dk-s1);
+    border: 1px solid var(--dk-border);
     border-radius: 10px;
-    padding: 1.4rem 1.6rem;
-    font-family: 'Courier New', monospace;
-    font-size: .8rem;
-    line-height: 1.7;
-    overflow-x: auto;
-    margin: 1rem 0;
+    overflow: hidden;
+    margin-bottom: 1.4rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.35);
 }
-.pseudocode .kw  { color: #ff7b72; }
-.pseudocode .fn  { color: #d2a8ff; }
-.pseudocode .cm  { color: #8b949e; font-style: italic; }
-.pseudocode .str { color: #a5d6ff; }
-.pseudocode .num { color: #79c0ff; }
-.pseudocode .op  { color: #ffa657; }
-
-/* ── Badge de posto ────────────────────────────────────────────────────── */
-.badge-posto {
-    background: #003a78;
+.exemplo-header {
+    padding: .7rem 1.1rem;
+    font-weight: 700;
+    font-size: .85rem;
     color: #fff;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    border-bottom: 1px solid var(--dk-border);
+}
+.exemplo-header.azul   { background: #1a2840; border-bottom-color: rgba(255,241,18,.2); }
+.exemplo-header.marrom { background: #2a1800; border-bottom-color: rgba(240,165,0,.2); }
+.exemplo-header.vermelho { background: #2a0800; border-bottom-color: rgba(192,57,43,.25); }
+.exemplo-body { padding: 1rem 1.2rem; }
+.exemplo-body p.small.text-muted { font-size: .8rem !important; margin-bottom: .8rem !important; }
+
+/* ── Badge posto ─────────────────────────────────────────────────────────── */
+.badge-posto {
+    background: var(--dk-s3);
+    color: var(--dk-text);
+    border: 1px solid rgba(255,241,18,.2);
     font-size: .7rem;
     font-weight: 700;
     padding: .15rem .45rem;
     border-radius: 4px;
     white-space: nowrap;
+    font-family: 'Courier New', monospace;
 }
-.badge-base { background: #1a7a2e; }
-.badge-topo { background: #6b21a8; }
+.badge-base { background: rgba(39,174,96,.15); border-color: rgba(39,174,96,.3); color: #2ecc71; }
+.badge-topo { background: rgba(155,89,182,.15); border-color: rgba(155,89,182,.3); color: #a855f7; }
 
-/* ── Legenda ───────────────────────────────────────────────────────────── */
-.legenda { display: flex; flex-wrap: wrap; gap: .5rem; margin: .6rem 0 1rem; font-size: .78rem; }
-.legenda-item { display: flex; align-items: center; gap: .3rem; }
+/* ── Pseudocódigo ────────────────────────────────────────────────────────── */
+.pseudocode {
+    background: #0d0e0d;
+    border: 1px solid rgba(255,241,18,.12);
+    color: #c9d1d9;
+    border-radius: 10px;
+    padding: 1.4rem 1.6rem;
+    font-family: 'Courier New', monospace;
+    font-size: .78rem;
+    line-height: 1.75;
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+.pseudocode .kw  { color: #ff7b72; }
+.pseudocode .fn  { color: #d2a8ff; }
+.pseudocode .cm  { color: #6e7681; font-style: italic; }
+.pseudocode .str { color: #a5d6ff; }
+.pseudocode .num { color: #79c0ff; }
+.pseudocode .op  { color: #FFF112; }
 
-/* ── Garantias ─────────────────────────────────────────────────────────── */
-.garantia-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .7rem; }
+/* ── Garantias ───────────────────────────────────────────────────────────── */
+.garantia-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(215px,1fr));
+    gap: .65rem;
+}
 .garantia-card {
-    background: #fff;
-    border: 1px solid #e0e7f0;
+    background: var(--dk-s2);
+    border: 1px solid var(--dk-border);
     border-radius: 8px;
-    padding: .8rem 1rem;
+    padding: .75rem .95rem;
     display: flex;
     align-items: flex-start;
     gap: .6rem;
-    font-size: .82rem;
+    font-size: .8rem;
+    color: var(--dk-muted2);
 }
-.garantia-card .g-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: .05rem; }
-.garantia-card strong { display: block; color: #003a78; margin-bottom: .15rem; font-size: .83rem; }
+.garantia-card .g-icon { font-size: 1.05rem; flex-shrink: 0; margin-top: .05rem; }
+.garantia-card strong { display: block; color: var(--dk-text); margin-bottom: .12rem; font-size: .8rem; }
+
+/* ── Info banner ─────────────────────────────────────────────────────────── */
+.info-banner {
+    background: var(--dk-s2);
+    border: 1px solid rgba(255,241,18,.12);
+    border-left: 3px solid rgba(255,241,18,.4);
+    border-radius: 7px;
+    padding: .75rem 1rem;
+    font-size: .82rem;
+    color: var(--dk-muted2);
+    margin-bottom: 1rem;
+    display: flex;
+    gap: .6rem;
+    align-items: flex-start;
+}
+.info-banner i { flex-shrink: 0; color: var(--dk-yellow); margin-top: .05rem; }
+.info-banner strong { color: var(--dk-text); }
 </style>
 
 {# ── HERO ──────────────────────────────────────────────────────────────── #}
@@ -322,11 +390,11 @@
     <div class="doc-sidebar">
         <ul class="doc-nav">
             <li><span class="nav-section">Seções</span></li>
-            <li><a href="#sec-humano"><i class="bi bi-person-workspace"></i> Lógica Humana</a></li>
-            <li><a href="#sec-regras"><i class="bi bi-list-ol"></i> Regras</a></li>
-            <li><a href="#sec-exemplos"><i class="bi bi-table"></i> Exemplos</a></li>
-            <li><a href="#sec-pseudocodigo"><i class="bi bi-code-slash"></i> Pseudocódigo</a></li>
-            <li><a href="#sec-garantias"><i class="bi bi-shield-check"></i> Garantias</a></li>
+            <li><a href="#sec-humano"><i class="bi bi-person-workspace me-1"></i> Lógica Humana</a></li>
+            <li><a href="#sec-regras"><i class="bi bi-list-ol me-1"></i> Regras</a></li>
+            <li><a href="#sec-exemplos"><i class="bi bi-table me-1"></i> Exemplos</a></li>
+            <li><a href="#sec-pseudocodigo"><i class="bi bi-code-slash me-1"></i> Pseudocódigo</a></li>
+            <li><a href="#sec-garantias"><i class="bi bi-shield-check me-1"></i> Garantias</a></li>
         </ul>
     </div>
 </div>
@@ -334,16 +402,14 @@
 {# ── CONTEÚDO ──────────────────────────────────────────────────────────── #}
 <div class="col-lg-10">
 
-{# ═══════════════════════════════════════════════════════════════════════ #}
-{# SEÇÃO 1 — LÓGICA HUMANA                                                #}
-{# ═══════════════════════════════════════════════════════════════════════ #}
+{# ═══ SEÇÃO 1 — LÓGICA HUMANA ════════════════════════════════════════════ #}
 <section class="doc-section" id="sec-humano">
     <h2 class="doc-section-title"><i class="bi bi-person-workspace"></i> 1. Lógica Operacional Humana</h2>
 
     <p class="text-muted">Como o escalante fazia manualmente na planilha Excel — o sistema imita exatamente esse processo.</p>
 
     <h3 class="doc-subsection-title">A planilha do escalante</h3>
-    <p>O escalante trabalhava com uma planilha onde cada linha era um militar e cada coluna era a sequência de serviços realizados. Ao chegar um novo dia de serviço, ele seguia este raciocínio:</p>
+    <p style="font-size:.88rem;color:var(--dk-muted2);">O escalante trabalhava com uma planilha onde cada linha era um militar e cada coluna era a sequência de serviços. Ao chegar um novo dia de serviço, seguia este raciocínio:</p>
 
     <div class="row g-3 mb-3">
         <div class="col-md-6">
@@ -400,9 +466,7 @@
     </div>
 </section>
 
-{# ═══════════════════════════════════════════════════════════════════════ #}
-{# SEÇÃO 2 — REGRAS DO ALGORITMO                                          #}
-{# ═══════════════════════════════════════════════════════════════════════ #}
+{# ═══ SEÇÃO 2 — REGRAS ════════════════════════════════════════════════════ #}
 <section class="doc-section" id="sec-regras">
     <h2 class="doc-section-title"><i class="bi bi-list-ol"></i> 2. Regras do Algoritmo</h2>
 
@@ -434,7 +498,7 @@
                 <li>Índice 0 = TOPO (mais antigo — Ten, Cel...)</li>
                 <li>Índice n-1 = BASE (mais moderno — Cb, Sd...)</li>
             </ul>
-            <p>Chave de desempate calculada automaticamente: <code>desempate[m] = (n-1) - índice[m]</code> — BASE recebe 0 (maior prioridade), TOPO recebe n-1 (menor prioridade).</p>
+            <p>Chave de desempate: <code>desempate[m] = (n-1) - índice[m]</code> — BASE recebe 0 (maior prioridade), TOPO recebe n-1 (menor prioridade).</p>
         </div>
     </div>
 
@@ -442,13 +506,7 @@
         <div class="passo-num">3</div>
         <div class="passo-body">
             <strong>Carregar matriz histórica (count global)</strong>
-            <p>Cada militar recebe um count inicial carregado do banco:</p>
-            <ul>
-                <li>Fonte: tabela <code>Quadrinho</code></li>
-                <li>Filtro: mesmo <code>tipo_escala</code> + mesmo <code>ano</code></li>
-                <li><strong>Soma TODOS os tipos de serviço</strong> (Preto + Vermelho + Roxo = um único número)</li>
-                <li>Fórmula: <code>count[m] = Σ Quadrinho.total</code> para todos os tipos</li>
-            </ul>
+            <p>Cada militar recebe um count inicial: <code>count[m] = Σ Quadrinho.total</code> somando <strong>todos os tipos de serviço</strong> (Preto + Vermelho + Roxo = um único número).</p>
         </div>
     </div>
 
@@ -456,7 +514,7 @@
         <div class="passo-num">4</div>
         <div class="passo-body">
             <strong>Carregar indisponibilidades reais</strong>
-            <p>Férias, licença, missão e afastamentos são carregados. Opcionalmente incluem bloqueios pré e pós-férias. <strong>Estas datas nunca são quebradas em nenhuma circunstância.</strong></p>
+            <p>Férias, licença, missão e afastamentos são carregados. Incluem bloqueios pré e pós-férias (se configurados). <strong>Estas datas nunca são quebradas.</strong></p>
         </div>
     </div>
 
@@ -464,7 +522,7 @@
         <div class="passo-num">5</div>
         <div class="passo-body">
             <strong>Carry-over inter-mês (folga herdada)</strong>
-            <p>Se o militar serviu nos últimos dias do mês anterior dentro da janela de folga, os primeiros dias do novo mês ficam bloqueados. A folga é <strong>global</strong> — qualquer tipo de serviço (Preto <em>ou</em> Vermelho) do mês anterior bloqueia todos os tipos.</p>
+            <p>Se o militar serviu nos últimos dias do mês anterior dentro da janela de folga, os primeiros dias do novo mês ficam bloqueados. A folga é <strong>global</strong> — qualquer tipo de serviço do mês anterior bloqueia todos os tipos.</p>
         </div>
     </div>
 
@@ -472,13 +530,7 @@
         <div class="passo-num">6</div>
         <div class="passo-body">
             <strong>Ordem de processamento: tipo por tipo</strong>
-            <p>Os tipos de serviço são processados por <code>TipoServico.ordem ASC</code>:</p>
-            <ul>
-                <li>Preto (ordem=0): todos os 31 dias gerados completamente</li>
-                <li>Vermelho (ordem=1): todos os 31 dias gerados completamente</li>
-                <li>Roxo (ordem=2): etc.</li>
-            </ul>
-            <p>A folga criada pelo Preto do dia 28 <strong>já estará ativa</strong> quando o Vermelho do dia 29 for processado — ambos compartilham o mesmo <code>folga_global</code>.</p>
+            <p>Os tipos de serviço são processados por <code>TipoServico.ordem ASC</code>: Preto (todos os 31 dias) → Vermelho → Roxo. A folga criada pelo Preto do dia 28 <strong>já estará ativa</strong> quando o Vermelho do dia 29 for processado.</p>
         </div>
     </div>
 
@@ -486,12 +538,11 @@
         <div class="passo-num">7</div>
         <div class="passo-body">
             <strong>Processar cada dia — núcleo do algoritmo</strong>
-            <p>Para cada dia de cada tipo:</p>
             <ul>
-                <li><strong>Ordenação (do zero a cada dia):</strong> <code>sorted(militares, key=(count_operacional, desempate))</code> — menor count primeiro, desempate BASE→TOPO</li>
-                <li><strong>Varredura principal:</strong> percorre a lista em ordem; verifica indisponibilidade (pula se sim), verifica folga (pula se sim), escala o primeiro disponível</li>
-                <li><strong>Toda a menor coluna é esgotada</strong> antes de tocar qualquer military com count maior — garantido pela ordenação</li>
-                <li><strong>Fallback:</strong> se toda a varredura falhou, classifica os motivos (só folga → quebra folga com alerta; indisponibilidade real → dia vazio)</li>
+                <li><strong>Ordenação (do zero a cada dia):</strong> <code>sorted(militares, key=(count_operacional, desempate))</code></li>
+                <li><strong>Varredura:</strong> percorre em ordem; verifica indisponibilidade (pula), verifica folga (pula), escala o primeiro disponível</li>
+                <li><strong>Toda coluna mínima esgotada</strong> antes de tocar qualquer militar com count maior</li>
+                <li><strong>Fallback:</strong> só folga bloqueando → quebra folga com alerta · indisponibilidade real → dia vazio</li>
             </ul>
         </div>
     </div>
@@ -500,201 +551,146 @@
         <div class="passo-num">8</div>
         <div class="passo-body">
             <strong>Registrar serviço</strong>
-            <p><strong>Persiste no banco:</strong> <code>EscalaItem</code> + <code>Quadrinho.quantidade += 1</code></p>
-            <p><strong>Só em memória (descartado ao fim):</strong> <code>counts_operacional[m] += 1</code> · <code>folga_global[m]</code> recebe os próximos <em>duração + folga_mínima</em> dias bloqueados</p>
+            <p><strong>Banco (persiste):</strong> <code>EscalaItem</code> + <code>Quadrinho.quantidade += 1</code></p>
+            <p><strong>Só em memória:</strong> <code>counts_operacional[m] += 1</code> · <code>folga_global[m]</code> bloqueia os próximos <em>duração + folga_mínima</em> dias</p>
         </div>
     </div>
 </section>
 
-{# ═══════════════════════════════════════════════════════════════════════ #}
-{# SEÇÃO 3 — EXEMPLOS PRÁTICOS                                            #}
-{# ═══════════════════════════════════════════════════════════════════════ #}
+{# ═══ SEÇÃO 3 — EXEMPLOS ═════════════════════════════════════════════════ #}
 <section class="doc-section" id="sec-exemplos">
     <h2 class="doc-section-title"><i class="bi bi-table"></i> 3. Exemplos Práticos</h2>
 
-    <div class="doc-alert info mb-3">
+    <div class="info-banner mb-3">
         <i class="bi bi-person-badge-fill"></i>
         <div>
-            <strong>Militares fictícios usados nos exemplos</strong> (OM: 1º Batalhão de Infantaria — 1ºBI) &nbsp;·&nbsp;
+            <strong>Militares fictícios — 1º Batalhão de Infantaria (1ºBI)</strong> &nbsp;·&nbsp;
             Tipo de Escala: Permanência &nbsp;·&nbsp; Janela de folga: 3 dias (1 serviço + 2 folga)
         </div>
     </div>
 
-    <div class="planilha-wrap mb-3">
+    <div class="planilha-wrap mb-4">
     <table class="planilha">
         <thead>
             <tr>
-                <th>Posto</th>
-                <th>Nome de Guerra</th>
-                <th>Posição</th>
-                <th>Índice</th>
-                <th>Desempate</th>
+                <th>Posto</th><th>Nome de Guerra</th>
+                <th>Posição</th><th>Índice</th><th>Desempate</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td><span class="badge-posto badge-topo">2º Ten</span></td>
                 <td class="nome">AZEVEDO</td>
-                <td>TOPO (mais antigo)</td>
+                <td style="color:var(--dk-muted);font-size:.8rem;">TOPO (mais antigo)</td>
                 <td>0</td>
-                <td>4 ← menor prioridade no empate</td>
+                <td style="color:var(--dk-muted);">4 ← menor prioridade</td>
             </tr>
             <tr>
-                <td><span class="badge-posto">1º Sgt</span></td>
-                <td class="nome">BORGES</td>
-                <td>—</td>
-                <td>1</td>
-                <td>3</td>
+                <td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td>—</td><td>1</td><td style="color:var(--dk-muted);">3</td>
             </tr>
             <tr>
-                <td><span class="badge-posto">2º Sgt</span></td>
-                <td class="nome">CUNHA</td>
-                <td>—</td>
-                <td>2</td>
-                <td>2</td>
+                <td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td>—</td><td>2</td><td style="color:var(--dk-muted);">2</td>
             </tr>
             <tr>
-                <td><span class="badge-posto">3º Sgt</span></td>
-                <td class="nome">DIAS</td>
-                <td>—</td>
-                <td>3</td>
-                <td>1</td>
+                <td><span class="badge-posto">3º Sgt</span></td><td class="nome">DIAS</td><td>—</td><td>3</td><td style="color:var(--dk-muted);">1</td>
             </tr>
-            <tr class="table-success">
+            <tr>
                 <td><span class="badge-posto badge-base">Cb</span></td>
                 <td class="nome">ESTEVES</td>
-                <td>BASE (mais moderno)</td>
+                <td style="color:#2ecc71;font-size:.8rem;">BASE (mais moderno)</td>
                 <td>4</td>
-                <td>0 ← maior prioridade no empate</td>
+                <td style="color:#2ecc71;">0 ← maior prioridade</td>
             </tr>
         </tbody>
     </table>
     </div>
 
-    {# ── EXEMPLO 1 ── #}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header" style="background:#003a78; color:#fff;">
-            <strong><i class="bi bi-1-circle-fill me-2"></i>Exemplo 1 — Varredura normal: todos com count=0</strong>
-        </div>
-        <div class="card-body">
-            <p class="small text-muted mb-3">Início do ano. Todos zerados. Quem escala primeiro?</p>
-
+    {# Exemplo 1 #}
+    <div class="exemplo-card">
+        <div class="exemplo-header azul"><i class="bi bi-1-circle-fill"></i> Exemplo 1 — Varredura normal: todos com count=0</div>
+        <div class="exemplo-body">
+            <p class="small text-muted">Início do ano. Todos zerados. Quem escala primeiro?</p>
             <div class="planilha-wrap mb-3">
             <table class="planilha">
-                <thead>
-                    <tr>
-                        <th>Posto</th><th>Nome</th>
-                        <th class="col-count">Count</th>
-                        <th>Desempate</th><th>Situação Dia 01</th><th>Resultado</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Posto</th><th>Nome</th><th class="col-count">Count</th><th>Desempate</th><th>Situação</th><th>Resultado</th></tr></thead>
                 <tbody>
                     <tr><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">0</td><td>0</td><td>Disponível</td><td><span class="cel-selecionado">✓ ESCALADO</span></td></tr>
-                    <tr><td><span class="badge-posto">3º Sgt</span></td><td class="nome">DIAS</td><td class="col-count">0</td><td>1</td><td>Disponível</td><td class="text-muted small">não chegou</td></tr>
-                    <tr><td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td class="col-count">0</td><td>2</td><td>Disponível</td><td class="text-muted small">não chegou</td></tr>
-                    <tr><td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td class="col-count">0</td><td>3</td><td>Disponível</td><td class="text-muted small">não chegou</td></tr>
-                    <tr><td><span class="badge-posto badge-topo">2º Ten</span></td><td class="nome">AZEVEDO</td><td class="col-count">0</td><td>4</td><td>Disponível</td><td class="text-muted small">não chegou</td></tr>
+                    <tr><td><span class="badge-posto">3º Sgt</span></td><td class="nome">DIAS</td><td class="col-count">0</td><td>1</td><td>Disponível</td><td style="color:var(--dk-muted);font-size:.78rem;">não chegou</td></tr>
+                    <tr><td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td class="col-count">0</td><td>2</td><td>Disponível</td><td style="color:var(--dk-muted);font-size:.78rem;">não chegou</td></tr>
+                    <tr><td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td class="col-count">0</td><td>3</td><td>Disponível</td><td style="color:var(--dk-muted);font-size:.78rem;">não chegou</td></tr>
+                    <tr><td><span class="badge-posto badge-topo">2º Ten</span></td><td class="nome">AZEVEDO</td><td class="col-count">0</td><td>4</td><td>Disponível</td><td style="color:var(--dk-muted);font-size:.78rem;">não chegou</td></tr>
                 </tbody>
             </table>
             </div>
-
             <div class="varredura-demo">
                 <div class="vd-title"><i class="bi bi-search me-1"></i>Varredura dia 01/06</div>
-                <div class="varredura-linha ok"><span class="vd-icon">✅</span><span class="vd-rank">1</span><strong>ESTEVES</strong> (count=0, desempate=0) — disponível → <strong>ESCALADO</strong></div>
+                <div class="varredura-linha ok"><span class="vd-icon">✅</span><span class="vd-rank">1</span><strong>ESTEVES</strong> (count=0, desempate=0) — disponível → ESCALADO</div>
             </div>
-
             <div class="doc-alert success mt-2">
                 <i class="bi bi-check-circle-fill"></i>
-                <div><strong>Dia 02:</strong> ESTEVES agora count=1. A varredura recomeça do zero. Próximo: DIAS (count=0, desempate=1) → escalado. E assim por diante.</div>
+                <div><strong>Dia 02:</strong> ESTEVES agora count=1. Próximo: DIAS (count=0, desempate=1) → escalado. Rotação natural sem configuração.</div>
             </div>
         </div>
     </div>
 
-    {# ── EXEMPLO 2 ── #}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header" style="background:#003a78; color:#fff;">
-            <strong><i class="bi bi-2-circle-fill me-2"></i>Exemplo 2 — Folga bloqueando, outro disponível na mesma coluna</strong>
-        </div>
-        <div class="card-body">
-            <p class="small text-muted mb-3">
-                Estado: todos com count=2. ESTEVES serviu no dia 04/06 → em folga até dia 07/06 (janela 3 dias).
-                O dia 05/06 chega.
-            </p>
-
+    {# Exemplo 2 #}
+    <div class="exemplo-card">
+        <div class="exemplo-header azul"><i class="bi bi-2-circle-fill"></i> Exemplo 2 — Folga bloqueando, outro disponível na mesma coluna</div>
+        <div class="exemplo-body">
+            <p class="small text-muted">Todos count=2. ESTEVES serviu no dia 04/06 → em folga até 07/06. O dia 05/06 chega.</p>
             <div class="planilha-wrap mb-3">
             <table class="planilha">
-                <thead>
-                    <tr>
-                        <th>Posto</th><th>Nome</th>
-                        <th class="col-count">Count</th>
-                        <th>Desempate</th><th>Situação Dia 05</th><th>Resultado</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Posto</th><th>Nome</th><th class="col-count">Count</th><th>Desempate</th><th>Situação Dia 05</th><th>Resultado</th></tr></thead>
                 <tbody>
-                    <tr class="table-warning"><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">2</td><td>0</td><td><span class="cel-folga">Em folga</span></td><td class="text-muted small">pula</td></tr>
+                    <tr><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">2</td><td>0</td><td><span class="cel-folga">Em folga</span></td><td style="color:var(--dk-muted);font-size:.78rem;">pula</td></tr>
                     <tr><td><span class="badge-posto">3º Sgt</span></td><td class="nome">DIAS</td><td class="col-count">2</td><td>1</td><td>Disponível</td><td><span class="cel-selecionado">✓ ESCALADO</span></td></tr>
-                    <tr><td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td class="col-count">2</td><td>2</td><td>Disponível</td><td class="text-muted small">não chegou</td></tr>
-                    <tr><td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td class="col-count">2</td><td>3</td><td>Disponível</td><td class="text-muted small">não chegou</td></tr>
-                    <tr><td><span class="badge-posto badge-topo">2º Ten</span></td><td class="nome">AZEVEDO</td><td class="col-count">2</td><td>4</td><td>Disponível</td><td class="text-muted small">não chegou</td></tr>
+                    <tr><td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td class="col-count">2</td><td>2</td><td>Disponível</td><td style="color:var(--dk-muted);font-size:.78rem;">não chegou</td></tr>
+                    <tr><td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td class="col-count">2</td><td>3</td><td>Disponível</td><td style="color:var(--dk-muted);font-size:.78rem;">não chegou</td></tr>
+                    <tr><td><span class="badge-posto badge-topo">2º Ten</span></td><td class="nome">AZEVEDO</td><td class="col-count">2</td><td>4</td><td>Disponível</td><td style="color:var(--dk-muted);font-size:.78rem;">não chegou</td></tr>
                 </tbody>
             </table>
             </div>
-
             <div class="varredura-demo">
                 <div class="vd-title"><i class="bi bi-search me-1"></i>Varredura dia 05/06</div>
-                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">1</span><strong>ESTEVES</strong> (count=0) — em folga → pula (ainda na mesma coluna mínima)</div>
-                <div class="varredura-linha ok"><span class="vd-icon">✅</span><span class="vd-rank">2</span><strong>DIAS</strong> (count=0) — disponível → <strong>ESCALADO</strong></div>
+                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">1</span><strong>ESTEVES</strong> (count=2) — em folga → pula (mesmo count mínimo)</div>
+                <div class="varredura-linha ok"><span class="vd-icon">✅</span><span class="vd-rank">2</span><strong>DIAS</strong> (count=2) — disponível → ESCALADO</div>
             </div>
-
             <div class="doc-alert info mt-2">
                 <i class="bi bi-info-circle-fill"></i>
-                <div>O sistema <strong>não avança para count=3</strong>. ESTEVES continua com count=2 junto com os demais. No dia 08, quando sua folga expirar, ele volta à frente da fila naturalmente.</div>
+                <div>O sistema <strong>não avança para count=3</strong>. No dia 08, quando a folga de ESTEVES expirar, ele volta à frente da fila naturalmente.</div>
             </div>
         </div>
     </div>
 
-    {# ── EXEMPLO 3 ── #}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header" style="background:#7c4000; color:#fff;">
-            <strong><i class="bi bi-3-circle-fill me-2"></i>Exemplo 3 — Fallback: toda a menor coluna em folga</strong>
-        </div>
-        <div class="card-body">
-            <p class="small text-muted mb-3">
-                Estado: todos count=3. Todos serviram recentemente e estão em folga. <em>Nenhum disponível.</em>
-            </p>
-
+    {# Exemplo 3 #}
+    <div class="exemplo-card">
+        <div class="exemplo-header marrom"><i class="bi bi-3-circle-fill"></i> Exemplo 3 — Fallback: toda a menor coluna em folga</div>
+        <div class="exemplo-body">
+            <p class="small text-muted">Todos count=3. Todos serviram recentemente. Nenhum disponível.</p>
             <div class="planilha-wrap mb-3">
             <table class="planilha">
-                <thead>
-                    <tr>
-                        <th>Posto</th><th>Nome</th>
-                        <th class="col-count">Count</th>
-                        <th>Situação</th><th>Resultado</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Posto</th><th>Nome</th><th class="col-count">Count</th><th>Situação</th><th>Resultado</th></tr></thead>
                 <tbody>
-                    <tr class="table-warning"><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">3</td><td><span class="cel-folga">Folga</span></td><td><span class="cel-quebrou">⚡ FOLGA QUEBRADA + alerta</span></td></tr>
-                    <tr class="table-warning"><td><span class="badge-posto">3º Sgt</span></td><td class="nome">DIAS</td><td class="col-count">3</td><td><span class="cel-folga">Folga</span></td><td class="text-muted small">fallback não chegou</td></tr>
-                    <tr class="table-warning"><td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td class="col-count">3</td><td><span class="cel-folga">Folga</span></td><td class="text-muted small">fallback não chegou</td></tr>
-                    <tr class="table-warning"><td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td class="col-count">3</td><td><span class="cel-folga">Folga</span></td><td class="text-muted small">fallback não chegou</td></tr>
-                    <tr class="table-warning"><td><span class="badge-posto badge-topo">2º Ten</span></td><td class="nome">AZEVEDO</td><td class="col-count">3</td><td><span class="cel-folga">Folga</span></td><td class="text-muted small">fallback não chegou</td></tr>
+                    <tr><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">3</td><td><span class="cel-folga">Folga</span></td><td><span class="cel-quebrou">⚡ QUEBRADA + alerta</span></td></tr>
+                    <tr><td><span class="badge-posto">3º Sgt</span></td><td class="nome">DIAS</td><td class="col-count">3</td><td><span class="cel-folga">Folga</span></td><td style="color:var(--dk-muted);font-size:.78rem;">fallback não chegou</td></tr>
+                    <tr><td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td class="col-count">3</td><td><span class="cel-folga">Folga</span></td><td style="color:var(--dk-muted);font-size:.78rem;">fallback não chegou</td></tr>
+                    <tr><td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td class="col-count">3</td><td><span class="cel-folga">Folga</span></td><td style="color:var(--dk-muted);font-size:.78rem;">fallback não chegou</td></tr>
+                    <tr><td><span class="badge-posto badge-topo">2º Ten</span></td><td class="nome">AZEVEDO</td><td class="col-count">3</td><td><span class="cel-folga">Folga</span></td><td style="color:var(--dk-muted);font-size:.78rem;">fallback não chegou</td></tr>
                 </tbody>
             </table>
             </div>
-
             <div class="varredura-demo">
                 <div class="vd-title"><i class="bi bi-search me-1"></i>Varredura principal — todos falharam por folga</div>
-                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">1</span>ESTEVES — folga → pula</div>
-                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">2</span>DIAS — folga → pula</div>
-                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">3</span>CUNHA — folga → pula</div>
-                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">4</span>BORGES — folga → pula</div>
-                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">5</span>AZEVEDO — folga → pula</div>
+                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">1</span>ESTEVES → folga → pula</div>
+                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">2</span>DIAS → folga → pula</div>
+                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">3</span>CUNHA → folga → pula</div>
+                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">4</span>BORGES → folga → pula</div>
+                <div class="varredura-linha folga"><span class="vd-icon">⚠️</span><span class="vd-rank">5</span>AZEVEDO → folga → pula</div>
             </div>
-            <div class="varredura-demo mt-2" style="border-color:#f59e0b; background:#fefce8;">
-                <div class="vd-title" style="color:#92400e;"><i class="bi bi-exclamation-triangle me-1"></i>Fallback acionado — bloqueados SÓ por folga</div>
-                <div class="varredura-linha quebrou"><span class="vd-icon">⚡</span><span class="vd-rank">1</span><strong>ESTEVES</strong> (menor count + menor desempate) — folga QUEBRADA · count=4 NÃO é usado · alerta gerado</div>
+            <div class="varredura-demo" style="border-color:rgba(243,156,18,.3);">
+                <div class="vd-title" style="color:#f0c040;"><i class="bi bi-exclamation-triangle me-1"></i>Fallback — bloqueados SÓ por folga</div>
+                <div class="varredura-linha quebrou"><span class="vd-icon">⚡</span><span class="vd-rank">1</span><strong>ESTEVES</strong> — folga QUEBRADA · count=4 NUNCA usado · alerta gerado</div>
             </div>
-
             <div class="doc-alert warning mt-2">
                 <i class="bi bi-exclamation-triangle-fill"></i>
                 <div><strong>count=4 nunca é tocado.</strong> O fallback sempre prefere quebrar a folga do menor count a avançar para a coluna seguinte.</div>
@@ -702,150 +698,96 @@
         </div>
     </div>
 
-    {# ── EXEMPLO 4 ── #}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header" style="background:#7c0000; color:#fff;">
-            <strong><i class="bi bi-4-circle-fill me-2"></i>Exemplo 4 — Indisponibilidade real: militar ausente e retorno automático</strong>
-        </div>
-        <div class="card-body">
-            <p class="small text-muted mb-3">
-                ESTEVES entra de férias nos dias 10–20/06. Todos count=5 no dia 10.
-            </p>
-
+    {# Exemplo 4 #}
+    <div class="exemplo-card">
+        <div class="exemplo-header vermelho"><i class="bi bi-4-circle-fill"></i> Exemplo 4 — Indisponibilidade real: férias e retorno automático</div>
+        <div class="exemplo-body">
+            <p class="small text-muted">ESTEVES entra de férias nos dias 10–20/06. Todos count=5 no dia 10.</p>
             <div class="planilha-wrap mb-3">
             <table class="planilha">
-                <thead>
-                    <tr>
-                        <th>Posto</th><th>Nome</th>
-                        <th class="col-count">Count dia 10</th>
-                        <th>Situação Dia 10</th><th>Resultado</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Posto</th><th>Nome</th><th class="col-count">Count dia 10</th><th>Situação</th><th>Resultado</th></tr></thead>
                 <tbody>
-                    <tr class="table-danger"><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">5</td><td><span class="cel-ferias">Férias 10–20/06</span></td><td class="text-muted small">excluído — nunca quebrado</td></tr>
+                    <tr><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">5</td><td><span class="cel-ferias">Férias 10–20/06</span></td><td style="color:var(--dk-muted);font-size:.78rem;">excluído — nunca quebrado</td></tr>
                     <tr><td><span class="badge-posto">3º Sgt</span></td><td class="nome">DIAS</td><td class="col-count">5</td><td>Disponível</td><td><span class="cel-selecionado">✓ ESCALADO dia 10</span></td></tr>
-                    <tr><td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td class="col-count">5</td><td>Disponível</td><td class="text-muted small">escalado dia 11…</td></tr>
+                    <tr><td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td class="col-count">5</td><td>Disponível</td><td style="color:var(--dk-muted);font-size:.78rem;">escalado dia 11…</td></tr>
                 </tbody>
             </table>
             </div>
-
-            <p class="small text-muted">Enquanto ESTEVES está de férias (dias 10–20), os outros militares são escalados e seus counts sobem. Ao retornar no dia 21:</p>
-
-            <div class="planilha-wrap mb-3">
+            <p style="font-size:.82rem;color:var(--dk-muted2);">Ao retornar no dia 21, os outros militares já subiram seus counts durante as férias:</p>
+            <div class="planilha-wrap mb-2">
             <table class="planilha">
-                <thead>
-                    <tr>
-                        <th>Posto</th><th>Nome</th>
-                        <th class="col-count">Count dia 21</th>
-                        <th>Posição na fila</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Posto</th><th>Nome</th><th class="col-count">Count dia 21</th><th>Posição na fila</th></tr></thead>
                 <tbody>
-                    <tr class="table-success"><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">5</td><td>🥇 1º — count menor, base → frente automática</td></tr>
-                    <tr><td><span class="badge-posto">3º Sgt</span></td><td class="nome">DIAS</td><td class="col-count">7</td><td>2º (escalado enquanto ESTEVES estava ausente)</td></tr>
-                    <tr><td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td class="col-count">7</td><td>3º</td></tr>
-                    <tr><td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td class="col-count">6</td><td>4º</td></tr>
-                    <tr><td><span class="badge-posto badge-topo">2º Ten</span></td><td class="nome">AZEVEDO</td><td class="col-count">6</td><td>5º</td></tr>
+                    <tr><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">5</td><td style="color:#2ecc71;font-weight:700;">🥇 1º — frente automática</td></tr>
+                    <tr><td><span class="badge-posto">3º Sgt</span></td><td class="nome">DIAS</td><td class="col-count">7</td><td style="color:var(--dk-muted);">2º</td></tr>
+                    <tr><td><span class="badge-posto">2º Sgt</span></td><td class="nome">CUNHA</td><td class="col-count">7</td><td style="color:var(--dk-muted);">3º</td></tr>
+                    <tr><td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td class="col-count">6</td><td style="color:var(--dk-muted);">4º</td></tr>
+                    <tr><td><span class="badge-posto badge-topo">2º Ten</span></td><td class="nome">AZEVEDO</td><td class="col-count">6</td><td style="color:var(--dk-muted);">5º</td></tr>
                 </tbody>
             </table>
             </div>
-
             <div class="doc-alert success">
                 <i class="bi bi-check-circle-fill"></i>
-                <div><strong>Retorno automático.</strong> ESTEVES volta para o topo da fila sem nenhuma ação manual — seu count permaneceu em 5 durante as férias enquanto os outros subiram para 6–7.</div>
+                <div><strong>Retorno automático.</strong> ESTEVES volta ao topo da fila sem ação manual — count ficou em 5 durante as férias enquanto os outros subiram.</div>
             </div>
         </div>
     </div>
 
-    {# ── EXEMPLO 5 ── #}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header" style="background:#003a78; color:#fff;">
-            <strong><i class="bi bi-5-circle-fill me-2"></i>Exemplo 5 — Empate entre postos: o mais moderno sempre vence</strong>
-        </div>
-        <div class="card-body">
-            <p class="small text-muted mb-3">
-                BORGES (1º Sgt) e ESTEVES (Cb) ambos com count=4. Qual escala?
-            </p>
-
+    {# Exemplo 5 #}
+    <div class="exemplo-card">
+        <div class="exemplo-header azul"><i class="bi bi-5-circle-fill"></i> Exemplo 5 — Empate de count: mais moderno sempre vence</div>
+        <div class="exemplo-body">
+            <p class="small text-muted">BORGES (1º Sgt) e ESTEVES (Cb) ambos com count=4.</p>
             <div class="planilha-wrap mb-3">
             <table class="planilha">
-                <thead>
-                    <tr>
-                        <th>Posto</th><th>Nome</th>
-                        <th class="col-count">Count</th>
-                        <th>Desempate</th><th>Resultado</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Posto</th><th>Nome</th><th class="col-count">Count</th><th>Desempate</th><th>Resultado</th></tr></thead>
                 <tbody>
-                    <tr class="table-success"><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">4</td><td>0 ← menor</td><td><span class="cel-selecionado">✓ ESCALADO</span></td></tr>
-                    <tr><td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td class="col-count">4</td><td>3 ← maior</td><td class="text-muted small">perde o empate</td></tr>
+                    <tr><td><span class="badge-posto badge-base">Cb</span></td><td class="nome">ESTEVES</td><td class="col-count">4</td><td>0 ← menor</td><td><span class="cel-selecionado">✓ ESCALADO</span></td></tr>
+                    <tr><td><span class="badge-posto">1º Sgt</span></td><td class="nome">BORGES</td><td class="col-count">4</td><td>3 ← maior</td><td style="color:var(--dk-muted);font-size:.78rem;">perde o empate</td></tr>
                 </tbody>
             </table>
             </div>
-
             <div class="doc-alert info">
                 <i class="bi bi-info-circle-fill"></i>
-                <div>O desempate é puramente posicional — <strong>o posto não é comparado diretamente</strong>. O que importa é a posição na lista de antiguidade. Um Cb com count igual a um 2º Ten sempre escala antes.</div>
+                <div>O desempate é puramente posicional — o posto não é comparado diretamente. Um Cb com count igual a um 2º Ten sempre escala antes.</div>
             </div>
         </div>
     </div>
 
-    {# ── EXEMPLO 6 ── #}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header" style="background:#003a78; color:#fff;">
-            <strong><i class="bi bi-6-circle-fill me-2"></i>Exemplo 6 — Folga global: Preto bloqueia Vermelho</strong>
-        </div>
-        <div class="card-body">
-            <p class="small text-muted mb-3">
-                BORGES foi escalado no Preto dia 28/05 (janela=3 dias). O motor agora processa Vermelho 29/05.
-            </p>
-
+    {# Exemplo 6 #}
+    <div class="exemplo-card">
+        <div class="exemplo-header azul"><i class="bi bi-6-circle-fill"></i> Exemplo 6 — Folga global: Preto bloqueia Vermelho</div>
+        <div class="exemplo-body">
+            <p class="small text-muted">BORGES foi escalado no Preto dia 28/05 (janela=3 dias). Motor processa Vermelho 29/05.</p>
             <div class="planilha-wrap mb-3">
             <table class="planilha">
-                <thead>
-                    <tr>
-                        <th>Nome</th><th>Preto 28/05</th>
-                        <th class="col-count">Count (total)</th>
-                        <th>Folga ativa em 29/05?</th><th>Resultado Vermelho 29/05</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Nome</th><th>Preto 28/05</th><th class="col-count">Count</th><th>Folga em 29/05?</th><th>Vermelho 29/05</th></tr></thead>
                 <tbody>
-                    <tr class="table-warning"><td class="nome">BORGES</td><td><span class="cel-servico">Preto 28/05</span></td><td class="col-count">3</td><td>Sim (28+3=31/mai)</td><td class="text-muted small">pula no Vermelho também</td></tr>
-                    <tr><td class="nome">CUNHA</td><td>—</td><td class="col-count">3</td><td>Não</td><td><span class="cel-selecionado">✓ ESCALADO Vermelho 29/05</span></td></tr>
+                    <tr><td class="nome">BORGES</td><td><span class="cel-servico">Preto 28/05</span></td><td class="col-count">3</td><td style="color:#f0c040;">Sim (28+3=31/mai)</td><td style="color:var(--dk-muted);font-size:.78rem;">pula no Vermelho também</td></tr>
+                    <tr><td class="nome">CUNHA</td><td>—</td><td class="col-count">3</td><td style="color:#2ecc71;">Não</td><td><span class="cel-selecionado">✓ ESCALADO Vermelho</span></td></tr>
                 </tbody>
             </table>
             </div>
-
             <div class="doc-alert warning">
                 <i class="bi bi-exclamation-triangle-fill"></i>
-                <div><strong>Folga é sempre global.</strong> Não existe "folga do Preto" separada de "folga do Vermelho" — é um único conjunto de datas bloqueadas compartilhado entre todos os tipos de serviço.</div>
+                <div><strong>Folga é sempre global.</strong> Não existe "folga do Preto" separada de "folga do Vermelho" — um único conjunto de datas bloqueadas compartilhado entre todos os tipos.</div>
             </div>
         </div>
     </div>
 
-    {# ── EXEMPLO 7 ── #}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header" style="background:#003a78; color:#fff;">
-            <strong><i class="bi bi-7-circle-fill me-2"></i>Exemplo 7 — Carry-over: serviço no último dia de maio bloqueia junho</strong>
-        </div>
-        <div class="card-body">
-            <p class="small text-muted mb-3">
-                DIAS serviu no dia 31/05 (último dia). Janela de folga = 3 dias. Gera-se a escala de junho.
-            </p>
-
+    {# Exemplo 7 #}
+    <div class="exemplo-card">
+        <div class="exemplo-header azul"><i class="bi bi-7-circle-fill"></i> Exemplo 7 — Carry-over: serviço no último dia de maio bloqueia junho</div>
+        <div class="exemplo-body">
+            <p class="small text-muted">DIAS serviu no dia 31/05. Janela de folga = 3 dias. Gera-se a escala de junho.</p>
             <div class="planilha-wrap mb-3">
             <table class="planilha">
-                <thead>
-                    <tr>
-                        <th>Nome</th><th>Último serviço</th><th>Folga gerada (carry-over)</th>
-                        <th class="col-count">Count jun</th><th>Dia 01/06</th><th>Dia 02/06</th><th>Dia 03/06</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Nome</th><th>Último serviço</th><th>Folga (carry-over)</th><th class="col-count">Count jun</th><th>01/jun</th><th>02/jun</th><th>03/jun</th></tr></thead>
                 <tbody>
-                    <tr class="table-warning">
+                    <tr>
                         <td class="nome">DIAS</td>
                         <td><span class="cel-servico">Preto 31/05</span></td>
-                        <td>bloqueia 01, 02, 03/jun</td>
+                        <td style="color:#f0c040;font-size:.78rem;">bloqueia 01, 02, 03/jun</td>
                         <td class="col-count">5</td>
                         <td><span class="cel-folga">Folga</span></td>
                         <td><span class="cel-folga">Folga</span></td>
@@ -863,7 +805,6 @@
                 </tbody>
             </table>
             </div>
-
             <div class="doc-alert info">
                 <i class="bi bi-info-circle-fill"></i>
                 <div>O carry-over é calculado automaticamente ao iniciar a geração de qualquer mês. O escalante não precisa fazer nada — o sistema lê os serviços do mês anterior e aplica os bloqueios.</div>
@@ -873,12 +814,10 @@
 
 </section>
 
-{# ═══════════════════════════════════════════════════════════════════════ #}
-{# SEÇÃO 4 — PSEUDOCÓDIGO                                                 #}
-{# ═══════════════════════════════════════════════════════════════════════ #}
+{# ═══ SEÇÃO 4 — PSEUDOCÓDIGO ══════════════════════════════════════════════ #}
 <section class="doc-section" id="sec-pseudocodigo">
     <h2 class="doc-section-title"><i class="bi bi-code-slash"></i> 4. Pseudocódigo Completo</h2>
-    <p class="text-muted small mb-3">Reflete exatamente o comportamento de <code>escalas/services.py — MotorEscalaVertical</code>.</p>
+    <p style="font-size:.82rem;color:var(--dk-muted);" class="mb-3">Reflete exatamente o comportamento de <code style="color:var(--dk-yellow);background:rgba(255,241,18,.08);padding:.1rem .3rem;border-radius:3px;">escalas/services.py — MotorEscalaVertical</code>.</p>
 
 <div class="pseudocode"><span class="cm"># ─────────────────────────────────────────────────────────────────────────
 # MOTOR ESCALA VERTICAL — Pseudocódigo completo
@@ -911,7 +850,7 @@
   <span class="kw">para cada</span> q <span class="kw">em</span> Quadrinho <span class="kw">onde</span> tipo_escala=atual <span class="op">E</span> ano=atual:
       counts[q.militar] += q.total  <span class="cm"># soma Preto + Vermelho + Roxo</span>
 
-  counts_operacional = <span class="fn">cópia</span>(counts)  <span class="cm"># será atualizado durante a geração</span>
+  counts_operacional = <span class="fn">cópia</span>(counts)  <span class="cm"># atualizado durante a geração</span>
   folga_global[m]    = conjunto_vazio <span class="kw">para todos</span>
 
   <span class="cm"># Passo 4: Indisponibilidades reais (NUNCA quebradas)</span>
@@ -926,7 +865,7 @@
 
   <span class="cm"># ── FASE 2: GERAÇÃO ───────────────────────────────────────────────────</span>
 
-  <span class="cm"># Passo 6: Processar tipo por tipo, em ordem (Preto completo → Vermelho...)</span>
+  <span class="cm"># Passo 6: Processar tipo por tipo</span>
   <span class="kw">para cada</span> tipo_servico <span class="kw">em</span> <span class="fn">ORDER_BY</span>(tipo_servico.ordem <span class="op">ASC</span>):
 
     <span class="kw">para cada</span> dia <span class="kw">em</span> dias_do_tipo <span class="kw">em</span> <span class="fn">ORDER_BY</span>(data <span class="op">ASC</span>):
@@ -935,29 +874,24 @@
       militares_ordenados = <span class="fn">sorted</span>(militares,
           chave = (counts_operacional[m], desempate[m])
       )
-      <span class="cm"># Toda a menor coluna aparece ANTES de qualquer coluna maior.
-      # Empate resolvido por desempate: menor = BASE = mais moderno = prioridade.</span>
 
-      <span class="cm"># Varredura principal</span>
       escalado = <span class="op">NENHUM</span>
       <span class="kw">para cada</span> m <span class="kw">em</span> militares_ordenados:
 
           <span class="kw">se</span> dia.data <span class="kw">em</span> indisponibilidades[m]:
-              <span class="fn">log</span>(<span class="str">"indisponibilidade"</span>)
-              continuar  <span class="cm"># pula — NUNCA quebra</span>
+              continuar  <span class="cm"># NUNCA quebra</span>
 
           <span class="kw">se</span> dia.data <span class="kw">em</span> folga_global[m]:
-              <span class="fn">log</span>(<span class="str">"folga"</span>)
-              continuar  <span class="cm"># pula — pode ser quebrada no fallback</span>
+              continuar  <span class="cm"># pode ser quebrada no fallback</span>
 
           escalado = m
           parar
 
       <span class="kw">se</span> escalado != <span class="op">NENHUM</span>:
           <span class="fn">registrar_serviço</span>(dia, escalado)
-          continuar  <span class="cm"># próximo dia</span>
+          continuar
 
-      <span class="cm"># Fallback: toda a varredura principal falhou</span>
+      <span class="cm"># Fallback</span>
       bloqueados_só_por_folga = [
           m <span class="kw">para</span> m <span class="kw">em</span> militares_ordenados
           <span class="kw">se</span> dia.data <span class="op">NÃO em</span> indisponibilidades[m]
@@ -966,78 +900,40 @@
 
       <span class="kw">se</span> bloqueados_só_por_folga <span class="op">não vazio</span>:
           escolhido = bloqueados_só_por_folga[<span class="num">0</span>]
-          <span class="cm"># primeiro da lista = menor count + BASE→TOPO
-          # count=maior NUNCA é usado aqui</span>
           <span class="fn">gerar_alerta</span>(<span class="str">"folga relaxada → "</span> + escolhido.nome)
           <span class="fn">registrar_serviço</span>(dia, escolhido, forcar_escala=<span class="op">True</span>)
-
       <span class="kw">senão</span>:
-          <span class="cm"># Todos com indisponibilidade real — NUNCA forçado</span>
           <span class="fn">gerar_alerta_crítico</span>(<span class="str">"dia sem cobertura"</span>)
-          dias_sem_militar.<span class="fn">adicionar</span>(dia)
 
 
 <span class="cm"># ── AUXILIAR: registrar_serviço ────────────────────────────────────────</span>
 <span class="kw">FUNÇÃO</span> <span class="fn">registrar_serviço</span>(dia, militar, forcar_escala=<span class="op">False</span>):
-
-  <span class="cm"># Banco de dados (persiste para sempre):</span>
   EscalaItem.<span class="fn">criar</span>(escala, militar, dia, forcar_escala)
   Quadrinho[militar][dia.tipo_servico].quantidade += <span class="num">1</span>
-
-  <span class="cm"># Só em memória (descartado ao fim desta geração):</span>
   counts_operacional[militar] += <span class="num">1</span>
   <span class="kw">para</span> k <span class="kw">de</span> <span class="num">1</span> <span class="kw">até</span> janela <span class="kw">inclusive</span>:
       folga_global[militar].<span class="fn">adicionar</span>(dia.data + k dias)</div>
 </section>
 
-{# ═══════════════════════════════════════════════════════════════════════ #}
-{# SEÇÃO 5 — GARANTIAS                                                    #}
-{# ═══════════════════════════════════════════════════════════════════════ #}
+{# ═══ SEÇÃO 5 — GARANTIAS ═════════════════════════════════════════════════ #}
 <section class="doc-section" id="sec-garantias">
     <h2 class="doc-section-title"><i class="bi bi-shield-check"></i> 5. Garantias do Sistema</h2>
 
     <div class="garantia-grid">
-        <div class="garantia-card">
-            <span class="g-icon">🏆</span>
-            <div><strong>Menor coluna sempre prioritária</strong>Garantida pela ordenação: todos os count=N aparecem antes de qualquer count=N+1.</div>
-        </div>
-        <div class="garantia-card">
-            <span class="g-icon">⬆️</span>
-            <div><strong>Varredura sempre BASE→TOPO</strong>Garantida pelo desempate invertido: índice maior = valor menor = prioridade maior.</div>
-        </div>
-        <div class="garantia-card">
-            <span class="g-icon">✅</span>
-            <div><strong>Toda coluna mínima esgotada antes da próxima</strong>Garantida: a ordenação agrupa counts iguais consecutivamente.</div>
-        </div>
-        <div class="garantia-card">
-            <span class="g-icon">🚫</span>
-            <div><strong>Indisponibilidade nunca quebrada</strong>Garantida: excluída inclusive do fallback de último recurso.</div>
-        </div>
-        <div class="garantia-card">
-            <span class="g-icon">⚡</span>
-            <div><strong>Folga só quebrada quando toda coluna falha</strong>Garantida: o fallback classifica o motivo antes de relaxar qualquer bloqueio.</div>
-        </div>
-        <div class="garantia-card">
-            <span class="g-icon">🔢</span>
-            <div><strong>Count é global (todos os tipos somados)</strong>Garantida: <code>_carregar_matriz_historica</code> soma Preto+Vermelho+Roxo.</div>
-        </div>
-        <div class="garantia-card">
-            <span class="g-icon">🌐</span>
-            <div><strong>Folga global entre tipos</strong>Garantida: <code>folga_global</code> é um único dicionário compartilhado entre Preto, Vermelho e Roxo.</div>
-        </div>
-        <div class="garantia-card">
-            <span class="g-icon">🔄</span>
-            <div><strong>Sem ponteiro, sem fila, sem round-robin</strong>Garantida: <code>sorted()</code> é reexecutado do zero a cada dia.</div>
-        </div>
-        <div class="garantia-card">
-            <span class="g-icon">↩️</span>
-            <div><strong>Retorno automático após ausência</strong>Garantida: count não sobe durante férias; o militar volta ao topo naturalmente.</div>
-        </div>
+        <div class="garantia-card"><span class="g-icon">🏆</span><div><strong>Menor coluna sempre prioritária</strong>Garantida pela ordenação: todos count=N aparecem antes de qualquer count=N+1.</div></div>
+        <div class="garantia-card"><span class="g-icon">⬆️</span><div><strong>Varredura sempre BASE→TOPO</strong>Garantida pelo desempate invertido: índice maior = valor menor = prioridade maior.</div></div>
+        <div class="garantia-card"><span class="g-icon">✅</span><div><strong>Coluna mínima esgotada antes da próxima</strong>Garantida: a ordenação agrupa counts iguais consecutivamente.</div></div>
+        <div class="garantia-card"><span class="g-icon">🚫</span><div><strong>Indisponibilidade nunca quebrada</strong>Garantida: excluída inclusive do fallback de último recurso.</div></div>
+        <div class="garantia-card"><span class="g-icon">⚡</span><div><strong>Folga só quebrada quando toda coluna falha</strong>Garantida: o fallback classifica o motivo antes de relaxar qualquer bloqueio.</div></div>
+        <div class="garantia-card"><span class="g-icon">🔢</span><div><strong>Count é global (todos os tipos somados)</strong>Garantida: <code style="color:var(--dk-yellow);">_carregar_matriz_historica</code> soma Preto+Vermelho+Roxo.</div></div>
+        <div class="garantia-card"><span class="g-icon">🌐</span><div><strong>Folga global entre tipos</strong>Garantida: <code style="color:var(--dk-yellow);">folga_global</code> é um único dicionário compartilhado.</div></div>
+        <div class="garantia-card"><span class="g-icon">🔄</span><div><strong>Sem ponteiro, sem fila, sem round-robin</strong>Garantida: <code style="color:var(--dk-yellow);">sorted()</code> reexecutado do zero a cada dia.</div></div>
+        <div class="garantia-card"><span class="g-icon">↩️</span><div><strong>Retorno automático após ausência</strong>Garantida: count não sobe durante férias; o militar volta ao topo naturalmente.</div></div>
     </div>
 </section>
 
-</div>{# fim col-lg-10 #}
-</div>{# fim row #}
+</div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -1045,15 +941,10 @@
 (function () {
     const links = document.querySelectorAll('.doc-nav a');
     const sections = document.querySelectorAll('.doc-section');
-
     function onScroll() {
         let current = '';
-        sections.forEach(s => {
-            if (window.scrollY >= s.offsetTop - 80) current = s.id;
-        });
-        links.forEach(a => {
-            a.classList.toggle('active', a.getAttribute('href') === '#' + current);
-        });
+        sections.forEach(s => { if (window.scrollY >= s.offsetTop - 80) current = s.id; });
+        links.forEach(a => { a.classList.toggle('active', a.getAttribute('href') === '#' + current); });
     }
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
