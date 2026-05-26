@@ -1,21 +1,25 @@
 """
 Script de instalação offline — Sistema de Escala FAB
 =====================================================
-Execute este script no NOVO SERVIDOR (sem internet) para criar o ambiente virtual
-e instalar todas as dependências a partir dos arquivos .whl desta pasta.
+Execute este script no servidor (sem internet) para criar o ambiente virtual
+e instalar todas as dependências a partir dos arquivos desta pasta.
 
-Pré-requisitos no servidor de destino:
-  - Python 3.12 instalado  (python3.12 --version)
-  - pip instalado          (python3.12 -m pip --version)
+Pré-requisitos no servidor de destino (Ubuntu/Debian):
+  - Python 3.10+ instalado
+  - pip instalado
+  - Bibliotecas de sistema para o python-ldap:
+
+      sudo apt-get install -y libldap2-dev libsasl2-dev python3-dev build-essential
+
+    (Necessário apenas para compilar o python-ldap a partir do fonte .tar.gz)
 
 Uso:
-  python3.12 instalar.py
-  -- ou --
-  python3 instalar.py   (se o padrão já for 3.12)
+  python3 instalar.py
 """
 
 import os
 import sys
+import shutil
 import subprocess
 import venv
 from pathlib import Path
@@ -24,7 +28,11 @@ PASTA_MODULOS = Path(__file__).parent.resolve()
 PASTA_PROJETO = PASTA_MODULOS.parent.resolve()
 VENV_DIR = PASTA_PROJETO / ".venv"
 
-PYTHON_MIN = (3, 12)
+PYTHON_MIN = (3, 10)
+
+# Pacotes que vêm como .tar.gz (fonte) e precisam ser compilados
+PACOTES_FONTE = ["python_ldap", "python-ldap"]
+
 
 def verificar_python():
     v = sys.version_info[:2]
@@ -35,6 +43,27 @@ def verificar_python():
         )
     print(f"[OK] Python {sys.version.split()[0]}")
 
+
+def verificar_dependencias_sistema():
+    """Verifica se as bibliotecas de sistema para o python-ldap estão disponíveis."""
+    print("\n[INFO] Verificando dependências de sistema para python-ldap...")
+    tem_ldap = shutil.which("ldapsearch") is not None or Path("/usr/include/ldap.h").exists() or Path("/usr/include/x86_64-linux-gnu/ldap.h").exists()
+    if not tem_ldap:
+        print("""
+[AVISO] Bibliotecas de sistema para python-ldap não encontradas.
+        Execute antes de continuar:
+
+            sudo apt-get install -y libldap2-dev libsasl2-dev python3-dev build-essential
+
+        Depois rode este script novamente.
+""")
+        resposta = input("Deseja continuar mesmo assim? (s/N): ").strip().lower()
+        if resposta != "s":
+            sys.exit("[CANCELADO] Instale as dependências e rode novamente.")
+    else:
+        print("[OK] Dependências de sistema para LDAP encontradas.")
+
+
 def criar_venv():
     if VENV_DIR.exists():
         print(f"[INFO] Ambiente virtual já existe em: {VENV_DIR}")
@@ -43,19 +72,21 @@ def criar_venv():
     venv.create(str(VENV_DIR), with_pip=True)
     print("[OK] Ambiente virtual criado.")
 
+
 def pip_venv():
-    """Retorna o caminho do pip dentro do venv."""
     if os.name == "nt":
         return VENV_DIR / "Scripts" / "pip.exe"
     return VENV_DIR / "bin" / "pip"
 
-def instalar_pacotes():
+
+def instalar_wheels():
     pip = pip_venv()
     wheels = sorted(PASTA_MODULOS.glob("*.whl"))
     if not wheels:
-        sys.exit("[ERRO] Nenhum arquivo .whl encontrado em: " + str(PASTA_MODULOS))
+        print("[AVISO] Nenhum arquivo .whl encontrado — pulando wheels.")
+        return
 
-    print(f"\n[INFO] Instalando {len(wheels)} pacote(s) a partir de {PASTA_MODULOS}:")
+    print(f"\n[INFO] Instalando {len(wheels)} pacote(s) .whl:")
     for w in wheels:
         print(f"       {w.name}")
 
@@ -67,8 +98,30 @@ def instalar_pacotes():
     ]
     result = subprocess.run(cmd)
     if result.returncode != 0:
-        sys.exit("[ERRO] Falha na instalação dos pacotes.")
-    print("\n[OK] Todos os pacotes instalados com sucesso.")
+        sys.exit("[ERRO] Falha na instalação dos pacotes .whl.")
+    print("[OK] Pacotes .whl instalados.")
+
+
+def instalar_fontes():
+    """Instala pacotes distribuídos como .tar.gz (requer compilação)."""
+    pip = pip_venv()
+    tarballs = sorted(PASTA_MODULOS.glob("*.tar.gz"))
+    if not tarballs:
+        return
+
+    print(f"\n[INFO] Compilando e instalando {len(tarballs)} pacote(s) fonte (.tar.gz):")
+    for t in tarballs:
+        print(f"       {t.name}")
+        cmd = [str(pip), "install", "--no-index", str(t)]
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            sys.exit(
+                f"\n[ERRO] Falha ao compilar {t.name}.\n"
+                "Certifique-se de que as bibliotecas de sistema estão instaladas:\n"
+                "    sudo apt-get install -y libldap2-dev libsasl2-dev python3-dev build-essential"
+            )
+    print("[OK] Pacotes fonte compilados e instalados.")
+
 
 def mostrar_proximos_passos():
     if os.name == "nt":
@@ -77,6 +130,10 @@ def mostrar_proximos_passos():
     else:
         ativar = f"source {VENV_DIR}/bin/activate"
         python_venv = f"{VENV_DIR}/bin/python"
+
+    pacotes_whl = [w.stem for w in sorted(PASTA_MODULOS.glob("*.whl"))]
+    pacotes_tgz = [t.name for t in sorted(PASTA_MODULOS.glob("*.tar.gz"))]
+    todos = pacotes_whl + pacotes_tgz
 
     print(f"""
 =======================================================
@@ -107,20 +164,24 @@ Próximos passos para iniciar o sistema:
    {python_venv} manage.py collectstatic --noinput
 
 =======================================================
- Pacotes instalados:
+ Pacotes instalados ({len(todos)}):
 """)
-    for w in sorted(PASTA_MODULOS.glob("*.whl")):
-        print(f"   • {w.stem}")
+    for p in todos:
+        print(f"   • {p}")
     print("=======================================================")
+
 
 def main():
     print("=" * 55)
     print(" Instalador Offline — Sistema de Escala FAB")
     print("=" * 55)
     verificar_python()
+    verificar_dependencias_sistema()
     criar_venv()
-    instalar_pacotes()
+    instalar_wheels()
+    instalar_fontes()
     mostrar_proximos_passos()
+
 
 if __name__ == "__main__":
     main()

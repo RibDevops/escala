@@ -1,0 +1,116 @@
+File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/home/suporte/dev/escala/core/settings.py", line 162, in <module>
+    import ldap
+ModuleNotFoundError: No module named 'ldap'
+(venv) suporte@PC-692:~/dev/escala$ pip install ldap
+Collecting ldap
+  Downloading ldap-2.0.0.404.tar.gz (2.0 kB)
+  Preparing metadata (setup.py) ... done
+Using legacy 'setup.py install' for ldap, since package 'wheel' is not installed.
+Installing collected packages: ldap
+  Running setup.py install for ldap ... error
+  error: subprocess-exited-with-error
+  
+  × Running setup.py install for ldap did not run successfully.
+  │ exit code: 1
+  ╰─> [89 lines of output]
+      running install
+      /home/suporte/dev/escala/venv/lib/python3.10/site-packages/setuptools/command/install.py:34: SetuptoolsDeprecationWarning: setup.py install is deprecated. Use build and pip and other standards-based tools.
+        warnings.warn(
+      running build
+      running build_py
+      ------------------------------------------------------------------------
+      # `ldap` on PyPI
+      
+      This dummy project is not installable.
+      You probably want `python-ldap` instead.
+      
+      
+      ### python-ldap
+      
+      The widely used [python-ldap](https://python-ldap.org) project provides
+      an importable module named `ldap`.
+      
+      This goes against the convention that PyPI distribution names should
+      match the module names.
+      But, python-ldap pre-dates wide use of that convention, and the issue
+      is hard to fix now.
+      
+      Please install `python-ldap` to get the LDAP bindings.
+      
+      
+      ### ldap 1.0
+      
+      The `ldap` name on PyPI was used for an unrelated collection of
+      LDAP-related utilities, which is not as popular, and confused users who
+      install `ldap` to get the `ldap` module.
+      
+      The project is no longer developed.
+      It is archived as `1.0.x` releases on PyPI, and on
+      [GitHub](https://github.com/andreif/ldap).
+      
+      
+      ## Why we don't fix this transparently
+      
+      This could have been a placeholder  package that depends on `python-ldap`,
+      saving you the trouble of reading this message.
+      
+      However, `pip` [has trouble](https://github.com/pypa/pip/issues/4961)
+      with differently-named packages that provide the same module.
+      
+      
+      ## Please: Don't install packages blindly
+      
+      When you see the exception:
+      
+      ```
+      ModuleNotFoundError: No module named 'foo'
+      ```
+      
+      … please research the actual requirements instead of going directly for
+      `pip install foo`.
+      The project (distribution) name may differ from the module(s) it
+      provides.
+      
+      ------------------------------------------------------------------------
+      Traceback (most recent call last):
+        File "<string>", line 2, in <module>
+        File "<pip-setuptools-caller>", line 34, in <module>
+        File "/tmp/pip-install-mjtgtq7v/ldap_f25ed6765d7c46ae853eabfd8fb49c53/setup.py", line 23, in <module>
+          setup(
+        File "/home/suporte/dev/escala/venv/lib/python3.10/site-packages/setuptools/__init__.py", line 153, in setup
+          return distutils.core.setup(**attrs)
+        File "/usr/lib/python3.10/distutils/core.py", line 148, in setup
+          dist.run_commands()
+        File "/usr/lib/python3.10/distutils/dist.py", line 966, in run_commands
+          self.run_command(cmd)
+        File "/usr/lib/python3.10/distutils/dist.py", line 985, in run_command
+          cmd_obj.run()
+        File "/home/suporte/dev/escala/venv/lib/python3.10/site-packages/setuptools/command/install.py", line 68, in run
+          return orig.install.run(self)
+        File "/usr/lib/python3.10/distutils/command/install.py", line 619, in run
+          self.run_command('build')
+        File "/usr/lib/python3.10/distutils/cmd.py", line 313, in run_command
+          self.distribution.run_command(command)
+        File "/usr/lib/python3.10/distutils/dist.py", line 985, in run_command
+          cmd_obj.run()
+        File "/usr/lib/python3.10/distutils/command/build.py", line 135, in run
+          self.run_command(cmd_name)
+        File "/usr/lib/python3.10/distutils/cmd.py", line 313, in run_command
+          self.distribution.run_command(command)
+        File "/usr/lib/python3.10/distutils/dist.py", line 985, in run_command
+          cmd_obj.run()
+        File "/tmp/pip-install-mjtgtq7v/ldap_f25ed6765d7c46ae853eabfd8fb49c53/setup.py", line 18, in run
+          raise ValueError(
+      ValueError: "ldap" is not installable. You probably want python-ldap.
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+error: legacy-install-failure
+
+× Encountered error while trying to install package.
+╰─> ldap
+
+note: This is an issue with the package mentioned above, not pip.
+hint: See above for output from the failure.
