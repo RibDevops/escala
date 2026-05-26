@@ -11,3 +11,9 @@ id = "NSiqdw_4RINQ8surahQWM"
 uri = "file://attached_assets/matriz_escala_maio2026.png"
 type = "image"
 title = "Matriz Militares × Dias — Permanência Maio 2026"
+
+[[outputs]]
+id = "GNG77OKsrpsHCdSx1Vbud"
+uri = "file://docs/motor_escala_documentacao.md"
+type = "text"
+title = "Motor de Escala — Documentação Técnica Oficial"
