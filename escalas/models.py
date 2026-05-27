@@ -1907,7 +1907,7 @@ class TrocaServico(models.Model):
 
         # Ambos os militares devem ter aprovado
         if self.tipo_troca == 'simples':
-            return self.aprovada_militar_sai and self.aprovada_militar_entra is not None
+            return self.aprovada_militar_sai and self.aprovada_militar_entra == True
         else:
             return (self.aprovada_militar_sai and self.aprovada_militar_entra and
                     self.aprovada_militar_sai_2 and self.aprovada_militar_entra_2)

@@ -3423,7 +3423,7 @@ def troca_homologar(request, troca_id):
             troca.status = 'reprovada'
 
         troca.homologacao_observacao = observacao
-        troca.data_homologacao = date.today()
+        troca.data_homologacao = timezone.now()
         troca.usuario_chefe = usuario
         troca.save()
 
