@@ -294,6 +294,11 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost",
     "http://demeter.ciaer.interna",
     "https://escala.ciaer.interna",
+    "https://*.replit.dev",
+    "https://*.replit.app",
+    "https://*.repl.co",
+    "https://*.kirk.replit.dev",
+    "https://*.picard.replit.dev",
 ]
 
 # =============================================================================
