@@ -265,16 +265,8 @@
 # AUTH_LDAP_CACHE_TIMEOUT = 3600        # Cache de grupo em segundos
 
 
-"""
-Django settings for core project.
-Django 5.2.x
-"""
-
 import os
 from pathlib import Path
-import ldap
-
-from django_auth_ldap.config import LDAPSearch
 
 # =============================================================================
 # PATHS
