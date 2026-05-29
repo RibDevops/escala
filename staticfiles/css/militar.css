@@ -1,0 +1,554 @@
+:root {
+    --m-escuro: #3D3F3E;
+    --m-escuro-hover: #2a2b2a;
+    --m-amarelo: #FFF112;
+    --m-amarelo-hover: #e6d800;
+    --m-cinza: #828282;
+    --m-cinza-claro: #b0b0b0;
+    --m-fundo: #f4f4f3;
+    --m-fundo-claro: #fafaf9;
+    --m-borda: #d6d6d4;
+    --m-preto: #1a1a1a;
+    --m-vermelho: #a83232;
+    --m-vermelho-vivo: #c0392b;
+    --m-roxo: #5b3a5b;
+    --m-texto-suave: #555;
+}
+
+body {
+    background-color: var(--m-fundo);
+    background-image:
+        repeating-linear-gradient(
+            45deg,
+            transparent 0,
+            transparent 2px,
+            rgba(61, 63, 62, 0.025) 2px,
+            rgba(61, 63, 62, 0.025) 4px
+        );
+    color: var(--m-preto);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6,
+.brand-title {
+    font-family: 'Trajan Pro', 'Cinzel', 'Times New Roman', Georgia, serif;
+    letter-spacing: 0.04em;
+}
+
+/* Topbar / navbar */
+.navbar-mil {
+    background: var(--m-escuro);
+    border-bottom: 3px solid var(--m-amarelo);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.navbar-mil .navbar-brand {
+    color: #fff;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.navbar-mil .navbar-brand:hover {
+    color: var(--m-amarelo);
+}
+.navbar-mil .nav-link {
+    color: rgba(255,255,255,0.80) !important;
+    text-transform: uppercase;
+    font-size: 0.82rem;
+    letter-spacing: 0.06em;
+    padding: 0.5rem 0.9rem !important;
+    border-bottom: 2px solid transparent;
+}
+.navbar-mil .nav-link:hover,
+.navbar-mil .nav-link.active {
+    color: #fff !important;
+    border-bottom-color: var(--m-amarelo);
+}
+.navbar-mil .navbar-toggler {
+    border-color: rgba(255,255,255,0.4);
+}
+
+/* Nav dropdowns */
+.navbar-mil .nav-dropdown-toggle::after {
+    margin-left: 0.3em;
+}
+.dropdown-menu-mil {
+    background: var(--m-escuro);
+    border: 0;
+    border-top: 3px solid var(--m-amarelo);
+    border-radius: 0 0 4px 4px;
+    padding: 0.25rem 0;
+    min-width: 190px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+}
+.dropdown-menu-mil .dropdown-item {
+    color: rgba(255,255,255,0.82);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.dropdown-menu-mil .dropdown-item:hover,
+.dropdown-menu-mil .dropdown-item:focus {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+}
+.dropdown-menu-mil .dropdown-item.active {
+    background: transparent;
+    color: var(--m-amarelo);
+}
+.dropdown-menu-mil .dropdown-divider {
+    border-color: rgba(255,255,255,0.12);
+    margin: 0.2rem 0;
+}
+
+
+/* OM switcher dropdown na navbar */
+.om-switcher .btn {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border: 1px solid rgba(255, 241, 18, 0.4);
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.om-switcher .btn:hover,
+.om-switcher .btn:focus {
+    background: rgba(255, 241, 18, 0.15);
+    color: var(--m-amarelo);
+    border-color: var(--m-amarelo);
+}
+.om-switcher .dropdown-menu {
+    border: 1px solid var(--m-borda);
+    border-top: 3px solid var(--m-amarelo);
+    border-radius: 4px;
+    min-width: 280px;
+    padding: 0;
+}
+.om-switcher .dropdown-header {
+    background: var(--m-fundo-claro);
+    color: var(--m-escuro);
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    padding: 0.5rem 0.9rem;
+}
+.om-switcher .dropdown-item {
+    padding: 0.55rem 0.9rem;
+    border-bottom: 1px solid var(--m-fundo);
+    font-size: 0.88rem;
+}
+.om-switcher .dropdown-item:last-of-type { border-bottom: none; }
+.om-switcher .dropdown-item.active,
+.om-switcher .dropdown-item:active {
+    background: var(--m-escuro);
+    color: #fff;
+}
+.om-switcher .dropdown-item .sigla {
+    font-weight: 700;
+    color: var(--m-escuro);
+    margin-right: 0.4em;
+}
+.om-switcher .dropdown-item.active .sigla { color: var(--m-amarelo); }
+.om-switcher .form-em-dropdown { margin: 0; }
+.om-switcher .form-em-dropdown button {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.88rem;
+    color: var(--m-preto);
+}
+.om-switcher .form-em-dropdown button:hover {
+    background: var(--m-fundo);
+}
+.om-switcher .form-em-dropdown button.active {
+    background: var(--m-escuro);
+    color: #fff;
+}
+
+.user-chip {
+    background: rgba(0, 0, 0, 0.25);
+    color: #fff;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    border: 1px solid rgba(255, 241, 18, 0.4);
+}
+
+/* Page header */
+.page-header {
+    background: linear-gradient(180deg, #fff 0%, var(--m-fundo-claro) 100%);
+    border: 1px solid var(--m-borda);
+    border-left: 4px solid var(--m-escuro);
+    padding: 1.2rem 1.4rem;
+    margin-bottom: 1.5rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(61, 63, 62, 0.07);
+}
+.page-header h1 {
+    margin: 0;
+    color: var(--m-escuro);
+    font-size: 1.6rem;
+    text-transform: uppercase;
+}
+.page-header .subtitle {
+    color: var(--m-cinza);
+    margin-top: 0.25rem;
+    font-size: 0.9rem;
+}
+
+/* Cards */
+.card-mil {
+    background: #fff;
+    border: 1px solid var(--m-borda);
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(61, 63, 62, 0.07);
+}
+.card-mil > .card-header,
+.card-mil > .card-mil-header {
+    background: var(--m-escuro);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.82rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 2px solid var(--m-amarelo);
+    font-weight: 600;
+}
+
+/* Stat cards */
+.stat-card {
+    background: #fff;
+    border: 1px solid var(--m-borda);
+    border-top: 3px solid var(--m-escuro);
+    border-radius: 4px;
+    padding: 1.1rem 1.3rem;
+    box-shadow: 0 1px 4px rgba(61, 63, 62, 0.07);
+    height: 100%;
+}
+.stat-card .label {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    color: var(--m-cinza);
+    letter-spacing: 0.08em;
+    margin-bottom: 0.3rem;
+}
+.stat-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--m-escuro);
+    font-family: 'Courier New', monospace;
+}
+.stat-card .hint {
+    color: #777;
+    font-size: 0.8rem;
+    margin-top: 0.2rem;
+}
+.stat-card.dourado { border-top-color: var(--m-amarelo); }
+.stat-card.dourado .value { color: #8a7a00; }
+.stat-card.vermelho { border-top-color: var(--m-vermelho); }
+.stat-card.vermelho .value { color: var(--m-vermelho); }
+.stat-card.roxo { border-top-color: var(--m-roxo); }
+.stat-card.roxo .value { color: var(--m-roxo); }
+
+/* Tables */
+.table-mil {
+    background: #fff;
+    border: 1px solid var(--m-borda);
+}
+.table-mil thead {
+    background: var(--m-escuro);
+    color: #fff;
+}
+.table-mil thead th {
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    border-bottom: 2px solid var(--m-amarelo);
+    padding: 0.65rem 0.85rem;
+    color: #fff;
+}
+.table-mil tbody tr:hover {
+    background: var(--m-fundo);
+}
+.table-mil td {
+    vertical-align: middle;
+    padding: 0.6rem 0.85rem;
+}
+
+/* Buttons */
+.btn-mil {
+    background: var(--m-escuro);
+    color: #fff;
+    border: 1px solid var(--m-escuro);
+    text-transform: uppercase;
+    font-size: 0.82rem;
+    letter-spacing: 0.05em;
+    padding: 0.45rem 1rem;
+    border-radius: 3px;
+}
+.btn-mil:hover {
+    background: var(--m-escuro-hover);
+    color: #fff;
+    border-color: var(--m-escuro-hover);
+}
+.btn-mil-dourado {
+    background: var(--m-amarelo);
+    color: var(--m-escuro);
+    border-color: var(--m-amarelo);
+    font-weight: 700;
+}
+.btn-mil-dourado:hover {
+    background: var(--m-amarelo-hover);
+    color: var(--m-escuro);
+    border-color: var(--m-amarelo-hover);
+}
+.btn-mil-outline {
+    background: #fff;
+    color: var(--m-escuro);
+    border: 1px solid var(--m-escuro);
+}
+.btn-mil-outline:hover {
+    background: var(--m-escuro);
+    color: #fff;
+}
+.btn-mil-danger {
+    background: var(--m-vermelho);
+    color: #fff;
+    border-color: var(--m-vermelho);
+}
+.btn-mil-danger:hover {
+    background: var(--m-vermelho-vivo);
+    color: #fff;
+    border-color: var(--m-vermelho-vivo);
+}
+
+/* Forms */
+.form-control, .form-select {
+    border-color: var(--m-borda);
+    border-radius: 3px;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--m-cinza);
+    box-shadow: 0 0 0 0.2rem rgba(130, 130, 130, 0.18);
+}
+.form-label {
+    font-weight: 600;
+    color: var(--m-escuro);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Badges */
+.badge-mil {
+    background: var(--m-escuro);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    font-size: 0.7rem;
+    padding: 0.3em 0.55em;
+    border-radius: 3px;
+}
+.badge-posto {
+    background: var(--m-amarelo);
+    color: var(--m-escuro);
+    font-family: 'Courier New', monospace;
+    font-size: 0.78rem;
+    padding: 0.25em 0.55em;
+    border-radius: 3px;
+    font-weight: 700;
+}
+.badge-inativo {
+    background: #b0b0b0;
+    color: #fff;
+}
+.badge-om {
+    display: inline-block;
+    background: rgba(255, 241, 18, 0.18);
+    color: var(--m-escuro);
+    border: 1px solid var(--m-amarelo);
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    padding: 0.18em 0.55em;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+/* Login */
+.login-card {
+    max-width: 420px;
+    margin: 6vh auto;
+    background: #fff;
+    border: 1px solid var(--m-borda);
+    border-top: 4px solid var(--m-amarelo);
+    border-radius: 4px;
+    padding: 2.5rem 2rem;
+    box-shadow: 0 4px 16px rgba(61, 63, 62, 0.16);
+}
+.login-card h1 {
+    color: var(--m-escuro);
+    text-align: center;
+    font-size: 1.4rem;
+    margin-bottom: 0.2rem;
+}
+.login-card .sub {
+    text-align: center;
+    color: var(--m-cinza);
+    font-size: 0.85rem;
+    margin-bottom: 1.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* Footer */
+.footer-mil {
+    background: var(--m-escuro);
+    color: rgba(255,255,255,0.7);
+    padding: 1rem 0;
+    margin-top: 3rem;
+    border-top: 3px solid var(--m-amarelo);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* Empty state */
+.empty-state {
+    background: #fff;
+    border: 1px dashed var(--m-borda);
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--m-cinza);
+    border-radius: 4px;
+}
+.empty-state .icon {
+    font-size: 2.5rem;
+    color: var(--m-cinza-claro);
+    margin-bottom: 0.6rem;
+}
+
+/* Crest / brand */
+.crest {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 30% 30%, var(--m-amarelo), #c8b800 70%),
+        var(--m-escuro);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--m-escuro);
+    font-weight: 800;
+    font-family: serif;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px var(--m-escuro);
+    overflow: hidden;
+}
+.crest.crest-img {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+}
+.crest.crest-img img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    border-radius: 0;
+    display: block;
+}
+.crest.crest-sm {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+    box-shadow: none;
+    border-color: var(--m-borda);
+}
+.crest.crest-sm:has(img) {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    overflow: visible;
+}
+.crest.crest-sm img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 0;
+    display: block;
+    background: transparent;
+}
+
+/* Pré-visualização do brasão na página da OM */
+.om-logo-preview {
+    width: 100%;
+    min-height: 140px;
+    background: #fff;
+    border: 1px solid var(--m-borda);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+.om-logo-preview img {
+    max-width: 180px;
+    max-height: 180px;
+    object-fit: contain;
+    display: block;
+}
+
+/* Miniatura do brasão dentro do dropdown de OMs */
+.om-switcher .om-thumb {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 30% 30%, var(--m-amarelo), #c8b800 70%),
+        var(--m-escuro);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--m-escuro);
+    font-weight: 800;
+    font-family: serif;
+    font-size: 0.85rem;
+    border: 1px solid #fff;
+    box-shadow: 0 0 0 1px var(--m-borda);
+    overflow: hidden;
+    flex-shrink: 0;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+.om-switcher .om-thumb:has(img) {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    overflow: visible;
+}
+.om-switcher .om-thumb img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    border-radius: 0;
+    background: transparent;
+    display: block;
+}

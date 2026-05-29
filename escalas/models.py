@@ -68,22 +68,6 @@ class UsuarioCustomizado(AbstractUser):
         help_text="OM onde o usuário trabalha principalmente"
     )
     
-    # Usuário pode ser militar ou não
-    eh_militar = models.BooleanField(
-        default=False,
-        help_text="Indica se este usuário também é um registro de Militar"
-    )
-    
-    # Ligar a um Militar se for o caso
-    militar_associado = models.OneToOneField(
-        'Militar',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='usuario',
-        help_text="Se eh_militar=True, referencia ao Militar correspondente"
-    )
-    
     ativo = models.BooleanField(
         default=True,
         help_text="Soft delete para preservar histórico"
@@ -129,10 +113,7 @@ class UsuarioCustomizado(AbstractUser):
     
     def obter_oms_acesso(self):
         """Retorna as OMs que o usuário pode acessar.
-
         Fonte de verdade: Militar.user (relação reversa acessada como usuario.militar).
-        Os campos legados eh_militar / militar_associado são mantidos apenas
-        por compatibilidade — não devem ser usados como lógica primária.
         """
         if self.pode_administrar():
             return OrganizacaoMilitar.objects.filter(id=self.om_principal_id, ativo=True)
@@ -493,29 +474,21 @@ class Militar(models.Model):
         ]
     
     @staticmethod
-    def gerar_username(nome_guerra: str, matricula: str) -> str:
+    def gerar_username(nome_guerra: str, nome_completo: str, matricula: str) -> str:
         """
-        Gera username no padrão: <nome_guerra_lower>_<iniciais_matricula>
-        Ex: 'SILVA SANTOS' + '123456' → 'silva_ss'
-        Ex: 'COSTA'        + '789012' → 'costa_789012'  (sem iniciais → usa matrícula)
-
-        Regras:
-          - nome_guerra em minúsculas, sem acentos, sem espaços extras
-          - iniciais = primeira letra de cada palavra do nome (sem a primeira,
-            pois ela já está no nome base)
-          - se nome tiver só uma palavra, usa os 6 primeiros dígitos da matrícula
-          - caracteres especiais removidos via slugify
+        Gera username no padrão: <primeiro_nome_guerra>_<iniciais_nome_completo>
+        Ex: 'SILVA' + 'Joao Carlos Silva Santos' + '123456' → 'silva_jcss'
+        Ex: 'COSTA LIMA' + 'Maria Costa Lima' + '789012'   → 'costa_mcl'
+        Fallback: se iniciais ficarem vazias, usa os 6 primeiros dígitos da matrícula.
         """
         from django.utils.text import slugify
 
-        partes = nome_guerra.strip().split()
-        base = slugify(partes[0]).replace('-', '')
+        partes_guerra = nome_guerra.strip().split()
+        base = slugify(partes_guerra[0]).replace('-', '')
 
-        if len(partes) > 1:
-            iniciais = ''.join(p[0].lower() for p in partes[1:] if p)
-            sufixo = slugify(iniciais).replace('-', '') or matricula[:6]
-        else:
-            sufixo = matricula[:6]
+        partes_completo = nome_completo.strip().split()
+        iniciais = ''.join(p[0].lower() for p in partes_completo if p)
+        sufixo = slugify(iniciais).replace('-', '') or matricula[:6]
 
         return f"{base}_{sufixo}"
 
@@ -532,7 +505,7 @@ class Militar(models.Model):
         if self.user_id:
             return self.user
 
-        username = Militar.gerar_username(self.nome_guerra, self.matricula)
+        username = Militar.gerar_username(self.nome_guerra, self.nome_completo, self.matricula)
 
         # Garante unicidade: se já existe, adiciona sufixo numérico
         base_username = username
@@ -552,9 +525,6 @@ class Militar(models.Model):
             last_name=last_name,
             perfil=PerfilUsuario.MILITAR,
             om_principal=self.organizacao_militar,
-            # Preenche os campos legados para retrocompatibilidade
-            eh_militar=True,
-            militar_associado=self,
         )
 
         self.user = usuario
@@ -710,11 +680,18 @@ class TipoEscala(models.Model):
             self.slug = slug
         super().save(*args, **kwargs)
 
+
     def get_escala_publica_url(self):
-        return f'/escala-do-mes/{self.slug}/'
+        from django.urls import reverse
+        if self.slug:
+            return reverse('escala_publica', args=[self.slug])
+        return '#'
 
     def get_matriz_publica_url(self):
-        return f'/matriz/{self.slug}/'
+        from django.urls import reverse
+        if self.slug:
+            return reverse('matriz_publica', args=[self.slug])
+        return '#'
 
     def folga_efetiva_dias(self, config=None) -> int:
         """Retorna a folga mínima em dias: usa o override do tipo ou o global da OM."""
@@ -939,14 +916,6 @@ class Indisponibilidade(models.Model):
         self.limpar()
         super().save(*args, **kwargs)
     
-    def militar_disponivel_em(data: timezone.now().date()) -> bool:
-        """Verifica se o militar está disponível em uma data específica"""
-        return not self.indisponibilidades.filter(
-            data_inicio__lte=data,
-            data_fim__gte=data,
-            tipo__exclui_do_sorteio=True
-        ).exists()
-
 
 # ============================================================================
 # ESCALAS

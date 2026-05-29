@@ -25,16 +25,16 @@ class UsuarioCustomizadoAdmin(BaseUserAdmin):
     
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Configurações da OM', {
-            'fields': ('om_principal', 'eh_militar', 'militar_associado')
+            'fields': ('om_principal',)
         }),
         ('Sistema', {
             'fields': ('perfil', 'ativo')
         }),
     )
-    
+
     list_display = (
         'username', 'get_nome_completo', 'get_perfil_badge',
-        'get_om_principal', 'eh_militar', 'ativo'
+        'get_om_principal', 'ativo'
     )
     
     list_filter = ('perfil', 'ativo', 'om_principal', 'date_joined')

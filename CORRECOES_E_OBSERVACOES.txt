@@ -1,0 +1,266 @@
+================================================================================
+  SISTEMA DE ESCALA MILITAR — CORREÇÕES E OBSERVAÇÕES
+  Data: 28/05/2026
+================================================================================
+
+--------------------------------------------------------------------------------
+ARQUIVOS MODIFICADOS
+--------------------------------------------------------------------------------
+
+  1. escalas/models.py
+  2. escalas/views.py
+  3. templates/cadastro/militar_form.html
+  4. templates/cadastro/usuario_list.html
+  5. templates/troca/troca_solicitar.html
+
+
+--------------------------------------------------------------------------------
+CORREÇÕES APLICADAS
+--------------------------------------------------------------------------------
+
+[1] QUADRINHO — Lastro aparecia antes dos serviços reais
+  Arquivo : escalas/views.py  (~linha 994)
+  Problema: Ao adicionar um lançamento manual (lastro) pelo botão "+",
+            ele aparecia na primeira posição do militar no quadrinho,
+            empurrando os serviços reais para depois.
+  Solução : Invertida a ordem de montagem da lista — serviços reais
+            da escala vêm primeiro, lançamentos manuais (lastro) ficam
+            ao final.
+
+--------
+
+[2] USERNAME GERADO COM MATRÍCULA EM VEZ DE INICIAIS
+  Arquivo : escalas/models.py  (método Militar.gerar_username)
+  Problema: Quando o militar tinha nome de guerra de uma só palavra
+            (ex: "SILVA"), o sistema usava os 6 primeiros dígitos da
+            matrícula como sufixo, gerando algo como "silva_123456",
+            parecendo aleatório.
+  Solução : Agora usa as iniciais de TODOS os nomes do nome_completo.
+  Exemplos:
+    - nome_guerra="SILVA", nome_completo="Joao Carlos Silva Santos"
+      → username = silva_jcss
+    - nome_guerra="COSTA LIMA", nome_completo="Maria Costa Lima"
+      → username = costa_mcl
+  Fallback: se as iniciais ficarem vazias por algum motivo,
+            usa os 6 primeiros dígitos da matrícula (segurança).
+  ATENÇÃO : A assinatura do método mudou de:
+              gerar_username(nome_guerra, matricula)
+            para:
+              gerar_username(nome_guerra, nome_completo, matricula)
+            Só é chamado internamente pelo próprio modelo — sem impacto
+            em outros arquivos.
+
+--------
+
+[3] DUAS URLs SEPARADAS PARA EDITAR MILITAR E USUÁRIO — UNIFICADAS
+  Arquivos: escalas/views.py
+            templates/cadastro/militar_form.html
+            templates/cadastro/usuario_list.html
+  Problema: Existiam dois botões de edição na lista de usuários:
+            um para /militares/<id>/editar/ e outro para
+            /usuarios/<id>/editar/. O colega tinha que editar em
+            dois lugares diferentes para mudar dados do mesmo militar.
+  Solução :
+    - A página /militares/<id>/editar/ ganhou um painel integrado
+      com os campos de acesso: username, papel/nível e status ativo.
+    - Se alguém acessar /usuarios/<id>/editar/ para um usuário que
+      tem militar vinculado, é redirecionado automaticamente para
+      /militares/<id>/editar/.
+    - O botão duplicado "Editar acesso/perfil" foi removido da
+      lista de usuários.
+    - /usuarios/<id>/editar/ ainda funciona normalmente para usuários
+      administrativos que NÃO têm militar vinculado (escalante avulso,
+      admin, etc.).
+
+--------
+
+[4] /troca/solicitar/ — BOTÃO NÃO FUNCIONAVA / NÃO GERAVA TROCA
+  Arquivos: escalas/views.py  (view troca_servicos_militar)
+            templates/troca/troca_solicitar.html
+  Problema: A lista de serviços disponíveis para troca só buscava
+            serviços do MÊS ATUAL. Se o militar não tinha serviço
+            escalado neste mês (mas tinha no próximo), a lista ficava
+            vazia, nenhum radio button era criado, e ao clicar em
+            "Solicitar Troca" o formulário falhava silenciosamente
+            (redirecionava de volta sem mensagem clara).
+            Além disso, o JavaScript exigia que o campo "Status da
+            Escala" fosse preenchido ANTES de mostrar os serviços,
+            bloqueando desnecessariamente.
+  Solução :
+    - A busca agora retorna serviços de HOJE até 92 dias à frente
+      (aproximadamente 3 meses), cobrindo o mês atual e os próximos.
+    - O JS não bloqueia mais o carregamento de serviços por causa
+      do campo Status — os serviços aparecem assim que o tipo de
+      escala é selecionado.
+    - Os badges de status (Previsão/Publicada) aparecem em cada
+      serviço listado para o militar saber o tipo.
+
+--------
+
+[5] URLs PÚBLICAS (/matriz/<slug>/ e /escala-do-mes/<slug>/) PODIAM QUEBRAR
+  Arquivo : escalas/models.py  (métodos get_matriz_publica_url e
+                                 get_escala_publica_url da classe TipoEscala)
+  Problema: Os métodos geravam a URL como string hardcoded:
+              f'/matriz/{self.slug}/'
+            Se o campo slug estivesse vazio em algum registro antigo,
+            gerava uma URL inválida como /matriz// causando erro 404
+            ou página quebrada.
+  Solução : Agora usa reverse() do Django — se o slug existir,
+            gera a URL corretamente pelo nome da rota; se estiver
+            vazio retorna '#' (link morto, mas sem quebrar a página).
+
+--------
+
+[6] /troca/solicitar/ — ERRO 500 SE "STATUS DA ESCALA" NÃO FOSSE PREENCHIDO
+  Arquivo : escalas/views.py  (view troca_solicitar, validação do POST)
+  Problema: A validação do formulário verificava se tipo_escala,
+            data_servico_sai, militar_entra e motivo estavam
+            preenchidos — mas NÃO verificava escala_status.
+            Se o campo ficasse em branco e o formulário fosse
+            submetido assim, o banco de dados rejeitava com erro
+            (IntegrityError) causando tela branca de erro 500.
+  Solução : escala_status foi adicionado à verificação obrigatória.
+
+
+--------------------------------------------------------------------------------
+PROBLEMAS OBSERVADOS (NÃO CORRIGIDOS)
+--------------------------------------------------------------------------------
+
+[A] CONDIÇÃO DE CORRIDA NO NÚMERO DE CONTROLE DA TROCA
+  Arquivo : escalas/models.py  (TrocaServico.gerar_numero_controle)
+  Risco   : MÉDIO — pouco provável num quartel pequeno, mas existe
+  Detalhe : O número de controle é gerado contando as trocas do mês
+            e somando 1. Se dois militares solicitarem troca ao mesmo
+            tempo (cliques simultâneos), os dois recebem o mesmo número,
+            e a segunda tentativa falha com erro 500 (IntegrityError).
+  Correção futura: proteger com select_for_update() ou gerar o
+            número com timestamp.
+
+--------
+
+[B] FORMULARÁRIO LEGADO EM forms.py (CÓDIGO MORTO)
+  Arquivo : escalas/forms.py  (classe MilitarForm, linha 102)
+  Risco   : BAIXO — não causa crash, só confusão
+  Detalhe : Existe um MilitarForm antigo em forms.py que nunca é
+            usado. O código real usa o MilitarForm de forms_cadastro.py.
+            Se alguém editar o forms.py achando que é o certo, as
+            mudanças não vão ter efeito.
+  Correção futura: apagar ou comentar o MilitarForm em forms.py.
+
+--------
+
+[C] URLs DO AJAX DO QUADRINHO HARDCODED NO JAVASCRIPT
+  Arquivo : templates/cadastro/quadrinho_visao.html  (linhas 963 e 1034)
+  Risco   : BAIXO — funciona hoje, mas frágil
+  Detalhe : Duas URLs de editar/excluir itens da escala estão
+            escritas diretamente no JavaScript como texto:
+              `/quadrinho/ajax-item/${itemId}/editar/`
+              `/quadrinho/ajax-item/${itemId}/excluir/`
+            Funcionam enquanto o padrão de URL não mudar.
+            Se o prefixo das URLs for alterado, quebra silenciosamente.
+  Correção futura: usar {% url %} do Django ou passar via data-attribute
+            no elemento HTML.
+
+--------
+
+[D] PÁGINAS PÚBLICAS SEMPRE MOSTRAM A PRIMEIRA OM CADASTRADA
+  Arquivo : escalas/views.py  (views escala_publica e matriz_publica)
+  Risco   : BAIXO — só afeta quem tiver mais de uma OM ativa
+  Detalhe : Nas páginas sem login (/escala-do-mes/<slug>/ e
+            /matriz/<slug>/), a OM é obtida assim:
+              OrganizacaoMilitar.objects.filter(ativo=True)
+                                        .order_by('id').first()
+            Isso sempre pega a OM com menor ID. Para instalações com
+            uma única OM (caso mais comum) não há problema.
+            Para múltiplas OMs, todas as páginas públicas exibem
+            a mesma OM, ignorando as demais.
+  Correção futura: passar o slug ou ID da OM na URL pública.
+
+--------
+
+[E] CAMPO LEGADO militar_associado NO USUÁRIO (DUPLICATA)
+  Arquivo : escalas/models.py  (UsuarioCustomizado.militar_associado)
+  Risco   : NENHUM — só desperdício
+  Detalhe : UsuarioCustomizado tem um campo militar_associado que
+            aponta para o Militar, além de Militar.user que faz o
+            mesmo caminho inverso. O campo militar_associado nunca
+            é lido pelo código atual — só é preenchido ao criar o
+            usuário automático. São dois campos guardando a mesma
+            informação, ocupa banco à toa.
+  Correção futura: deprecar/remover com migração.
+
+
+--------------------------------------------------------------------------------
+LIMPEZA DE CÓDIGO LEGADO (MESMA DATA)
+--------------------------------------------------------------------------------
+
+[L1] escalas/forms.py — ARQUIVO DELETADO
+  Motivo : O arquivo inteiro era código morto. Todas as views importam
+           de forms_cadastro.py. O forms.py nunca era importado por
+           views.py nem por urls.py — existia só como confusão.
+  Ação   : Arquivo removido. Não afeta o funcionamento.
+
+--------
+
+[L2] escalas/views_escala_legado.py — ARQUIVO DELETADO
+  Motivo : Arquivo órfão com 535 linhas, nunca importado por urls.py
+           nem por views.py. Só importava de forms.py (que também foi
+           deletado). Não havia como essas views serem chamadas.
+  Ação   : Arquivo removido. Não afeta o funcionamento.
+
+--------
+
+[L3] UsuarioCustomizado.eh_militar e UsuarioCustomizado.militar_associado — CAMPOS REMOVIDOS
+  Arquivo : escalas/models.py (classe UsuarioCustomizado)
+  Motivo  : Dois campos nunca lidos pelo código. `militar_associado`
+            duplicava a informação já disponível em Militar.user
+            (relação inversa). `eh_militar` nunca era consultado.
+  Ação    : Campos removidos do modelo.
+            O admin.py também foi corrigido (removia crash garantido).
+            Criada migração 0017_remove_campos_legados_usuario.py para
+            remover as colunas do banco — VER INSTRUÇÕES ABAIXO.
+
+--------
+
+[L4] Indisponibilidade.militar_disponivel_em() — MÉTODO REMOVIDO
+  Arquivo : escalas/models.py (classe Indisponibilidade)
+  Motivo  : Método com bug estrutural (faltava o parâmetro self) e
+            nunca era chamado em nenhum lugar do código.
+  Ação    : Método removido. Não afeta o funcionamento.
+
+--------
+
+[L5] PonteiroEscala — IMPORT REMOVIDO DE views.py
+  Motivo  : Classe importada mas nunca usada em views.py.
+  Ação    : Linha de import removida. Não afeta o funcionamento.
+
+
+--------------------------------------------------------------------------------
+RESUMO PARA O COLEGA
+--------------------------------------------------------------------------------
+
+  Substitua os seguintes arquivos/pastas pelos da pasta recebida:
+
+    escalas/models.py
+    escalas/views.py
+    escalas/admin.py
+    escalas/migrations/0017_remove_campos_legados_usuario.py  ← NOVO
+    templates/cadastro/militar_form.html
+    templates/cadastro/usuario_list.html
+    templates/troca/troca_solicitar.html
+
+  APAGUE estes arquivos (se existirem na instalação):
+    escalas/forms.py
+    escalas/views_escala_legado.py
+
+  IMPORTANTE — rodar migrate UMA VEZ por causa da migração 0017:
+
+    python manage.py migrate
+
+  (Remove as colunas eh_militar e militar_associado do banco.
+   O servidor não vai crashar se você esquecer — mas o banco
+   vai ficar com colunas antigas que já não servem para nada.)
+
+  Reinicie o servidor Django após substituir os arquivos.
+
+================================================================================

@@ -47,7 +47,6 @@ from .models import (
     OrganizacaoMilitar,
     PerfilUsuario,
     Posto,
-    PonteiroEscala,
     Quadrinho,
     TipoEscala,
     TipoIndisponibilidade,
@@ -990,8 +989,8 @@ def quadrinho_visao(request):
                     for d, eid, obs in raw_reais
                 ]
 
-                # Lançamentos manuais vêm primeiro (são ajustes históricos)
-                entradas = entradas_manuais + entradas_reais
+                # Serviços reais vêm primeiro; lançamentos manuais (lastro) ficam ao final
+                entradas = entradas_reais + entradas_manuais
                 total = len(entradas)
                 total_geral_ts += total
                 max_entradas = max(max_entradas, total)
@@ -1461,6 +1460,28 @@ def militar_form(request, militar_id=None):
                         request,
                         f'Militar salvo, mas não foi possível criar o usuário automático: {exc}',
                     )
+            else:
+                # Atualiza campos de acesso do usuário vinculado
+                usuario = militar.user
+                novo_username = request.POST.get('user_username', '').strip().lower()
+                novo_perfil = request.POST.get('user_perfil', '')
+                user_ativo = request.POST.get('user_ativo') == 'on'
+                changed = False
+                if novo_username and novo_username != usuario.username:
+                    if not UsuarioCustomizado.objects.filter(username=novo_username).exclude(pk=usuario.pk).exists():
+                        usuario.username = novo_username
+                        changed = True
+                    else:
+                        messages.warning(request, f'Username "{novo_username}" já está em uso; mantido o anterior.')
+                if novo_perfil and novo_perfil in dict(PerfilUsuario.choices) and usuario.perfil != novo_perfil:
+                    usuario.perfil = novo_perfil
+                    changed = True
+                if usuario.ativo != user_ativo or usuario.is_active != user_ativo:
+                    usuario.ativo = user_ativo
+                    usuario.is_active = user_ativo
+                    changed = True
+                if changed:
+                    usuario.save()
 
             messages.success(
                 request,
@@ -1473,7 +1494,7 @@ def militar_form(request, militar_id=None):
     return render(
         request,
         'cadastro/militar_form.html',
-        {'form': form, 'militar': instancia, 'om': om},
+        {'form': form, 'militar': instancia, 'om': om, 'perfis': PerfilUsuario.choices},
     )
 
 
@@ -2769,6 +2790,11 @@ def usuario_listar(request):
 @login_required
 def usuario_form(request, usuario_id=None):
     instancia = get_object_or_404(UsuarioCustomizado, pk=usuario_id) if usuario_id else None
+    # Usuários vinculados a um militar são editados pela página do militar
+    if instancia is not None:
+        militar_vinculado = getattr(instancia, 'militar', None)
+        if militar_vinculado is not None:
+            return redirect('militar_editar', militar_id=militar_vinculado.id)
     if request.method == 'POST':
         form = UsuarioForm(request.POST, instance=instancia)
         if form.is_valid():
@@ -3113,7 +3139,7 @@ def troca_listar(request):
 
 @login_required
 def troca_servicos_militar(request):
-    """Retorna os serviços do militar logado no mês atual"""
+    """Retorna os serviços futuros do militar logado (hoje em diante, próximos 3 meses)."""
     om = obter_om_ativa(request)
     if not om:
         return JsonResponse({'erro': 'Nenhuma OM ativa'}, status=400)
@@ -3123,20 +3149,15 @@ def troca_servicos_militar(request):
     if not militar_logado:
         return JsonResponse({'erro': 'Usuário não é militar'}, status=400)
 
-    # Pegar mês/ano dos parâmetros ou usar atual
-    mes = int(request.GET.get('mes', date.today().month))
-    ano = int(request.GET.get('ano', date.today().year))
     tipo_escala_id = request.GET.get('tipo_escala')
 
-    # Buscar escalas do mês (previsão e publicada)
+    hoje = date.today()
+    limite = hoje + timedelta(days=92)  # próximos 3 meses
+
     escalas = Escala.objects.filter(
         organizacao_militar=om,
-        mes=mes,
-        ano=ano,
-        status__in=['previsao', 'publicada']
+        status__in=['previsao', 'publicada'],
     )
-
-    # Filtrar por tipo de escala se especificado
     if tipo_escala_id:
         escalas = escalas.filter(tipo_escala_id=tipo_escala_id)
 
@@ -3144,7 +3165,9 @@ def troca_servicos_militar(request):
     for escala in escalas:
         itens = EscalaItem.objects.filter(
             escala=escala,
-            militar=militar_logado
+            militar=militar_logado,
+            calendario_dia__data__gte=hoje,
+            calendario_dia__data__lte=limite,
         ).select_related('calendario_dia', 'calendario_dia__tipo_servico')
 
         for item in itens:
@@ -3158,9 +3181,7 @@ def troca_servicos_militar(request):
                 'escala_status': escala.status,
             })
 
-    # Ordenar por data
     servicos.sort(key=lambda x: x['data'])
-
     return JsonResponse({'servicos': servicos})
 
 
@@ -3189,7 +3210,7 @@ def troca_solicitar(request):
         data_servico_sai = request.POST.get('data_servico_sai')
         militar_entra_id = request.POST.get('militar_entra')
 
-        if not all([tipo_escala_id, data_servico_sai, militar_entra_id, motivo]):
+        if not all([tipo_escala_id, escala_status, data_servico_sai, militar_entra_id, motivo]):
             messages.error(request, "Preencha todos os campos obrigatórios.")
             return redirect('troca_solicitar')
 

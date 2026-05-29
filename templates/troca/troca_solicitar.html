@@ -158,10 +158,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Carregar serviços quando mudar tipo de escala
     function carregarServicos(tipoEscalaId) {
-        if (!tipoEscalaId || !escalaStatus.value) {
-            servicosContainer.innerHTML = '<div class="text-muted">Selecione o tipo de escala e o status</div>';
+        if (!tipoEscalaId) {
+            servicosContainer.innerHTML = '<div class="text-muted">Selecione o tipo de escala primeiro</div>';
+            servicosContainer2.innerHTML = servicosContainer.innerHTML;
             return;
         }
+
+        servicosContainer.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> Carregando serviços…</div>';
 
         const url = `{% url 'troca_servicos_militar' %}?tipo_escala=${tipoEscalaId}`;
 
@@ -171,25 +174,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.servicos && data.servicos.length > 0) {
                     let html = '<div class="list-group" style="max-height: 300px; overflow-y: auto;">';
                     data.servicos.forEach(servico => {
+                        const statusBadge = servico.escala_status === 'publicada'
+                            ? '<span class="badge bg-success ms-1">Publicada</span>'
+                            : '<span class="badge bg-warning text-dark ms-1">Previsão</span>';
                         html += `
                             <label class="list-group-item list-group-item-action">
                                 <div class="d-flex w-100 justify-content-between align-items-center">
                                     <div>
                                         <input type="radio" name="data_servico_sai" value="${servico.data}" required>
                                         <strong>${servico.data_display}</strong>
-                                        <span class="badge" style="background-color: ${servico.tipo_servico_cor}">${servico.tipo_servico}</span>
+                                        <span class="badge ms-1" style="background-color: ${servico.tipo_servico_cor}">${servico.tipo_servico}</span>
+                                        ${statusBadge}
                                     </div>
-                                    <small>${servico.escala_tipo}</small>
+                                    <small class="text-muted">${servico.escala_tipo}</small>
                                 </div>
                             </label>
                         `;
                     });
                     html += '</div>';
                     servicosContainer.innerHTML = html;
-                    // Also update second container
-                    servicosContainer2.innerHTML = html.replace(/data_servico_sai/g, 'data_servico_sai_2');
+                    servicosContainer2.innerHTML = html.replace(/name="data_servico_sai"/g, 'name="data_servico_sai_2"');
                 } else {
-                    servicosContainer.innerHTML = '<div class="text-warning">Nenhum serviço encontrado para este mês</div>';
+                    servicosContainer.innerHTML = '<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle"></i> Nenhum serviço encontrado nos próximos 3 meses para este tipo de escala.</div>';
                     servicosContainer2.innerHTML = servicosContainer.innerHTML;
                 }
             })
@@ -201,10 +207,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     tipoEscala.addEventListener('change', function() {
         carregarServicos(this.value);
-    });
-
-    escalaStatus.addEventListener('change', function() {
-        carregarServicos(tipoEscala.value);
     });
 });
 </script>

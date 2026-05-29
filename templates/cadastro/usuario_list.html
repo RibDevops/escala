@@ -103,14 +103,9 @@
                     {% endif %}
                 </td>
                 <td class="text-end">
-                    <a href="{% url 'militar_editar' m.id %}" class="btn btn-sm btn-mil-outline" title="Editar militar">
+                    <a href="{% url 'militar_editar' m.id %}" class="btn btn-sm btn-mil-outline" title="Editar militar e acesso">
                         <i class="bi bi-pencil"></i>
                     </a>
-                    {% if m.user %}
-                    <a href="{% url 'usuario_editar' m.user.id %}" class="btn btn-sm btn-outline-secondary" title="Editar acesso/perfil">
-                        <i class="bi bi-person-gear"></i>
-                    </a>
-                    {% endif %}
                 </td>
             </tr>
             {% empty %}
