@@ -514,42 +514,42 @@ LOGGING = {
 # LDAP / ACTIVE DIRECTORY
 # =============================================================================
 
-from django_auth_ldap.config import *
-from django_auth_ldap.config import LDAPSearch
+# from django_auth_ldap.config import *
+# from django_auth_ldap.config import LDAPSearch
 
-AUTH_LDAP_SERVER_URI = "ldap://10.100.0.1:389"
-AUTH_LDAP_BIND_DN = "cn=django,ou=ciaer,dc=ciaer,dc=interna"
-AUTH_LDAP_BIND_PASSWORD = "P0rM41s7"
+# AUTH_LDAP_SERVER_URI = "ldap://10.100.0.1:389"
+# AUTH_LDAP_BIND_DN = "cn=django,ou=ciaer,dc=ciaer,dc=interna"
+# AUTH_LDAP_BIND_PASSWORD = "P0rM41s7"
 
-AUTH_LDAP_USER_SEARCH = LDAPSearch(
-#            "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
-            "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(sAMAccountName=%(user)s)"
-            )
+# AUTH_LDAP_USER_SEARCH = LDAPSearch(
+# #            "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
+#             "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(sAMAccountName=%(user)s)"
+#             )
 
-AUTH_LDAP_USER_ATTR_MAP = {
-            "username": "sAMAccountName",
-#            "username": "uid",
-               "first_name": "name",
-                    "last_name": "physicalDeliveryOfficeName",
-			#"posto_nome": "cn",
-#                        "email": "mail",
-}
+# AUTH_LDAP_USER_ATTR_MAP = {
+#             "username": "sAMAccountName",
+# #            "username": "uid",
+#                "first_name": "name",
+#                     "last_name": "physicalDeliveryOfficeName",
+# 			#"posto_nome": "cn",
+# #                        "email": "mail",
+# }
 
+
+# # AUTHENTICATION_BACKENDS = [
+# #             'django_auth_ldap.backend.LDAPBackend',
+# #             'django.contrib.auth.backends.ModelBackend',
+# # ]
 
 # AUTHENTICATION_BACKENDS = [
-#             'django_auth_ldap.backend.LDAPBackend',
-#             'django.contrib.auth.backends.ModelBackend',
+#             'core.backend.CustomLDAPBackend',
+#                 'django.contrib.auth.backends.ModelBackend',
 # ]
 
-AUTHENTICATION_BACKENDS = [
-            'core.backend.CustomLDAPBackend',
-                'django.contrib.auth.backends.ModelBackend',
-]
 
+# AUTH_LDAP_ALWAYS_UPDATE_USER = True
 
-AUTH_LDAP_ALWAYS_UPDATE_USER = True
-
-AUTH_LDAP_CACHE_TIMEOUT = 3600
+# AUTH_LDAP_CACHE_TIMEOUT = 3600
 
 # =============================================================================
 # SECURITY OPTIONS (opcional)
