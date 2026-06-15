@@ -28,7 +28,7 @@
 # ALLOWED_HOSTS = ['*']
 
 
-# CSRF_TRUSTED_ORIGINS = ['http://10.100.0.34', 'http://localhost', 'http://demeter.ciaer.interna',  'https://escala.ciaer.interna']
+# CSRF_TRUSTED_ORIGINS = ['http://10.100.0.34', 'http://localhost', 'http://demeter.xxxx.internet',  'https://escala.xxxx.internet']
 
 # AUTH_USER_MODEL = 'escalas.UsuarioCustomizado'
 
@@ -110,7 +110,7 @@
 # ]
 
 
-# # Internationalization
+# # internettionalization
 # # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 # LANGUAGE_CODE = 'pt-br'
@@ -231,12 +231,12 @@
 # from django_auth_ldap.config import LDAPSearch
 
 # AUTH_LDAP_SERVER_URI = "ldap://10.100.0.1:389"
-# AUTH_LDAP_BIND_DN = "cn=django,ou=ciaer,dc=ciaer,dc=interna"
+# AUTH_LDAP_BIND_DN = "cn=django,ou=xxxx,dc=xxxx,dc=internet"
 # AUTH_LDAP_BIND_PASSWORD = "P0rM41s7"
 
 # AUTH_LDAP_USER_SEARCH = LDAPSearch(
-# #            "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
-#             "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(sAMAccountName=%(user)s)"
+# #            "ou=xxxx,dc=xxxx,dc=internet", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
+#             "ou=xxxx,dc=xxxx,dc=internet", ldap.SCOPE_SUBTREE, "(sAMAccountName=%(user)s)"
 #             )
 
 # AUTH_LDAP_USER_ATTR_MAP = {
@@ -292,8 +292,8 @@ ALLOWED_HOSTS = [
 CSRF_TRUSTED_ORIGINS = [
     "http://10.100.0.34",
     "http://localhost",
-    "http://demeter.ciaer.interna",
-    "https://escala.ciaer.interna",
+    "http://demeter.xxxx.internet",
+    "https://escala.xxxx.internet",
     "https://*.replit.dev",
     "https://*.replit.app",
     "https://*.repl.co",
@@ -394,7 +394,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # =============================================================================
-# INTERNATIONALIZATION
+# internetTIONALIZATION
 # =============================================================================
 
 LANGUAGE_CODE = "pt-br"
@@ -515,12 +515,12 @@ LOGGING = {
 # from django_auth_ldap.config import LDAPSearch
 
 # AUTH_LDAP_SERVER_URI = "ldap://10.100.0.1:389"
-# AUTH_LDAP_BIND_DN = "cn=django,ou=ciaer,dc=ciaer,dc=interna"
-# AUTH_LDAP_BIND_PASSWORD = "P0rM41s7"
+# AUTH_LDAP_BIND_DN = "cn=django,ou=xxxx,dc=xxxx,dc=internet"
+# AUTH_LDAP_BIND_PASSWORD = "XXXXXX"
 
 # AUTH_LDAP_USER_SEARCH = LDAPSearch(
-# #            "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
-#             "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(sAMAccountName=%(user)s)"
+# #            "ou=xxxx,dc=xxxx,dc=internet", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
+#             "ou=xxxx,dc=xxxx,dc=internet", ldap.SCOPE_SUBTREE, "(sAMAccountName=%(user)s)"
 #             )
 
 # AUTH_LDAP_USER_ATTR_MAP = {
@@ -567,6 +567,6 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 # =============================================================================
 
 if DEBUG:
-    INTERNAL_IPS = [
+    internetL_IPS = [
         "127.0.0.1",
     ]
