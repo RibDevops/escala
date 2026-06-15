@@ -230,9 +230,9 @@
 # from django_auth_ldap.config import *
 # from django_auth_ldap.config import LDAPSearch
 
-# AUTH_LDAP_SERVER_URI = "ldap://10.100.0.1:389"
+# AUTH_LDAP_SERVER_URI = "ldap://10.100.0.0:389"
 # AUTH_LDAP_BIND_DN = "cn=django,ou=xxxx,dc=xxxx,dc=internet"
-# AUTH_LDAP_BIND_PASSWORD = "P0rM41s7"
+# AUTH_LDAP_BIND_PASSWORD = "xxxxxyyy"
 
 # AUTH_LDAP_USER_SEARCH = LDAPSearch(
 # #            "ou=xxxx,dc=xxxx,dc=internet", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
@@ -290,7 +290,7 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://10.100.0.34",
+    "http://10.100.0.0",
     "http://localhost",
     "http://demeter.xxxx.internet",
     "https://escala.xxxx.internet",
