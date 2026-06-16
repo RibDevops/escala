@@ -110,7 +110,22 @@ class UsuarioCustomizado(AbstractUser):
     def e_escalante(self) -> bool:
         """Verifica se o usuário é Escalante"""
         return self.perfil == PerfilUsuario.ESCALANTE and self.ativo
-    
+
+    def pode_gerenciar_escalas(self) -> bool:
+        """
+        Verifica se o usuário pode gerenciar escalas no geral:
+        aprovar trocas, visualizar todas as trocas, gerar escalas, etc.
+
+        Inclui: Escalante, Chefe, Adjunto e Admin da OM.
+        Chefe e Adjunto herdam tudo do Escalante + podem publicar/homologar.
+        """
+        return self.perfil in [
+            PerfilUsuario.ESCALANTE,
+            PerfilUsuario.CHEFE,
+            PerfilUsuario.ADJUNTO,
+            PerfilUsuario.ADMIN_OM,
+        ] and self.ativo
+
     def obter_oms_acesso(self):
         """Retorna as OMs que o usuário pode acessar.
         Fonte de verdade: Militar.user (relação reversa acessada como usuario.militar).
@@ -418,6 +433,17 @@ class Militar(models.Model):
             "Data da última promoção ao posto atual. "
             "Usada como critério de antiguidade quando dois militares têm o mesmo posto: "
             "a data mais antiga indica o militar mais antigo."
+        )
+    )
+
+    nota = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=(
+            "Nota do curso de promoção ao posto atual (ex: 8,75). "
+            "Critério de desempate de antiguidade: nota maior = mais antigo."
         )
     )
 
@@ -1350,23 +1376,23 @@ class Quadrinho(models.Model):
         tipo_escala: TipoEscala,
         tipo_servico: TipoServico,
         ano: int,
-        quantidade: int = 1
+        quantidade: int = 1,
     ) -> 'Quadrinho':
         """
-        Incrementa a contagem de serviços de um militar.
-        Se não existir, cria.
+        Incrementa (ou decrementa, se quantidade < 0) a contagem de serviços.
+        Nunca deixa quantidade ficar negativa — o mínimo é 0.
+        Se o registro não existir, cria com quantidade 0 + delta (mínimo 0).
         """
         quadrinho, _ = Quadrinho.objects.get_or_create(
             militar=militar,
             tipo_escala=tipo_escala,
             tipo_servico=tipo_servico,
             ano=ano,
-            defaults={'quantidade': 0}
+            defaults={'quantidade': 0},
         )
-        
-        quadrinho.quantidade += quantidade
-        quadrinho.save()
-        
+        novo = quadrinho.quantidade + quantidade
+        quadrinho.quantidade = max(0, novo)  # garante >= 0
+        quadrinho.save(update_fields=['quantidade'])
         return quadrinho
     
     @staticmethod
@@ -1742,26 +1768,29 @@ class TrocaServico(models.Model):
     )
 
     # ===== APROVAÇÕES =====
-    # Militar que inicia approves
+    # Quem inicia a troca já aprova no ato (sai=True na criação)
     aprovada_militar_sai = models.BooleanField(
         default=False,
-        help_text="Militar que sai aprovou a troca"
+        help_text="Militar que sai aprovou a troca (True=aprovado, False=recusado)"
     )
 
+    # None = aguardando resposta  |  True = aceitou  |  False = recusou
     aprovada_militar_entra = models.BooleanField(
-        default=False,
-        help_text="Militar que entra aprovou a troca (ou None se ainda não selecionou)"
+        null=True, blank=True, default=None,
+        help_text="Militar que entra aprovou a troca (None=pendente, True=aceito, False=recusado)"
     )
 
     # ===== TROCA MÚTUA - APROVAÇÕES =====
+    # None = aguardando resposta  |  True = aceitou  |  False = recusou
     aprovada_militar_sai_2 = models.BooleanField(
-        default=False,
-        help_text="Segundo militar que sai aprovou a troca"
+        null=True, blank=True, default=None,
+        help_text="Segundo militar que sai aprovou a troca (None=pendente)"
     )
 
+    # O iniciador entra na segunda perna → aprovado na criação (True)
     aprovada_militar_entra_2 = models.BooleanField(
-        default=False,
-        help_text="Segundo militar que entra aprovou a troca"
+        null=True, blank=True, default=None,
+        help_text="Segundo militar que entra aprovou a troca (None=pendente)"
     )
 
     # Escalante aprova ou reprova
@@ -1837,26 +1866,38 @@ class TrocaServico(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.numero_controle:
-            self.numero_controle = self.gerar_numero_controle()
+            self.numero_controle = TrocaServico._gerar_numero_controle_atomico(
+                self.organizacao_militar_id
+            )
         super().save(*args, **kwargs)
 
-    def gerar_numero_controle(self) -> str:
-        """Gera número de controle no formato DD/MM/AAAA"""
+    @staticmethod
+    def _gerar_numero_controle_atomico(organizacao_militar_id: int) -> str:
+        """
+        Gera numero de controle DD/MM/AAAA-NNN de forma atomica.
+        Usa transaction.atomic() + select_for_update() para serializar
+        solicitacoes simultaneas e evitar colisao de numeros de controle.
+        """
         from datetime import date
+        from django.db import transaction
 
         hoje = date.today()
-        dia = hoje.day
-        mes = hoje.month
-        ano = hoje.year
+        with transaction.atomic():
+            count = (
+                TrocaServico.objects
+                .select_for_update()
+                .filter(
+                    organizacao_militar_id=organizacao_militar_id,
+                    data_criacao__year=hoje.year,
+                    data_criacao__month=hoje.month,
+                )
+                .count()
+            ) + 1
+            return f"{hoje.day:02d}/{hoje.month:02d}/{hoje.year}-{count:03d}"
 
-        # Contar trocas este mês
-        count = TrocaServico.objects.filter(
-            organizacao_militar=self.organizacao_militar_id,
-            data_criacao__year=ano,
-            data_criacao__month=mes
-        ).count() + 1
-
-        return f"{dia:02d}/{mes:02d}/{ano}-{count:03d}"
+    def gerar_numero_controle(self) -> str:
+        """Alias para compatibilidade — use _gerar_numero_controle_atomico."""
+        return TrocaServico._gerar_numero_controle_atomico(self.organizacao_militar_id)
 
     def pode_aceitar(self, militar: 'Militar') -> bool:
         """Verifica se o militar pode aceitar esta troca"""

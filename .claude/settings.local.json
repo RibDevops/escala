@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile escalas/models.py)",
+      "Bash(python -m py_compile escalas/views.py)",
+      "Bash(python3 -m py_compile escalas/models.py)",
+      "Bash(python3 -m py_compile escalas/views.py)",
+      "Bash(python3 manage.py check)",
+      "Bash(Get-ChildItem -Path \"C:\\\\develop\\\\escala\" -Directory)",
+      "Bash(Select-Object Name)"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 ================================================================================
   SISTEMA DE ESCALA MILITAR — CORREÇÕES E OBSERVAÇÕES
-  Data: 28/05/2026
+  Data: 28/05/2026 (atualizado 29/05/2026)
 ================================================================================
 
 --------------------------------------------------------------------------------
@@ -236,31 +236,205 @@ LIMPEZA DE CÓDIGO LEGADO (MESMA DATA)
 
 
 --------------------------------------------------------------------------------
-RESUMO PARA O COLEGA
+CORREÇÕES ADICIONAIS — 29/05/2026 (segunda rodada)
 --------------------------------------------------------------------------------
 
-  Substitua os seguintes arquivos/pastas pelos da pasta recebida:
+[7] BOTÃO GERAR ESCALA — CRASH 500
+  Arquivo : escalas/signals.py
+  Problema: signals.py usava print() com emojis (✓ ⚠ 📊 👤).
+            No Windows o console usa encoding cp1252 que não suporta
+            esses caracteres → UnicodeEncodeError dentro da transaction
+            → rollback → 500 em toda tentativa de gerar escala.
+            Além disso, os signals incrementavam/decrementavam o
+            Quadrinho ao mesmo tempo que o motor (services.py) fazia
+            o mesmo → dupla contagem → prioridades erradas.
+  Solução : signals.py reescrito. Sem print() com emojis. Sem lógica
+            de Quadrinho nos signals (o motor já faz isso corretamente).
+            Signals agora são apenas de log/auditoria.
 
-    escalas/models.py
-    escalas/views.py
-    escalas/admin.py
-    escalas/migrations/0017_remove_campos_legados_usuario.py  ← NOVO
-    templates/cadastro/militar_form.html
-    templates/cadastro/usuario_list.html
-    templates/troca/troca_solicitar.html
+--------
 
-  APAGUE estes arquivos (se existirem na instalação):
+[8] FLUXO DE TROCA — PREVISÃO NUNCA EXECUTAVA
+  Arquivo : escalas/views.py (troca_aprovar_escalante)
+  Problema: Escalante aprovava troca de escala em "previsão" e o
+            status ficava "aprovada" indefinidamente. A troca nunca
+            era aplicada na escala porque a execução era feita só
+            em troca_homologar (que exige escala publicada).
+  Solução :
+    - Previsão: escalante aprova → executa direto na escala → status
+      "homologada". Não precisa de chefe.
+    - Publicada: escalante aprova → status "aprovada" → chefe/adjunto
+      homologa e executa.
+    - Adicionada validação: escalante não consegue aprovar se algum
+      militar recusou (aprovada_militar_entra == False).
+
+--------
+
+[9] TROCA — SEGUNDA PERNA DA MÚTUA COM MÊS ERRADO
+  Arquivo : escalas/views.py (troca_homologar → _executar_troca_na_escala)
+  Problema: Na troca mútua, o código buscava a escala da segunda perna
+            usando o mês da PRIMEIRA perna. Se os serviços fossem em
+            meses diferentes, o item não era encontrado e a troca
+            falhava silenciosamente.
+  Solução : Extraída função auxiliar _executar_troca_na_escala() que
+            busca cada perna com seu próprio mês/ano.
+
+--------
+
+[10] TROCA — ACEITAR RETORNAVA JSON BRUTO NA TELA
+  Arquivo : escalas/views.py (troca_aceitar)
+  Problema: O modal do template fazia POST normal (form submit), mas
+            a view retornava JsonResponse. O browser exibia o JSON
+            puro na tela em vez de redirecionar.
+  Solução : View agora redireciona para troca_listar com mensagem de
+            sucesso/aviso.
+
+--------
+
+[11] TROCA — SEM BOTÃO DE CANCELAR/EDITAR
+  Arquivos: escalas/views.py, escalas/urls.py
+            templates/troca/troca_militar_listar.html
+            templates/troca/troca_detalhar.html
+            templates/troca/troca_cancelar_confirmar.html (NOVO)
+            templates/troca/troca_editar.html (NOVO)
+  Problema: Militar não conseguia cancelar nem editar uma troca
+            pendente antes de qualquer aprovação.
+  Solução :
+    - Botão "Cancelar Troca": ambos os militares envolvidos podem
+      excluir a troca enquanto status='pendente'. Pede confirmação.
+    - Botão "Editar Motivo": só o solicitante (militar_sai) pode
+      alterar o motivo enquanto status='pendente'.
+    - Para mudar datas/militares: cancelar e criar nova troca.
+
+--------
+
+[12] TROCA MÚTUA — CONTAINER2 MOSTRAVA DIAS DO LOGADO
+  Arquivo : templates/troca/troca_solicitar.html
+  Problema: Na troca mútua, a segunda caixa de serviços mostrava os
+            dias do próprio logado em vez dos dias do militar que vai
+            entrar — impossível selecionar o dia correto para a troca.
+  Solução : JS reescrito. Quando troca mútua está ativa e o militar
+            é selecionado, container2 carrega via AJAX os serviços
+            daquele militar (endpoint aceita ?militar_id=).
+
+--------
+
+[13] CONDIÇÃO DE CORRIDA NO NÚMERO DE CONTROLE
+  Arquivo : escalas/models.py (TrocaServico._gerar_numero_controle_atomico)
+  Problema: Dois cliques simultâneos geravam o mesmo número de
+            controle → IntegrityError → erro 500.
+  Solução : Envolvido em transaction.atomic() + select_for_update()
+            para serializar o acesso e garantir unicidade.
+
+--------
+
+[14] URLs HARDCODED NO QUADRINHO (AJAX)
+  Arquivo : templates/cadastro/quadrinho_visao.html
+  Problema: URLs de editar/excluir item da escala estavam hardcoded
+            no JS como strings (/quadrinho/ajax-item/${id}/editar/).
+            Quebraria silenciosamente se o prefixo de URL mudasse.
+  Solução : Adicionado data-url="{% url ... %}" nos botões HTML.
+            JS agora lê this.dataset.url em vez de montar a string.
+
+--------
+
+[15] MENU DUPLICADO — MILITARES E MILITARES E USUÁRIOS
+  Arquivo : templates/base.html
+  Problema: Existiam dois itens de menu para a mesma funcionalidade:
+            Cadastros → Militares e Admin → Usuários.
+  Solução : Unificados em Cadastros → "Pessoal e Acesso" (aponta para
+            usuario_listar, que já mostra militares + acesso ao sistema).
+            Seção Admin agora só tem OMs.
+
+--------
+
+[16] REDESIGN VISUAL — TEMA CLEAN/LIGHT
+  Arquivo : static/css/militar.css
+  Problema: Interface muito escura (navbar, headers, tabelas todas
+            com fundo #3D3F3E). Difícil de ler e pouco profissional.
+  Solução : CSS completamente reescrito com nova paleta:
+            - Fundo: #f0f2f5 (cinza azulado claro)
+            - Navbar: branca com sombra suave, texto navy
+            - Cards: brancos com sombra sutil, borda esquerda navy
+            - Tabelas: cabeçalho azul claro (não preto)
+            - Botões: navy (#1e3a5f) e gold (#c4992a) mais elegantes
+            - Alertas: faixas coloridas com borda esquerda
+            - Footer: branco, não escuro
+            - Labels: sem todas maiúsculas no body
+
+
+--------------------------------------------------------------------------------
+FLUXO DE TROCA DE SERVIÇO (DOCUMENTAÇÃO)
+--------------------------------------------------------------------------------
+
+  TROCA EM ESCALA DE PREVISÃO:
+  ─────────────────────────────
+  1. Militar solicita troca (status = Pendente)
+  2. Militar que vai entrar aceita ou recusa
+     - Recusou → troca continua pendente, escalante pode reprovar
+     - Aceitou → aguarda escalante
+  3. Escalante aprova (valida que ninguém recusou)
+     → EXECUTA a troca na escala imediatamente
+     → Status = Homologada ✓  (não precisa do chefe)
+  3. Escalante reprova → Status = Reprovada ✗
+
+  TROCA EM ESCALA PUBLICADA (OFICIAL):
+  ─────────────────────────────────────
+  1. Militar solicita troca (status = Pendente)
+  2. Militar que vai entrar aceita ou recusa
+  3. Escalante aprova → Status = Aprovada (aguarda chefe)
+     Escalante reprova → Status = Reprovada ✗
+  4. Chefe ou Adjunto homologa
+     → EXECUTA a troca na escala
+     → Status = Homologada ✓
+     Chefe reprova → Status = Reprovada ✗
+
+  CANCELAMENTO (antes de qualquer aprovação):
+  ─────────────────────────────────────────────
+  Qualquer militar envolvido (sai ou entra) pode cancelar
+  enquanto status = Pendente. Exclui a troca do banco.
+
+  EDIÇÃO (antes de qualquer aprovação):
+  ───────────────────────────────────────
+  Apenas o solicitante (militar que sai) pode editar o motivo
+  enquanto status = Pendente.
+
+
+--------------------------------------------------------------------------------
+RESUMO PARA O COLEGA — INSTRUÇÕES DE TRANSFERÊNCIA
+--------------------------------------------------------------------------------
+
+  PODE COPIAR A PASTA INTEIRA?
+  ─────────────────────────────
+  SIM — substitua toda a pasta do projeto pelo novo conteúdo.
+  EXCEÇÃO: NÃO substitua o arquivo db.sqlite3 (é o banco com os
+  dados reais. O novo db.sqlite3 aqui é só de testes locais).
+
+  ARQUIVOS NOVOS (não existiam antes — copie junto):
+    escalas/migrations/0017_remove_campos_legados_usuario.py
+    templates/troca/troca_cancelar_confirmar.html
+    templates/troca/troca_editar.html
+
+  ARQUIVOS DELETADOS (apague do servidor se ainda existirem):
     escalas/forms.py
     escalas/views_escala_legado.py
 
-  IMPORTANTE — rodar migrate UMA VEZ por causa da migração 0017:
+  COMANDO OBRIGATÓRIO — rodar UMA vez após copiar:
 
     python manage.py migrate
 
-  (Remove as colunas eh_militar e militar_associado do banco.
-   O servidor não vai crashar se você esquecer — mas o banco
-   vai ficar com colunas antigas que já não servem para nada.)
+  (Aplica migração 0017 que remove colunas legadas do banco.
+   Sem isso o servidor funciona, mas fica com colunas mortas.)
 
-  Reinicie o servidor Django após substituir os arquivos.
+  REINICIE o servidor após copiar os arquivos.
+
+  VERIFICAÇÃO RÁPIDA APÓS SUBIR:
+    1. Acesse /escalas/ → crie uma escala em Previsão → clique
+       "Gerar Automático" → deve gerar sem erro 500
+    2. Acesse /troca/solicitar/ → selecione Troca Mútua →
+       escolha um militar → container de baixo deve mostrar
+       os dias DELE (não os seus)
+    3. Navegue pelo menu → só aparece "Pessoal e Acesso"
+       (não mais duas entradas separadas de Militares/Usuários)
 
 ================================================================================

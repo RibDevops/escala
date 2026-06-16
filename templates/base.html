@@ -30,7 +30,7 @@
             <div class="navbar-collapse" id="mainNav">
                 <ul class="navbar-nav me-auto align-items-lg-center">
 
-                    {% if not militar_do_usuario %}
+                    {% if user.perfil != 'militar' %}
                     {# ---- Painel ---- #}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
@@ -39,18 +39,18 @@
                         </a>
                     </li>
 
-                    {# ---- Cadastros dropdown ---- #}
+                    {# ---- Cadastros dropdown (militares + usuários unificados) ---- #}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle nav-dropdown-toggle
-                            {% if request.resolver_match.url_name in 'militar_listar,militar_novo,militar_editar,militar_detalhar,divisao_listar,divisao_novo,divisao_editar,posto_listar,posto_novo,posto_editar,especialidade_listar,especialidade_novo,especialidade_editar,tipo_escala_listar,tipo_escala_novo,tipo_escala_editar' %}active{% endif %}"
+                            {% if request.resolver_match.url_name in 'usuario_listar,militar_detalhe,militar_novo,militar_editar,militar_excluir,usuario_form,divisao_listar,divisao_novo,divisao_editar,posto_listar,posto_novo,posto_editar,especialidade_listar,especialidade_novo,especialidade_editar,tipo_escala_listar,tipo_escala_novo,tipo_escala_editar' %}active{% endif %}"
                            href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-people-fill"></i> Cadastros
                         </a>
                         <ul class="dropdown-menu dropdown-menu-mil">
                             <li>
-                                <a class="dropdown-item {% if 'militar' in request.resolver_match.url_name %}active{% endif %}"
-                                   href="{% url 'militar_listar' %}">
-                                    <i class="bi bi-people-fill"></i> Militares
+                                <a class="dropdown-item {% if 'militar' in request.resolver_match.url_name or 'usuario_listar' in request.resolver_match.url_name %}active{% endif %}"
+                                   href="{% url 'usuario_listar' %}">
+                                    <i class="bi bi-person-badge"></i> Militares
                                 </a>
                             </li>
                             <li>
@@ -131,31 +131,16 @@
                         </a>
                     </li>
 
-                    {# ---- Admin dropdown ---- #}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle nav-dropdown-toggle
-                            {% if 'organizacao' in request.resolver_match.url_name or 'usuario' in request.resolver_match.url_name %}active{% endif %}"
-                           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-gear"></i> Admin
+                    {# ---- Admin: só OMs ---- #}
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'organizacao' in request.resolver_match.url_name %}active{% endif %}"
+                           href="{% url 'organizacao_listar' %}">
+                            <i class="bi bi-buildings"></i> OMs
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-mil dropdown-menu-end">
-                            <li>
-                                <a class="dropdown-item {% if 'organizacao' in request.resolver_match.url_name %}active{% endif %}"
-                                   href="{% url 'organizacao_listar' %}">
-                                    <i class="bi bi-buildings"></i> OMs
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item {% if 'usuario' in request.resolver_match.url_name %}active{% endif %}"
-                                   href="{% url 'usuario_listar' %}">
-                                    <i class="bi bi-people"></i> Usuários
-                                </a>
-                            </li>
-                        </ul>
                     </li>
 
                     {% else %}
-                    {# ---- Militar vinculado: menu reduzido ---- #}
+                    {# ---- Perfil militar: menu reduzido ---- #}
                     <li class="nav-item">
                         <a class="nav-link {% if 'indisponibilidade' in request.resolver_match.url_name %}active{% endif %}"
                            href="{% url 'indisponibilidade_listar' %}">
@@ -179,7 +164,7 @@
                     </li>
 
                     {# ---- Documentação ---- #}
-                    {% if not militar_do_usuario %}
+                    {% if user.perfil != 'militar' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'documentacao_motor' %}active{% endif %}"
                            href="{% url 'documentacao_motor' %}">
@@ -201,8 +186,8 @@
                 </ul>
 
                 <div class="d-flex align-items-center gap-2">
-                    {# OM SWITCHER #}
-                    {% if oms_disponiveis %}
+                    {# OM SWITCHER — só para perfis que podem trocar de OM #}
+                    {% if oms_disponiveis and user.perfil != 'militar' %}
                     <div class="dropdown om-switcher">
                         <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-buildings"></i>
@@ -249,6 +234,11 @@
                             </li>
                         </ul>
                     </div>
+                    {% elif user.perfil == 'militar' and om_ativa %}
+                    {# Militar: mostra OM como badge estático, sem switcher #}
+                    <span class="badge-om">
+                        <i class="bi bi-buildings me-1"></i>{{ om_ativa.sigla }}
+                    </span>
                     {% else %}
                     <a href="{% url 'organizacao_novo' %}" class="btn btn-mil-dourado btn-sm">
                         <i class="bi bi-plus-lg"></i> Cadastrar OM
@@ -261,7 +251,7 @@
                     </span>
                     <form method="post" action="{% url 'logout' %}" class="m-0">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-outline-light" title="Sair">
+                        <button type="submit" class="btn btn-sm btn-mil-outline" title="Sair">
                             <i class="bi bi-box-arrow-right"></i>
                         </button>
                     </form>

@@ -15,9 +15,6 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
         {% if escala_atual and not militar_proprio %}
-        <a href="{% url 'escala_matriz' escala_atual.id %}" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-grid-3x3"></i> Ver Matriz
-        </a>
         <a href="{% url 'escala_detalhar' escala_atual.id %}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-calendar2-week"></i> Ver Escala
         </a>
@@ -96,6 +93,10 @@
                     <a href="?ano={{ ano }}&tipo_escala={{ tipo_escala_atual.id }}&ordem=nome"
                        class="btn btn-sm {% if ordem == 'nome' %}btn-mil{% else %}btn-mil-outline{% endif %}">
                         <i class="bi bi-sort-alpha-down"></i> Nome
+                    </a>
+                    <a href="?ano={{ ano }}&tipo_escala={{ tipo_escala_atual.id }}&ordem=antiguidade"
+                       class="btn btn-sm {% if ordem == 'antiguidade' %}btn-mil{% else %}btn-mil-outline{% endif %}">
+                        <i class="bi bi-award"></i> Antiguidade
                     </a>
                 </div>
             </div>
@@ -313,6 +314,7 @@
                                                     class="btn btn-link qm-btn qm-btn-edit btn-edit-item"
                                                     title="Editar observação"
                                                     data-item-id="{{ entrada.id }}"
+                                                    data-url="{% url 'escala_item_ajax_editar' entrada.id %}"
                                                     data-obs="{{ entrada.observacao }}"
                                                     data-label="{{ entrada.data|date:'d/m' }}"
                                                     data-militar-nome="{{ linha.militar.posto.sigla }} {{ linha.militar.nome_guerra }}"
@@ -323,6 +325,7 @@
                                                     class="btn btn-link qm-btn text-warning btn-delete-item"
                                                     title="Remover serviço da escala"
                                                     data-item-id="{{ entrada.id }}"
+                                                    data-url="{% url 'escala_item_ajax_excluir' entrada.id %}"
                                                     data-label="{{ entrada.data|date:'d/m' }}"
                                                     data-militar-nome="{{ linha.militar.posto.sigla }} {{ linha.militar.nome_guerra }}"
                                                     data-tipo-servico-nome="{{ secao.tipo_servico.nome }}">
@@ -959,8 +962,7 @@
 
     document.querySelectorAll('.btn-edit-item').forEach(btn => {
         btn.addEventListener('click', function () {
-            const itemId = this.dataset.itemId;
-            _editItemUrl = `/quadrinho/ajax-item/${itemId}/editar/`;
+            _editItemUrl = this.dataset.url;
             document.getElementById('modal-edit-item-info').textContent =
                 `${this.dataset.militarNome} — ${this.dataset.tipoServicoNome} — ${this.dataset.label}`;
             document.getElementById('modal-edit-item-obs').value = this.dataset.obs || '';
@@ -1024,14 +1026,13 @@
 
     document.querySelectorAll('.btn-delete-item').forEach(btn => {
         btn.addEventListener('click', function () {
-            const itemId = this.dataset.itemId;
             abrirExcluirMatriz({
                 titulo: 'Remover Serviço da Escala',
                 texto: `Remover o serviço de <strong>${this.dataset.label}</strong> de
                         <strong>${this.dataset.militarNome}</strong>
                         (${this.dataset.tipoServicoNome}) da escala?`,
                 aviso: true,
-                url: `/quadrinho/ajax-item/${itemId}/excluir/`,
+                url: this.dataset.url,
             });
         });
     });
@@ -1056,6 +1057,15 @@
             this.disabled = false;
         }
     });
+
+    // ── Ativar aba Quadrinhos via ?tab=quadrinhos na URL ──────────────────
+    (function activateTabFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('tab') === 'quadrinhos') {
+            const tabEl = document.getElementById('pills-matriz-tab');
+            if (tabEl) bootstrap.Tab.getOrCreateInstance(tabEl).show();
+        }
+    })();
 
 })();
 </script>

@@ -505,115 +505,6 @@ def divisao_excluir(request, divisao_id):
 # Militares (escopo: OM ativa)
 # ---------------------------------------------------------------------------
 
-@login_required
-def militar_listar(request):
-    om = obter_om_ativa(request)
-    q = request.GET.get('q', '').strip()
-    divisao_filtro = request.GET.get('divisao', '')
-    posto_filtro = request.GET.get('posto', '')
-
-    ano_atual = _date.today().year
-    try:
-        ano = int(request.GET.get('ano') or ano_atual)
-    except ValueError:
-        ano = ano_atual
-
-    tipo_escala_filtro = request.GET.get('tipo_escala', '')
-
-    militares_qs = (
-        Militar.objects.filter(organizacao_militar=om, ativo=True)
-        if om else Militar.objects.none()
-    )
-    militares_qs = militares_qs.select_related('posto', 'divisao', 'especialidade')
-
-    if q:
-        militares_qs = militares_qs.filter(
-            Q(nome_guerra__icontains=q)
-            | Q(nome_completo__icontains=q)
-            | Q(matricula__icontains=q)
-            | Q(cpf__icontains=q)
-        )
-
-    if divisao_filtro:
-        militares_qs = militares_qs.filter(divisao_id=divisao_filtro)
-
-    if posto_filtro:
-        militares_qs = militares_qs.filter(posto_id=posto_filtro)
-
-    militares_qs = militares_qs.order_by('-posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
-    militares = list(militares_qs)
-
-    divisoes = (
-        Divisao.objects.filter(organizacao_militar=om, ativo=True).order_by('nome')
-        if om else Divisao.objects.none()
-    )
-    postos = Posto.objects.filter(ativo=True).order_by('-ordem_hierarquica')
-
-    tipos_escala = list(TipoEscala.objects.filter(ativo=True).order_by('nome'))
-    tipo_escala_atual = None
-    if tipo_escala_filtro:
-        tipo_escala_atual = next(
-            (t for t in tipos_escala if str(t.id) == tipo_escala_filtro), None
-        )
-    if tipo_escala_atual is None and tipos_escala:
-        tipo_escala_atual = tipos_escala[0]
-        tipo_escala_filtro = str(tipo_escala_atual.id)
-
-    tipos_servico = (
-        list(om.tipos_servico.filter(ativo=True).order_by('ordem')) if om else []
-    )
-
-    quadrinhos_map = {}
-    if om and tipo_escala_atual and militares:
-        for qd in Quadrinho.objects.filter(
-            militar__in=militares,
-            tipo_escala=tipo_escala_atual,
-            ano=ano,
-        ):
-            quadrinhos_map[(qd.militar_id, qd.tipo_servico_id)] = qd
-
-    militares_lista = []
-    for m in militares:
-        celulas = []
-        total = 0
-        for ts in tipos_servico:
-            qd = quadrinhos_map.get((m.id, ts.id))
-            valor = qd.total if qd else 0
-            celulas.append({'tipo_servico': ts, 'valor': valor})
-            total += valor
-        militares_lista.append({'militar': m, 'celulas': celulas, 'total': total})
-
-    anos_opcoes = list(range(ano_atual + 1, ano_atual - 5, -1))
-
-    # Militares inativos (soft-delete) — sem filtros de busca
-    militares_inativos = (
-        Militar.objects.filter(organizacao_militar=om, ativo=False)
-        .select_related('posto', 'divisao', 'especialidade')
-        .order_by('-posto__ordem_hierarquica', 'nome_guerra')
-        if om else Militar.objects.none()
-    )
-
-    return render(
-        request,
-        'cadastro/militar_list.html',
-        {
-            'militares_lista': militares_lista,
-            'militares_inativos': militares_inativos,
-            'tipos_servico': tipos_servico,
-            'tipos_escala': tipos_escala,
-            'tipo_escala_atual': tipo_escala_atual,
-            'tipo_escala_filtro': tipo_escala_filtro,
-            'ano': ano,
-            'anos_opcoes': anos_opcoes,
-            'divisoes': divisoes,
-            'postos': postos,
-            'om': om,
-            'q': q,
-            'divisao_filtro': divisao_filtro,
-            'posto_filtro': posto_filtro,
-            'total_militares': len(militares),
-        },
-    )
 
 
 @login_required
@@ -827,6 +718,14 @@ def quadrinho_visao(request):
         linhas.sort(key=lambda x: (x['total'], x['militar'].nome_guerra))
     elif ordem == 'nome':
         linhas.sort(key=lambda x: x['militar'].nome_guerra.lower())
+    elif ordem == 'antiguidade':
+        from datetime import date as _date_cls
+        def _ant_key(x):
+            m = x['militar']
+            data = m.data_ultima_promocao if m.data_ultima_promocao else _date_cls.max
+            nota = -float(m.nota) if m.nota is not None else float('inf')
+            return (m.posto.ordem_hierarquica, data, nota, m.nome_guerra.lower())
+        linhas.sort(key=_ant_key)
     else:
         linhas.sort(key=lambda x: (-x['total'], x['militar'].nome_guerra))
 
@@ -863,21 +762,35 @@ def quadrinho_visao(request):
             )
 
     # ── Registros detalhados de serviços por militar ───────────────────────
+    # Regra: se há substituto, o serviço é contabilizado para ELE (não o titular).
     registros_por_militar = {}
     if om and tipo_escala_atual and militares:
+        from django.db.models import Q as _Q
         militar_ids = [m.id for m in militares]
+        militar_ids_set = set(militar_ids)
+
+        # Busca:
+        #  (a) itens onde este militar é titular E não há substituto (serviu de fato)
+        #  (b) itens onde este militar é o substituto (cobriu outro)
         itens = EscalaItem.objects.filter(
-            militar_id__in=militar_ids,
+            _Q(militar_id__in=militar_ids, substituto__isnull=True) |
+            _Q(substituto_id__in=militar_ids),
             calendario_dia__data__year=ano,
             escala__tipo_escala=tipo_escala_atual,
         ).select_related(
             'militar__posto',
+            'substituto__posto',
             'calendario_dia__tipo_servico',
             'escala',
-        ).order_by('militar__nome_guerra', 'calendario_dia__data')
+        ).order_by('calendario_dia__data')
 
         for item in itens:
-            mil_id = item.militar_id
+            # Quem de fato trabalhou neste dia?
+            if item.substituto_id and item.substituto_id in militar_ids_set:
+                mil_id = item.substituto_id
+            else:
+                mil_id = item.militar_id
+
             if mil_id not in registros_por_militar:
                 registros_por_militar[mil_id] = []
             registros_por_militar[mil_id].append({
@@ -885,6 +798,7 @@ def quadrinho_visao(request):
                 'tipo_servico': item.calendario_dia.tipo_servico,
                 'escala_mes': f"{item.escala.mes:02d}/{item.escala.ano}",
                 'observacao': item.observacao or '',
+                'id': item.id,
             })
 
     # ── Matriz: militares × dias registrados, separado por tipo de serviço ──
@@ -1508,7 +1422,7 @@ def militar_excluir(request, militar_id):
             request,
             f'Militar {militar.nome_guerra} desativado (histórico preservado).',
         )
-        return redirect('militar_listar')
+        return redirect('usuario_listar')
     return render(
         request,
         'cadastro/militar_confirm_delete.html',
@@ -1796,7 +1710,9 @@ def escala_item_definir_substituto(request, item_id):
         Militar, pk=novo_sub_id, organizacao_militar=escala.organizacao_militar, ativo=True
     )
 
-    # Se já havia um substituto anterior, reverte seu quadrinho
+    # Se já havia substituto anterior diferente do novo: só reverte o sub antigo.
+    # O titular NÃO recebe +1 aqui — ele continua "fora" do serviço (conta -1).
+    # A contagem do titular só volta quando o substituto é REMOVIDO (bloco acima).
     if substituto_anterior and substituto_anterior.pk != novo_sub.pk:
         try:
             qd_sub_ant = Quadrinho.objects.get(
@@ -1810,15 +1726,9 @@ def escala_item_definir_substituto(request, item_id):
                 qd_sub_ant.save(update_fields=['quantidade'])
         except Quadrinho.DoesNotExist:
             pass
-        # Devolve ao titular original
-        Quadrinho.incrementar(
-            militar=item.militar,
-            tipo_escala=tipo_escala,
-            tipo_servico=tipo_servico,
-            ano=ano,
-        )
+        # Não devolve ao titular — ele ainda está "substituído" neste dia.
 
-    # Se é substituição nova (não havia sub antes), decrementa o titular
+    # Se é substituição nova (não havia sub antes), decrementa o titular pela 1ª vez
     if not substituto_anterior:
         try:
             qd_titular = Quadrinho.objects.get(
@@ -2378,14 +2288,19 @@ def escala_publica(request, slug):
     """
     Página pública (sem login) de escala para um tipo específico.
     URL: /escala-do-mes/<slug>/
-    Mostra: dias do mês atual (escala publicada/previsão) + seção separada do
-    próximo mês se houver previsão, com todos os dias de cada mês completos.
+    URL com navegação: /escala-do-mes/<slug>/?mes=5&ano=2026
+
+    Mostra todos os dias do mês selecionado. Suporta navegação entre meses.
     """
     import calendar as _cal
     from datetime import date as _d, timedelta as _td
 
     hoje = _d.today()
     DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
+    NOMES_MESES_PT = [
+        '', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+    ]
 
     tipo_escala = get_object_or_404(TipoEscala, slug=slug, ativo=True)
     om = OrganizacaoMilitar.objects.filter(ativo=True).order_by('id').first()
@@ -2393,40 +2308,74 @@ def escala_publica(request, slug):
     todos_tipos = list(TipoEscala.objects.filter(ativo=True).order_by('nome'))
     tipos_servico = list(om.tipos_servico.filter(ativo=True).order_by('ordem')) if om else []
 
-    # Busca a escala do mês corrente; se não existir, pega a mais recente
+    # Parâmetros de navegação
+    try:
+        req_mes = int(request.GET.get('mes', 0))
+        req_ano = int(request.GET.get('ano', 0))
+    except (ValueError, TypeError):
+        req_mes = req_ano = 0
+
+    # Todas as escalas disponíveis para navegação (mais recentes primeiro)
+    escalas_disponiveis = []
+    if om:
+        escalas_disponiveis = list(
+            Escala.objects.filter(
+                organizacao_militar=om,
+                tipo_escala=tipo_escala,
+                status__in=('publicada', 'previsao'),
+            ).order_by('-ano', '-mes')
+        )
+
+    # Determina qual escala exibir
     escala_atual = None
     if om:
-        escala_atual = Escala.objects.filter(
-            organizacao_militar=om,
-            tipo_escala=tipo_escala,
-            status__in=('publicada', 'previsao'),
-            ano=hoje.year,
-            mes=hoje.month,
-        ).first()
+        if req_mes and req_ano:
+            # Mês específico solicitado via ?mes=&ano=
+            escala_atual = next(
+                (e for e in escalas_disponiveis if e.mes == req_mes and e.ano == req_ano),
+                None,
+            )
         if not escala_atual:
-            # Fallback: mês mais recente que não seja futuro
-            escala_atual = Escala.objects.filter(
-                organizacao_militar=om,
-                tipo_escala=tipo_escala,
-                status__in=('publicada', 'previsao'),
-            ).filter(
-                ano__lt=hoje.year
-            ).order_by('-ano', '-mes').first() or Escala.objects.filter(
-                organizacao_militar=om,
-                tipo_escala=tipo_escala,
-                status__in=('publicada', 'previsao'),
-                ano=hoje.year,
-                mes__lte=hoje.month,
-            ).order_by('-mes').first()
+            # Padrão: mês corrente ou o mais recente disponível
+            escala_atual = next(
+                (e for e in escalas_disponiveis if e.mes == hoje.month and e.ano == hoje.year),
+                None,
+            )
+            if not escala_atual and escalas_disponiveis:
+                # Fallback: mais recente não futuro
+                escala_atual = next(
+                    (e for e in escalas_disponiveis
+                     if (e.ano, e.mes) <= (hoje.year, hoje.month)),
+                    escalas_disponiveis[0] if escalas_disponiveis else None,
+                )
+
+    # Escalas anterior e próxima para os botões de navegação
+    escala_anterior = None
+    escala_proxima = None
+    if escala_atual and escalas_disponiveis:
+        idx = next(
+            (i for i, e in enumerate(escalas_disponiveis)
+             if e.mes == escala_atual.mes and e.ano == escala_atual.ano),
+            None,
+        )
+        if idx is not None:
+            if idx + 1 < len(escalas_disponiveis):
+                escala_anterior = escalas_disponiveis[idx + 1]   # lista decrescente
+            if idx > 0:
+                escala_proxima = escalas_disponiveis[idx - 1]
 
     def _extrair_itens(escala, data_inicio=None, data_fim=None):
-        """Extrai itens de uma escala como lista de dicts, opcionalmente filtrando por intervalo."""
+        """Extrai todos os itens de uma escala como lista de dicts."""
         qs = EscalaItem.objects.filter(escala=escala)
         if data_inicio:
             qs = qs.filter(calendario_dia__data__gte=data_inicio)
         if data_fim:
             qs = qs.filter(calendario_dia__data__lte=data_fim)
-        qs = qs.select_related('militar__posto', 'calendario_dia__tipo_servico').order_by('calendario_dia__data')
+        qs = qs.select_related(
+            'militar__posto',
+            'substituto__posto',
+            'calendario_dia__tipo_servico',
+        ).order_by('calendario_dia__data')
         dias_map = {}
         for item in qs:
             dt = item.calendario_dia.data
@@ -2436,6 +2385,7 @@ def escala_publica(request, slug):
                     'dia_semana': DIAS_SEMANA[dt.weekday()],
                     'tipo_servico': item.calendario_dia.tipo_servico,
                     'militar': item.militar,
+                    'substituto': item.substituto,
                 }
         return [dias_map[d] for d in sorted(dias_map)]
 
@@ -2444,13 +2394,15 @@ def escala_publica(request, slug):
     itens_proximo = []
 
     if escala_atual:
-        # Mês atual: todos os dias a partir de hoje até o fim do mês
+        # Todos os dias do mês — sem corte por data de hoje
         ultimo_dia_mes_atual = _cal.monthrange(escala_atual.ano, escala_atual.mes)[1]
-        data_inicio_atual = max(hoje, _d(escala_atual.ano, escala_atual.mes, 1))
+        data_inicio_atual = _d(escala_atual.ano, escala_atual.mes, 1)
         data_fim_atual = _d(escala_atual.ano, escala_atual.mes, ultimo_dia_mes_atual)
         itens_atual = _extrair_itens(escala_atual, data_inicio=data_inicio_atual, data_fim=data_fim_atual)
 
-        # Busca escala do próximo mês (previsão ou publicada)
+        # Próximo mês só aparece quando estamos vendo o mês corrente
+        # (não faz sentido mostrar "próximo" ao navegar para meses passados)
+        eh_mes_atual = (escala_atual.mes == hoje.month and escala_atual.ano == hoje.year)
         prox_data = data_fim_atual + _td(days=1)
         proxima_escala = (
             Escala.objects.filter(
@@ -2474,16 +2426,19 @@ def escala_publica(request, slug):
 
     # Ranking "Próximos a Escalar" — usa EXATAMENTE a mesma chave de ordenação do motor.
     #
-    # O MotorEscalaVertical (_processar_dia em services.py) ordena por:
-    #   (counts_operacional, desempate_por_id)
-    # onde:
-    #   lista_militares  = order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
-    #   desempate_por_id = { m.id: (n-1-i) }  →  BASE (mais moderno, índice n-1) = 0 = máxima prioridade
+    # Ranking "Próximos a Escalar"
     #
-    # Portanto a fila exibida aqui é idêntica à fila que o motor usará no próximo mês.
-    ano_atual = hoje.year
+    # Regras (idênticas ao MotorEscalaVertical):
+    #   1. Ordenação: MENOR total geral (preto + vermelho + roxo) vai primeiro
+    #   2. Empate no total: BASE→TOPO (mais moderno tem prioridade)
+    #      lista_militares = order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+    #      desempate_por_id = n-1-i  →  BASE (índice n-1) = 0 = prioridade máxima no empate
+    #
+    # Exibição: mostra a contagem de CADA tipo separado + o total geral.
+    # Ano: usa o ano da escala sendo exibida (ou ano atual se não houver escala).
+    ano_ranking = escala_atual.ano if escala_atual else hoje.year
 
-    # Militares na mesma ordem que o motor usa (é crítico para calcular desempate_por_id)
+    # Militares na ordem exata do motor (crítico para o desempate_por_id)
     militares_om = (
         list(
             Militar.objects.filter(organizacao_militar=om, ativo=True)
@@ -2493,25 +2448,51 @@ def escala_publica(request, slug):
         if om else []
     )
     n_mil = len(militares_om)
-    # desempate: índice 0 = TOPO (mais antigo, menor prioridade no empate)
-    #            índice n-1 = BASE (mais moderno, maior prioridade no empate → menor desempate_key)
+    # Chave de desempate: BASE (mais moderno, índice n-1) → 0 (prioridade mais alta no empate)
     desempate_key = {m.id: (n_mil - 1 - i) for i, m in enumerate(militares_om)}
 
+    # Carrega todos os Quadrinhos do ano de uma vez só (1 query)
+    quadrinhos_ano = Quadrinho.objects.filter(
+        militar__in=militares_om,
+        tipo_escala=tipo_escala,
+        ano=ano_ranking,
+    ).select_related('tipo_servico')
+
+    # Monta dict: militar_id → {total_geral, por_tipo: {tipo_servico_id: count}}
+    totais_map = {
+        m.id: {'militar': m, 'total_geral': 0, 'por_tipo': {}}
+        for m in militares_om
+    }
+    for qd in quadrinhos_ano:
+        if qd.militar_id in totais_map:
+            totais_map[qd.militar_id]['total_geral'] += qd.total
+            totais_map[qd.militar_id]['por_tipo'][qd.tipo_servico_id] = qd.total
+
+    # Adiciona lançamentos manuais (lastro, atestado, etc.) ao total geral
+    # — exatamente como o motor e o quadrinho visual contabilizam
+    lancamentos_pub = LancamentoManualQuadrinho.objects.filter(
+        militar__in=militares_om,
+        tipo_escala=tipo_escala,
+        ano=ano_ranking,
+    )
+    for lm in lancamentos_pub:
+        if lm.militar_id in totais_map:
+            totais_map[lm.militar_id]['total_geral'] += lm.quantidade
+
+    # Para cada tipo de serviço: ranking pelo total_geral, exibe contagem do tipo específico
     proximos_por_servico = []
     for ts in tipos_servico:
-        # Soma todos os tipos de serviço do tipo_escala — igual ao _carregar_matriz_historica
-        totais = {m.id: {'militar': m, 'total': 0} for m in militares_om}
-        for qd in Quadrinho.objects.filter(
-            militar__in=militares_om,
-            tipo_escala=tipo_escala,
-            ano=ano_atual,
-        ).select_related('militar__posto'):
-            if qd.militar_id in totais:
-                totais[qd.militar_id]['total'] += qd.total
-
-        # Ordenação idêntica ao motor: menor total → desempate BASE→TOPO (menor desempate_key)
+        candidatos = [
+            {
+                'militar': v['militar'],
+                'total': v['total_geral'],                      # total geral (preto+verm+roxo)
+                'contagem_tipo': v['por_tipo'].get(ts.id, 0),  # só este tipo
+            }
+            for v in totais_map.values()
+        ]
+        # Menor total geral → BASE→TOPO no empate (igual ao motor)
         proximos = sorted(
-            totais.values(),
+            candidatos,
             key=lambda x: (x['total'], desempate_key.get(x['militar'].id, 0)),
         )[:5]
         proximos_por_servico.append({'tipo_servico': ts, 'proximos': proximos})
@@ -2526,6 +2507,11 @@ def escala_publica(request, slug):
         'proxima_escala': proxima_escala,
         'itens_proximo': itens_proximo,
         'proximos_por_servico': proximos_por_servico,
+        'escala_anterior': escala_anterior,
+        'escala_proxima': escala_proxima,
+        'escalas_disponiveis': escalas_disponiveis,
+        'nomes_meses': NOMES_MESES_PT,
+        'eh_mes_atual': eh_mes_atual if escala_atual else False,
     })
 
 
@@ -2729,38 +2715,56 @@ def lancamento_manual_excluir(request, lancamento_id):
 
 @login_required
 def usuario_listar(request):
-    """Lista todos os militares (que são usuários) + usuários sem militar vinculado."""
+    """Lista unificada de militares (= usuários) da OM, ordenada por antiguidade."""
     om = obter_om_ativa(request)
     q = request.GET.get('q', '').strip()
     perfil_filtro = request.GET.get('perfil', '')
     tipo_escala_filtro = request.GET.get('tipo_escala', '')
+    divisao_filtro = request.GET.get('divisao', '')
+    posto_filtro = request.GET.get('posto', '')
 
-    # Base: militares ativos da OM, ordenados por antiguidade
+    # ── Militares ativos, ordem de antiguidade ────────────────────────────────
     militares_qs = Militar.objects.filter(ativo=True)
     if om:
         militares_qs = militares_qs.filter(organizacao_militar=om)
     militares_qs = militares_qs.select_related(
-        'posto', 'user', 'organizacao_militar'
-    ).prefetch_related('tipos_escala').order_by(
-        'posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra'
-    )
+        'posto', 'divisao', 'especialidade', 'user', 'organizacao_militar'
+    ).prefetch_related('tipos_escala')
 
     if q:
         militares_qs = militares_qs.filter(
             Q(nome_guerra__icontains=q) |
             Q(nome_completo__icontains=q) |
             Q(matricula__icontains=q) |
+            Q(cpf__icontains=q) |
             Q(user__username__icontains=q)
         )
-
     if tipo_escala_filtro:
         militares_qs = militares_qs.filter(tipos_escala__id=tipo_escala_filtro)
-
     if perfil_filtro:
-        # Filtra militares cujo user tem o perfil selecionado
         militares_qs = militares_qs.filter(user__perfil=perfil_filtro)
+    if divisao_filtro:
+        militares_qs = militares_qs.filter(divisao_id=divisao_filtro)
+    if posto_filtro:
+        militares_qs = militares_qs.filter(posto_id=posto_filtro)
 
-    # Usuários sem militar vinculado (admins, escalantes criados manualmente)
+    from django.db.models import F
+    militares_qs = militares_qs.order_by(
+        'posto__ordem_hierarquica',
+        F('data_ultima_promocao').asc(nulls_last=True),
+        F('nota').desc(nulls_last=True),
+        'nome_guerra',
+    )
+
+    # ── Militares inativos (sem filtros) ─────────────────────────────────────
+    militares_inativos = (
+        Militar.objects.filter(organizacao_militar=om, ativo=False)
+        .select_related('posto', 'divisao')
+        .order_by('posto__ordem_hierarquica', 'nome_guerra')
+        if om else Militar.objects.none()
+    )
+
+    # ── Usuários sem militar (admins/escalantes avulsos) ─────────────────────
     usuarios_sem_militar = UsuarioCustomizado.objects.filter(
         militar__isnull=True
     ).select_related('om_principal').order_by('username')
@@ -2774,15 +2778,25 @@ def usuario_listar(request):
         usuarios_sem_militar = usuarios_sem_militar.filter(perfil=perfil_filtro)
 
     tipos_escala = TipoEscala.objects.filter(ativo=True).order_by('nome')
+    divisoes = (
+        Divisao.objects.filter(organizacao_militar=om, ativo=True).order_by('nome')
+        if om else Divisao.objects.none()
+    )
+    postos = Posto.objects.filter(ativo=True).order_by('ordem_hierarquica')
 
     return render(request, 'cadastro/usuario_list.html', {
         'militares':            militares_qs,
+        'militares_inativos':   militares_inativos,
         'usuarios_sem_militar': usuarios_sem_militar,
         'q':                    q,
         'perfil_filtro':        perfil_filtro,
         'tipo_escala_filtro':   tipo_escala_filtro,
+        'divisao_filtro':       divisao_filtro,
+        'posto_filtro':         posto_filtro,
         'perfis':               PerfilUsuario.choices,
         'tipos_escala':         tipos_escala,
+        'divisoes':             divisoes,
+        'postos':               postos,
         'om':                   om,
     })
 
@@ -3066,9 +3080,9 @@ def troca_listar(request):
             'militar_logado': militar_logado,
         })
 
-    # Se é escalante, mostra todas as trocas pendentes e criadas
-    elif usuario.e_escalante():
-        # Lista todas as trocas, mais recentes primeiro
+    # Escalante, Chefe, Adjunto e Admin: vêem TODAS as trocas da OM
+    # Chefe/Adjunto também vêem o painel de homologação (aba extra no template)
+    elif usuario.pode_gerenciar_escalas():
         trocas = TrocaServico.objects.filter(
             organizacao_militar=om
         ).select_related(
@@ -3076,13 +3090,18 @@ def troca_listar(request):
             'tipo_escala', 'organizacao_militar'
         ).order_by('-data_criacao')
 
-        # Paginação
+        # Trocas aguardando homologação (só relevante para chefe/adjunto)
+        trocas_para_homologar = TrocaServico.objects.filter(
+            organizacao_militar=om,
+            status='aprovada',
+            escala_status='publicada',
+        ).count() if usuario.pode_publicar_escala() else 0
+
         pagina = int(request.GET.get('pagina', 1))
         por_pagina = 20
         total = trocas.count()
         trocas_pagina = trocas[(pagina - 1) * por_pagina:pagina * por_pagina]
 
-        # Contagem para o mês atual
         hoje = date.today()
         trocas_mes = trocas.filter(data_criacao__year=hoje.year, data_criacao__month=hoje.month).count()
 
@@ -3093,42 +3112,8 @@ def troca_listar(request):
             'por_pagina': por_pagina,
             'total_paginas': (total + por_pagina - 1) // por_pagina,
             'trocas_mes': trocas_mes,
-            'om': om,
-        })
-
-    # Se é Chefe, Adjunto ou Admin da OM, mostra trocas aprovadas (precisam de homologação)
-    elif usuario.pode_publicar_escala() or usuario.perfil == PerfilUsuario.ADMIN_OM:
-        # Só mostra as que precisam de homologação (escala publicada)
-        trocas = TrocaServico.objects.filter(
-            organizacao_militar=om,
-            status='aprovada',
-            escala_status='publicada'
-        ).select_related(
-            'militar_sai', 'militar_entra', 'militar_sai_2', 'militar_entra_2',
-            'tipo_escala', 'organizacao_militar'
-        ).order_by('-data_criacao')
-
-        # Paginação
-        pagina = int(request.GET.get('pagina', 1))
-        por_pagina = 20
-        total = trocas.count()
-        trocas_pagina = trocas[(pagina - 1) * por_pagina:pagina * por_pagina]
-
-        # Contagem para o mês atual
-        hoje = date.today()
-        trocas_mes = TrocaServico.objects.filter(
-            organizacao_militar=om,
-            data_criacao__year=hoje.year,
-            data_criacao__month=hoje.month
-        ).count()
-
-        return render(request, 'troca/troca_chefe_listar.html', {
-            'trocas': trocas_pagina,
-            'total': total,
-            'pagina': pagina,
-            'por_pagina': por_pagina,
-            'total_paginas': (total + por_pagina - 1) // por_pagina,
-            'trocas_mes': trocas_mes,
+            'trocas_para_homologar': trocas_para_homologar,
+            'pode_homologar': usuario.pode_publicar_escala(),
             'om': om,
         })
 
@@ -3139,7 +3124,17 @@ def troca_listar(request):
 
 @login_required
 def troca_servicos_militar(request):
-    """Retorna os serviços futuros do militar logado (hoje em diante, próximos 3 meses)."""
+    """
+    Retorna os serviços futuros de um militar (hoje → próximos 3 meses).
+
+    Parâmetros GET:
+      tipo_escala  (int, opcional) — filtra por tipo de escala
+      militar_id   (int, opcional) — se informado, retorna serviços desse
+                                     militar em vez do logado (deve pertencer
+                                     à mesma OM). Usado na segunda perna da
+                                     troca mútua para exibir os dias do
+                                     militar que vai entrar.
+    """
     om = obter_om_ativa(request)
     if not om:
         return JsonResponse({'erro': 'Nenhuma OM ativa'}, status=400)
@@ -3150,6 +3145,16 @@ def troca_servicos_militar(request):
         return JsonResponse({'erro': 'Usuário não é militar'}, status=400)
 
     tipo_escala_id = request.GET.get('tipo_escala')
+    militar_id = request.GET.get('militar_id')
+
+    # Decide qual militar consultar
+    if militar_id:
+        try:
+            militar_alvo = Militar.objects.get(pk=militar_id, organizacao_militar=om, ativo=True)
+        except Militar.DoesNotExist:
+            return JsonResponse({'erro': 'Militar não encontrado nesta OM'}, status=404)
+    else:
+        militar_alvo = militar_logado
 
     hoje = date.today()
     limite = hoje + timedelta(days=92)  # próximos 3 meses
@@ -3165,7 +3170,7 @@ def troca_servicos_militar(request):
     for escala in escalas:
         itens = EscalaItem.objects.filter(
             escala=escala,
-            militar=militar_logado,
+            militar=militar_alvo,
             calendario_dia__data__gte=hoje,
             calendario_dia__data__lte=limite,
         ).select_related('calendario_dia', 'calendario_dia__tipo_servico')
@@ -3247,9 +3252,11 @@ def troca_solicitar(request):
             # Na verdade, para a segunda perna:
             # - O militar_logado vai assumir o serviço do dia data_servico_sai_2 (do militar_entra_2)
             # - O militar_entra_2 vai assumir o serviço do dia data_servico_sai (do militar_logado)
-            troca.militar_sai_2 = militar_entra_2
+            troca.militar_sai_2 = militar_entra_2     # outro militar sai do dia 2
             troca.data_servico_sai_2 = data_servico_sai_2
-            troca.militar_entra_2 = militar_logado  # Quem iniciou também entra na segunda perna
+            troca.militar_entra_2 = militar_logado      # iniciador entra no dia 2
+            troca.aprovada_militar_entra_2 = True       # iniciador já aprova a sua entrada
+            # aprovada_militar_sai_2 fica None → aguardando o militar_entra_2 aceitar
             troca.save()
 
         messages.success(request, f"Troca solicitada! Número de controle: {troca.numero_controle}")
@@ -3273,85 +3280,268 @@ def troca_solicitar(request):
     })
 
 
+def _executar_troca_na_escala(troca, om):
+    """
+    Aplica a troca nos EscalaItem e atualiza Quadrinhos.
+    Retorna lista de alertas (string). Lista vazia = tudo OK.
+    Funciona tanto para previsão (escalante aprova) quanto para publicada (chefe homologa).
+    """
+    alertas = []
+
+    # --- Primeira perna ---
+    escala_1 = Escala.objects.filter(
+        organizacao_militar=om,
+        tipo_escala=troca.tipo_escala,
+        mes=troca.data_servico_sai.month,
+        ano=troca.data_servico_sai.year,
+        status__in=['previsao', 'publicada'],
+    ).first()
+
+    if not escala_1:
+        alertas.append(
+            f"Escala não encontrada para {troca.data_servico_sai:%d/%m/%Y} "
+            f"(tipo: {troca.tipo_escala.nome})."
+        )
+    else:
+        try:
+            item = EscalaItem.objects.get(
+                escala=escala_1,
+                calendario_dia__data=troca.data_servico_sai,
+                militar=troca.militar_sai,
+            )
+            item.militar = troca.militar_entra
+            item.observacao = (
+                f"Troca {troca.numero_controle}: "
+                f"{troca.militar_sai.nome_guerra} -> {troca.militar_entra.nome_guerra}"
+            )
+            item.save()
+            Quadrinho.incrementar(
+                militar=troca.militar_entra,
+                tipo_escala=troca.tipo_escala,
+                tipo_servico=item.calendario_dia.tipo_servico,
+                ano=escala_1.ano,
+            )
+            Quadrinho.incrementar(
+                militar=troca.militar_sai,
+                tipo_escala=troca.tipo_escala,
+                tipo_servico=item.calendario_dia.tipo_servico,
+                ano=escala_1.ano,
+                quantidade=-1,
+            )
+        except EscalaItem.DoesNotExist:
+            alertas.append(
+                f"Item de escala nao encontrado: {troca.militar_sai.nome_guerra} "
+                f"em {troca.data_servico_sai:%d/%m/%Y}."
+            )
+
+    # --- Segunda perna (troca mutua) ---
+    if troca.tipo_troca == 'mutua' and troca.data_servico_sai_2:
+        # Segunda perna pode ser em mes/escala diferente
+        escala_2 = Escala.objects.filter(
+            organizacao_militar=om,
+            tipo_escala=troca.tipo_escala,
+            mes=troca.data_servico_sai_2.month,
+            ano=troca.data_servico_sai_2.year,
+            status__in=['previsao', 'publicada'],
+        ).first()
+
+        if not escala_2:
+            alertas.append(
+                f"Escala nao encontrada para segunda perna "
+                f"{troca.data_servico_sai_2:%d/%m/%Y}."
+            )
+        else:
+            try:
+                item2 = EscalaItem.objects.get(
+                    escala=escala_2,
+                    calendario_dia__data=troca.data_servico_sai_2,
+                    militar=troca.militar_sai_2,
+                )
+                item2.militar = troca.militar_entra_2
+                item2.observacao = (
+                    f"Troca {troca.numero_controle}: "
+                    f"{troca.militar_sai_2.nome_guerra} -> {troca.militar_entra_2.nome_guerra}"
+                )
+                item2.save()
+                Quadrinho.incrementar(
+                    militar=troca.militar_entra_2,
+                    tipo_escala=troca.tipo_escala,
+                    tipo_servico=item2.calendario_dia.tipo_servico,
+                    ano=escala_2.ano,
+                )
+                Quadrinho.incrementar(
+                    militar=troca.militar_sai_2,
+                    tipo_escala=troca.tipo_escala,
+                    tipo_servico=item2.calendario_dia.tipo_servico,
+                    ano=escala_2.ano,
+                    quantidade=-1,
+                )
+            except EscalaItem.DoesNotExist:
+                alertas.append(
+                    f"Item de escala nao encontrado: {troca.militar_sai_2.nome_guerra} "
+                    f"em {troca.data_servico_sai_2:%d/%m/%Y}."
+                )
+
+    return alertas
+
+
 @login_required
 def troca_aceitar(request, troca_id):
-    """Aceitar ou recusar uma troca (para militar)"""
+    """Aceitar ou recusar uma troca (para o militar convocado)."""
     om = obter_om_ativa(request)
     if not om:
-        return JsonResponse({'erro': 'Nenhuma OM ativa'}, status=400)
+        messages.error(request, "Nenhuma OM ativa.")
+        return redirect('troca_listar')
 
     usuario = request.user
     militar_logado = getattr(usuario, 'militar', None)
     if not militar_logado:
-        return JsonResponse({'erro': 'Usuário não é militar'}, status=400)
+        messages.error(request, "Apenas militares podem responder a trocas.")
+        return redirect('troca_listar')
 
     troca = get_object_or_404(TrocaServico, id=troca_id, organizacao_militar=om)
 
-    if request.method == 'POST':
-        acao = request.POST.get('acao')  # 'aceitar' ou 'rejeitar'
+    if request.method != 'POST':
+        return redirect('troca_detalhar', troca_id=troca_id)
 
-        if acao == 'aceitar':
-            # Verificar qual posição o militar ocupa
-            if militar_logado == troca.militar_entra:
-                troca.aprovada_militar_entra = True
-            elif militar_logado == troca.militar_entra_2:
-                troca.aprovada_militar_entra_2 = True
-            else:
-                return JsonResponse({'erro': 'Você não está envolvido nesta troca'}, status=400)
-        else:  # rejeitar
-            if militar_logado == troca.militar_entra:
-                troca.aprovada_militar_entra = False
-            elif militar_logado == troca.militar_entra_2:
-                troca.aprovada_militar_entra_2 = False
-            else:
-                return JsonResponse({'erro': 'Você não está envolvido nesta troca'}, status=400)
+    if troca.status != 'pendente':
+        messages.warning(request, "Esta troca não está mais pendente.")
+        return redirect('troca_detalhar', troca_id=troca_id)
 
-        troca.save()
-        return JsonResponse({'success': True, 'status': troca.get_status_display()})
+    acao = request.POST.get('acao')  # 'aceitar', 'rejeitar' ou 'reconsiderar'
 
-    return JsonResponse({'erro': 'Método não permitido'}, status=405)
+    if militar_logado == troca.militar_entra:
+        campo = 'entra'
+    elif militar_logado == troca.militar_entra_2:
+        campo = 'entra_2'
+    elif militar_logado == troca.militar_sai_2:
+        campo = 'sai_2'
+    else:
+        messages.error(request, "Voce nao esta envolvido nesta troca.")
+        return redirect('troca_listar')
+
+    if acao == 'aceitar':
+        valor = True
+        msg = f"Troca {troca.numero_controle} aceita."
+        ok = True
+    elif acao == 'rejeitar':
+        valor = False
+        msg = f"Troca {troca.numero_controle} recusada."
+        ok = False
+    elif acao == 'reconsiderar':
+        valor = None  # volta para pendente
+        msg = f"Troca {troca.numero_controle} voltou para pendente — aguardando sua decisao."
+        ok = None
+    else:
+        messages.error(request, "Acao invalida.")
+        return redirect('troca_listar')
+
+    if campo == 'entra':
+        troca.aprovada_militar_entra = valor
+    elif campo == 'entra_2':
+        troca.aprovada_militar_entra_2 = valor
+    elif campo == 'sai_2':
+        troca.aprovada_militar_sai_2 = valor
+
+    troca.save()
+
+    if ok is True:
+        messages.success(request, msg)
+    else:
+        messages.warning(request, msg)
+    return redirect('troca_listar')
 
 
 @login_required
 def troca_aprovar_escalante(request, troca_id):
-    """Aprovar ou reprovar uma troca (escalante)"""
+    """
+    Escalante aprova ou reprova uma troca pendente.
+
+    Previsao: ao aprovar, executa a troca na escala imediatamente
+              (nao precisa de homologacao do chefe).
+    Publicada: ao aprovar, apenas muda status para 'aprovada';
+               chefe/adjunto homologa e executa depois.
+    """
     om = obter_om_ativa(request)
     if not om:
         messages.error(request, "Selecione uma OM primeiro.")
         return redirect('dashboard')
 
     usuario = request.user
-    if not usuario.e_escalante():
-        messages.error(request, "Apenas escalantes podem aprovar trocas.")
+    if not usuario.pode_gerenciar_escalas():
+        messages.error(request, "Apenas Escalante, Chefe ou Adjunto podem aprovar trocas.")
         return redirect('dashboard')
 
     troca = get_object_or_404(TrocaServico, id=troca_id, organizacao_militar=om)
 
-    if request.method == 'POST':
-        acao = request.POST.get('acao')  # 'aprovar' ou 'reprovar'
-        observacao = request.POST.get('observacao', '')
-
-        if acao == 'aprovar':
-            troca.aprobada_escalante = True
-            troca.status = 'aprovada'
-        else:
-            troca.aprobada_escalante = False
-            troca.status = 'reprovada'
-
-        troca.escalante_observacao = observacao
-        troca.data_aprovacao_escalante = timezone.now()
-        troca.usuario_escalante = usuario
-        troca.save()
-
-        messages.success(request, f"Troca {troca.numero_controle} {'aprovada' if acao == 'aprovar' else 'reprovada'}.")
+    if request.method != 'POST':
         return redirect('troca_listar')
 
+    acao = request.POST.get('acao')  # 'aprovar' ou 'reprovar'
+    observacao = request.POST.get('observacao', '')
+
+    troca.escalante_observacao = observacao
+    troca.data_aprovacao_escalante = timezone.now()
+    troca.usuario_escalante = usuario
+
+    if acao == 'aprovar':
+        # Verificar se todos os militares envolvidos aceitaram
+        todos_aceitaram = troca.aprovada_militar_sai and troca.aprovada_militar_entra
+        if troca.tipo_troca == 'mutua':
+            todos_aceitaram = todos_aceitaram and troca.aprovada_militar_entra_2
+
+        if not todos_aceitaram:
+            messages.error(
+                request,
+                "Nao e possivel aprovar: algum militar ainda nao aceitou (ou recusou) a troca."
+            )
+            return redirect('troca_listar')
+
+        # Verificar se algum envolvido rejeitou
+        rejeitou = (troca.aprovada_militar_entra is False)
+        if troca.tipo_troca == 'mutua':
+            rejeitou = rejeitou or (troca.aprovada_militar_entra_2 is False)
+
+        if rejeitou:
+            messages.error(
+                request,
+                "Nao e possivel aprovar: um militar recusou a troca."
+            )
+            return redirect('troca_listar')
+
+        troca.aprobada_escalante = True
+
+        if troca.escala_status == 'previsao':
+            # Previsao: escalante executa direto, sem precisar do chefe
+            alertas = _executar_troca_na_escala(troca, om)
+            for a in alertas:
+                messages.warning(request, a)
+            troca.status = 'homologada'
+            troca.homologada = True
+            troca.data_homologacao = timezone.now()
+            troca.usuario_chefe = usuario
+            msg = f"Troca {troca.numero_controle} aprovada e aplicada na escala de previsao."
+        else:
+            # Publicada: aguarda o chefe
+            troca.status = 'aprovada'
+            msg = f"Troca {troca.numero_controle} aprovada. Aguardando homologacao do Chefe/Adjunto."
+
+    else:
+        troca.aprobada_escalante = False
+        troca.status = 'reprovada'
+        msg = f"Troca {troca.numero_controle} reprovada."
+
+    troca.save()
+    messages.success(request, msg)
     return redirect('troca_listar')
 
 
 @login_required
 def troca_homologar(request, troca_id):
-    """Homologar ou reprovar uma troca (chefe/adjunto)"""
+    """
+    Chefe ou Adjunto homologa (executa) ou reprova uma troca aprovada pelo escalante.
+    Somente para escalas publicadas — previsao e executada direto pelo escalante.
+    """
     om = obter_om_ativa(request)
     if not om:
         messages.error(request, "Selecione uma OM primeiro.")
@@ -3364,99 +3554,36 @@ def troca_homologar(request, troca_id):
 
     troca = get_object_or_404(TrocaServico, id=troca_id, organizacao_militar=om)
 
-    if request.method == 'POST':
-        acao = request.POST.get('acao')  # 'homologar' ou 'reprovar'
-        observacao = request.POST.get('observacao', '')
-
-        if acao == 'homologar':
-            troca.homologada = True
-            troca.status = 'homologada'
-
-            # === EXECUTAR A TROCA NA ESCALA ===
-            # Atualizar os itens da escala
-            escala = Escala.objects.filter(
-                organizacao_militar=om,
-                tipo_escala=troca.tipo_escala,
-                mes=troca.data_servico_sai.month,
-                ano=troca.data_servico_sai.year,
-                status='publicada'
-            ).first()
-
-            if escala:
-                # Primeira perna: militar_sai sai, militar_entra assume
-                try:
-                    item_sai = EscalaItem.objects.get(
-                        escala=escala,
-                        calendario_dia__data=troca.data_servico_sai,
-                        militar=troca.militar_sai
-                    )
-                    item_sai.militar = troca.militar_entra
-                    item_sai.observacao = f"Troca {troca.numero_controle}: {troca.militar_sai.nome_guerra} → {troca.militar_entra.nome_guerra}"
-                    item_sai.save()
-
-                    # Atualizar quadrinho
-                    Quadrinho.incrementar(
-                        militar=troca.militar_entra,
-                        tipo_escala=troca.tipo_escala,
-                        tipo_servico=item_sai.calendario_dia.tipo_servico,
-                        ano=escala.ano,
-                    )
-                    Quadrinho.incrementar(
-                        militar=troca.militar_sai,
-                        tipo_escala=troca.tipo_escala,
-                        tipo_servico=item_sai.calendario_dia.tipo_servico,
-                        ano=escala.ano,
-                        quantidade=-1,
-                    )
-                except EscalaItem.DoesNotExist:
-                    messages.warning(request, "Item da escala não encontrado para a primeira perna.")
-
-                # Segunda perna (se for troca mútua)
-                if troca.tipo_troca == 'mutua' and troca.data_servico_sai_2:
-                    try:
-                        item_sai_2 = EscalaItem.objects.get(
-                            escala=escala,
-                            calendario_dia__data=troca.data_servico_sai_2,
-                            militar=troca.militar_sai_2
-                        )
-                        item_sai_2.militar = troca.militar_entra_2
-                        item_sai_2.observacao = f"Troca {troca.numero_controle}: {troca.militar_sai_2.nome_guerra} → {troca.militar_entra_2.nome_guerra}"
-                        item_sai_2.save()
-
-                        # Atualizar quadrinho
-                        Quadrinho.incrementar(
-                            militar=troca.militar_entra_2,
-                            tipo_escala=troca.tipo_escala,
-                            tipo_servico=item_sai_2.calendario_dia.tipo_servico,
-                            ano=escala.ano,
-                        )
-                        Quadrinho.incrementar(
-                            militar=troca.militar_sai_2,
-                            tipo_escala=troca.tipo_escala,
-                            tipo_servico=item_sai_2.calendario_dia.tipo_servico,
-                            ano=escala.ano,
-                            quantidade=-1,
-                        )
-                    except EscalaItem.DoesNotExist:
-                        messages.warning(request, "Item da escala não encontrado para a segunda perna.")
-        else:
-            troca.homologada = False
-            troca.status = 'reprovada'
-
-        troca.homologacao_observacao = observacao
-        troca.data_homologacao = timezone.now()
-        troca.usuario_chefe = usuario
-        troca.save()
-
-        messages.success(request, f"Troca {troca.numero_controle} {'homologada' if acao == 'homologar' else 'reprovada'}.")
+    if request.method != 'POST':
         return redirect('troca_listar')
 
+    acao = request.POST.get('acao')  # 'homologar' ou 'reprovar'
+    observacao = request.POST.get('observacao', '')
+
+    troca.homologacao_observacao = observacao
+    troca.data_homologacao = timezone.now()
+    troca.usuario_chefe = usuario
+
+    if acao == 'homologar':
+        alertas = _executar_troca_na_escala(troca, om)
+        for a in alertas:
+            messages.warning(request, a)
+        troca.homologada = True
+        troca.status = 'homologada'
+        msg = f"Troca {troca.numero_controle} homologada e aplicada na escala."
+    else:
+        troca.homologada = False
+        troca.status = 'reprovada'
+        msg = f"Troca {troca.numero_controle} reprovada."
+
+    troca.save()
+    messages.success(request, msg)
     return redirect('troca_listar')
 
 
 @login_required
 def troca_detalhar(request, troca_id):
-    """Ver detalhes de uma troca"""
+    """Ver detalhes de uma troca."""
     om = obter_om_ativa(request)
     if not om:
         messages.error(request, "Selecione uma OM primeiro.")
@@ -3464,7 +3591,103 @@ def troca_detalhar(request, troca_id):
 
     troca = get_object_or_404(TrocaServico, id=troca_id, organizacao_militar=om)
 
+    usuario = request.user
+    militar_logado = getattr(usuario, 'militar', None)
+    pode_cancelar = (
+        troca.status == 'pendente'
+        and militar_logado is not None
+        and militar_logado in (troca.militar_sai, troca.militar_entra, troca.militar_entra_2)
+    )
+    pode_editar = (
+        troca.status == 'pendente'
+        and militar_logado is not None
+        and militar_logado == troca.militar_sai
+    )
+
     return render(request, 'troca/troca_detalhar.html', {
+        'troca': troca,
+        'om': om,
+        'pode_cancelar': pode_cancelar,
+        'pode_editar': pode_editar,
+    })
+
+
+@login_required
+def troca_cancelar(request, troca_id):
+    """
+    Cancela (exclui) uma troca pendente.
+    Permitido para qualquer militar envolvido na troca enquanto status='pendente'.
+    """
+    om = obter_om_ativa(request)
+    if not om:
+        messages.error(request, "Selecione uma OM primeiro.")
+        return redirect('troca_listar')
+
+    troca = get_object_or_404(TrocaServico, id=troca_id, organizacao_militar=om)
+
+    usuario = request.user
+    militar_logado = getattr(usuario, 'militar', None)
+
+    if troca.status != 'pendente':
+        messages.error(request, "So e possivel cancelar trocas com status Pendente.")
+        return redirect('troca_detalhar', troca_id=troca_id)
+
+    envolvidos = [troca.militar_sai, troca.militar_entra]
+    if troca.militar_entra_2:
+        envolvidos.append(troca.militar_entra_2)
+
+    if not militar_logado or militar_logado not in envolvidos:
+        messages.error(request, "Voce nao tem permissao para cancelar esta troca.")
+        return redirect('troca_listar')
+
+    if request.method == 'POST':
+        numero = troca.numero_controle
+        troca.delete()
+        messages.success(request, f"Troca {numero} cancelada e excluida.")
+        return redirect('troca_listar')
+
+    # GET — tela de confirmação
+    return render(request, 'troca/troca_cancelar_confirmar.html', {
+        'troca': troca,
+        'om': om,
+    })
+
+
+@login_required
+def troca_editar(request, troca_id):
+    """
+    Edita o motivo de uma troca pendente.
+    Apenas o solicitante (militar_sai) pode editar enquanto status='pendente'.
+    """
+    om = obter_om_ativa(request)
+    if not om:
+        messages.error(request, "Selecione uma OM primeiro.")
+        return redirect('troca_listar')
+
+    troca = get_object_or_404(TrocaServico, id=troca_id, organizacao_militar=om)
+
+    usuario = request.user
+    militar_logado = getattr(usuario, 'militar', None)
+
+    if troca.status != 'pendente':
+        messages.error(request, "So e possivel editar trocas com status Pendente.")
+        return redirect('troca_detalhar', troca_id=troca_id)
+
+    if not militar_logado or militar_logado != troca.militar_sai:
+        messages.error(request, "Apenas o solicitante pode editar a troca.")
+        return redirect('troca_listar')
+
+    if request.method == 'POST':
+        novo_motivo = request.POST.get('motivo', '').strip()
+        if not novo_motivo:
+            messages.error(request, "O motivo nao pode ficar vazio.")
+        else:
+            troca.motivo = novo_motivo
+            troca.save()
+            messages.success(request, f"Troca {troca.numero_controle} atualizada.")
+            return redirect('troca_detalhar', troca_id=troca_id)
+
+    return render(request, 'troca/troca_editar.html', {
         'troca': troca,
         'om': om,
     })

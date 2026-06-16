@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block titulo %}Editar Troca — Sistema de Escala{% endblock %}
+
+{% block conteudo %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header bg-dark text-light">
+                <h5 class="mb-0"><i class="bi bi-pencil"></i> Editar Troca {{ troca.numero_controle }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Apenas o motivo pode ser alterado. Para mudar datas ou militares, cancele esta troca e abra uma nova.
+                </p>
+
+                <div class="mb-3">
+                    <strong>{{ troca.tipo_escala.nome }}</strong> —
+                    {{ troca.militar_sai.nome_guerra }} →
+                    {{ troca.militar_entra.nome_guerra }}
+                    em {{ troca.data_servico_sai|date:"d/m/Y" }}
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Motivo *</label>
+                        <textarea name="motivo" class="form-control" rows="4" required>{{ troca.motivo }}</textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Salvar
+                        </button>
+                        <a href="{% url 'troca_detalhar' troca.id %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

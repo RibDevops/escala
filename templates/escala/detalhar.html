@@ -41,8 +41,9 @@
             {% endif %}
         {% endif %}
         {% if itens %}
-        <a href="{% url 'escala_matriz' escala.id %}" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-grid-3x3"></i> Ver Matriz
+        <a href="{% url 'quadrinho_visao' %}?tipo_escala={{ escala.tipo_escala.id }}&tab=quadrinhos"
+           class="btn btn-mil-outline btn-sm">
+            <i class="bi bi-grid-3x3-gap"></i> Quadrinho
         </a>
         {% endif %}
         <a href="{% url 'escala_listar' %}" class="btn btn-outline-secondary btn-sm">
@@ -140,7 +141,6 @@
                             <th>Dia</th>
                             <th>Tipo</th>
                             <th>Militar</th>
-                            <th>Posto</th>
                             {% if escala.status == 'publicada' %}
                             <th>Substituto</th>
                             {% endif %}
@@ -164,24 +164,27 @@
                                 </span>
                             </td>
 
-                            {# ---- Coluna Militar: select no rascunho/previsão, texto riscado na oficial com sub ---- #}
+                            {# ---- Coluna Militar: posto + nome juntos ---- #}
                             <td>
                                 {% if pode_editar %}
                                     {# SELECT com auto-save via AJAX #}
                                     <select class="form-select form-select-sm select-trocar-militar"
                                             data-item-id="{{ item.id }}"
-                                            style="min-width:130px;">
+                                            style="min-width:160px;">
                                         {% for m in militares_om %}
                                         <option value="{{ m.id }}"
                                             {% if m.id == item.militar_id %}selected{% endif %}>
-                                            {{ m.nome_guerra }} ({{ m.posto.sigla }})
+                                            {{ m.posto.sigla }} {{ m.nome_guerra }}
                                         </option>
                                         {% endfor %}
                                     </select>
+                                    <span class="posto-label-{{ item.id }}" style="display:none;">{{ item.militar.posto.sigla }}</span>
                                 {% elif escala.status == 'publicada' and item.substituto %}
-                                    <span class="text-decoration-line-through text-muted">{{ item.militar.nome_guerra }}</span>
+                                    <span class="text-decoration-line-through text-muted small">
+                                        {{ item.militar.posto.sigla }} {{ item.militar.nome_guerra }}
+                                    </span>
                                 {% else %}
-                                    <strong>{{ item.militar.nome_guerra }}</strong>
+                                    <span class="fw-semibold">{{ item.militar.posto.sigla }} {{ item.militar.nome_guerra }}</span>
                                     {% if item.forcar_escala %}
                                     <span class="badge bg-warning text-dark ms-1" title="Serviço forçado — folga mínima ignorada">
                                         <i class="bi bi-exclamation-triangle-fill"></i> Forçado
@@ -190,23 +193,13 @@
                                 {% endif %}
                             </td>
 
-                            {# ---- Posto ---- #}
-                            <td class="small text-muted">
-                                {% if pode_editar %}
-                                    <span class="posto-label-{{ item.id }}">{{ item.militar.posto.sigla }}</span>
-                                {% elif escala.status == 'publicada' and item.substituto %}
-                                    <span class="text-decoration-line-through text-muted">{{ item.militar.posto.sigla }}</span>
-                                {% else %}
-                                    {{ item.militar.posto.sigla }}
-                                {% endif %}
-                            </td>
-
                             {# ---- Coluna Substituto (apenas Escala Oficial) ---- #}
                             {% if escala.status == 'publicada' %}
                             <td class="substituto-cell-{{ item.id }}">
                                 {% if item.substituto %}
-                                    <strong class="text-success">{{ item.substituto.nome_guerra }}</strong>
-                                    <small class="text-muted ms-1">{{ item.substituto.posto.sigla }}</small>
+                                    <span class="fw-semibold text-success">
+                                        {{ item.substituto.posto.sigla }} {{ item.substituto.nome_guerra }}
+                                    </span>
                                 {% else %}
                                     <span class="text-muted small fst-italic">—</span>
                                 {% endif %}

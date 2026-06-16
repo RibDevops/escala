@@ -84,10 +84,19 @@
                                 <span class="text-muted">-</span>
                                 {% endif %}
                             {% elif troca.militar_entra == militar_logado %}
-                                {% if troca.aprovada_militar_entra %}
+                                {% if troca.aprovada_militar_entra == True %}
                                 <span class="text-success"><i class="bi bi-check-circle-fill"></i> Aprovado</span>
                                 {% elif troca.aprovada_militar_entra == False %}
-                                <span class="text-danger"><i class="bi bi-x-circle-fill"></i> Recusado</span>
+                                <span class="text-danger small"><i class="bi bi-x-circle-fill"></i> Recusado</span>
+                                {% if troca.status == 'pendente' %}
+                                <form method="post" action="{% url 'troca_aceitar' troca.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="acao" value="reconsiderar">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary ms-1" title="Reconsiderar — voltar para pendente">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
                                 {% elif troca.status == 'pendente' %}
                                 <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#aceitarModal{{ troca.id }}">
                                     <i class="bi bi-check-lg"></i> Aceitar
@@ -99,10 +108,16 @@
                                 <span class="text-muted">-</span>
                                 {% endif %}
                             {% elif troca.militar_entra_2 == militar_logado %}
-                                {% if troca.aprovada_militar_entra_2 %}
+                                {% if troca.aprovada_militar_entra_2 == True %}
                                 <span class="text-success"><i class="bi bi-check-circle-fill"></i> Aprovado</span>
                                 {% elif troca.aprovada_militar_entra_2 == False %}
-                                <span class="text-danger"><i class="bi bi-x-circle-fill"></i> Recusado</span>
+                                <span class="text-danger small"><i class="bi bi-x-circle-fill"></i> Recusado</span>
+                                {% if troca.status == 'pendente' %}
+                                <form method="post" action="{% url 'troca_aceitar' troca.id %}" class="d-inline">
+                                    {% csrf_token %}<input type="hidden" name="acao" value="reconsiderar">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary ms-1" title="Reconsiderar"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                </form>
+                                {% endif %}
                                 {% elif troca.status == 'pendente' %}
                                 <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#aceitarModal{{ troca.id }}">
                                     <i class="bi bi-check-lg"></i> Aceitar
@@ -110,8 +125,27 @@
                                 <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejeitarModal{{ troca.id }}">
                                     <i class="bi bi-x-lg"></i> Rejeitar
                                 </button>
-                                {% else %}
-                                <span class="text-muted">-</span>
+                                {% else %}<span class="text-muted">-</span>
+                                {% endif %}
+                            {% elif troca.militar_sai_2 == militar_logado %}
+                                {% if troca.aprovada_militar_sai_2 == True %}
+                                <span class="text-success"><i class="bi bi-check-circle-fill"></i> Aprovado</span>
+                                {% elif troca.aprovada_militar_sai_2 == False %}
+                                <span class="text-danger small"><i class="bi bi-x-circle-fill"></i> Recusado</span>
+                                {% if troca.status == 'pendente' %}
+                                <form method="post" action="{% url 'troca_aceitar' troca.id %}" class="d-inline">
+                                    {% csrf_token %}<input type="hidden" name="acao" value="reconsiderar">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary ms-1" title="Reconsiderar"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                </form>
+                                {% endif %}
+                                {% elif troca.status == 'pendente' %}
+                                <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#aceitarModal{{ troca.id }}">
+                                    <i class="bi bi-check-lg"></i> Aceitar
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejeitarModal{{ troca.id }}">
+                                    <i class="bi bi-x-lg"></i> Rejeitar
+                                </button>
+                                {% else %}<span class="text-muted">-</span>
                                 {% endif %}
                             {% endif %}
                         </td>
@@ -127,9 +161,23 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'troca_detalhar' troca.id %}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-eye"></i>
-                            </a>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'troca_detalhar' troca.id %}" class="btn btn-sm btn-outline-primary" title="Ver detalhes">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if troca.status == 'pendente' and troca.militar_sai == militar_logado %}
+                                <a href="{% url 'troca_editar' troca.id %}" class="btn btn-sm btn-outline-secondary" title="Editar motivo">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
+                                {% if troca.status == 'pendente' %}
+                                    {% if troca.militar_sai == militar_logado or troca.militar_entra == militar_logado or troca.militar_entra_2 == militar_logado %}
+                                    <a href="{% url 'troca_cancelar' troca.id %}" class="btn btn-sm btn-outline-danger" title="Cancelar troca">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
 

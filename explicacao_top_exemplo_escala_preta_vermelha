@@ -1,0 +1,44 @@
+Vamos rever as regra e passo a passo, no arquivo em excel escala2.xls tem a planilha de exemplo, vou compartilhar o meu passo a passo, vc precisa ser o melhor agora, bem simples, detalhado e passo a passo, vc vai gerar uma tabela pode ser a minha, com explicações melhores simples e detalhadas de como gerar uma escala de forma manual, vai gerar tambem um explicação, o melhor prompt para outras IA, faça perguntas detalhadas para força o melhor resultado possivel:
+Passos orientados na tabela antes:
+- tabela quadrinhos pretos antes
+c3 - h7
+- serviço a serem registrados:
+05/05/26
+06/05/26
+07/05/26
+08/05/26
+09/05/26
+10/05/26
+11/05/26
+12/05/26
+13/05/26
+
+1 - gero uma tabela com as indisponibilidades; 
+	indisponibilidades:	
+	s1carlos	06/05/26
+	s1 pire		13/05/26
+	sd ribeiro	12/05/26
+	sd ribeiro	13/05/26
+
+2 - verifico a coluna com menor quantidade de serviços -> Coluna E, neste momento não e necessario nomes
+3 - inicio de baixo para cima para achar a primeira disponibilidade -> E5
+4 - verifico o nome do militar se tem alguma indisponibilidade registrada para este dia
+5 - não tinha, preecho com a data do primeiro serviço: 05/05/26
+6 - o proximo dia para registra e 06/05/26,volto na tabela e repito o passo de achar a coluna com menor quantidade e de baixo para cima
+
+o sistema deve ser dinamico, tem montar uma tabela nova a cada vez que e registrado um serviço, preenchendo campos vazios do militar com a indiponiblidade dele, exemplo o proximo serviço e para o dia 06/05/26, se tiver algum militar com indisponibilidade nesta data, colocar de forma temporaria na coluna do militar assim ele não e escalado e subida continua, ou o militar e escolhido e no momento de preencher e verificado a indisponibilidade do dia e identifica o choque e volta e escolhe outro militar
+
+7 - achei a coluna E3 = s1carlos, porem o calos tem um indisponibilidade no dia 06/05/26 registrada
+8 - cheguei no topo, agora ando da esquerda para a direita, achei a F5 = s1 pire, registrei (neste momento como e um exemplo vamos ignorar a folga minima entre serviços que e configuravel)
+9 - o proximo dia para registra e 07/05/26,volto na tabela e repito o passo de achar a coluna com menor quantidade e de baixo para cima
+10 - achei a coluna E2 = E2 = s1carlos, verifico se tem indisponibilidade, não tem, registro
+
+
+Primeiro gero a escala preta e depois a vermelha, lembrando que existem uma folga entre serviços
+no exemplo não tem folgas 
+faça perguntas detalhadas de como e gerada, crie situações para eu responder e ajudar a gerar a melhor explicação
+
+com outras palavras, as datas nas colunas são para registro, o que importa e de seguir de baixo para cima, da esquerda para direita
+acho que seria muito bom todas as vezes que for registrar umn serviço gerar uma tabela dinamica
+
+informaçõa adicional, vejo se tem indisponibilidade e se está no period de folga

@@ -1,0 +1,76 @@
+
+
+link do projeto - https://github.com/RibDevops/escala.git
+Regras do motor
+1 - sim, o militar que estiver mais abaixo e o mais moderno
+2 - reiniciar a leitura completa da matriz da esquerda para a direita até achar alguém válido
+3 - sim a preta deve ser gerada inteira antes da vermelha, exemplo:
+o s1carlos ficou de de serviço dia 08/05/26, se no momento de gerar a vermelha ele tivesse a menor quantidade ele não poderia ser escalado para os 09 e 10 devido a folga, seria para o dia 16, esse e um dos motivos para gerar uma matriz a cada registro de serviço, assim ele colocaria temporariamente registros na linha do s1carlos, assim quando o motor passar ele não viria ele como menor quantidade, lembrando que gera primeira a preta depois a vermelha! Atenção se vc achar que essa logica pode mudar, vc pode fazer, gerar a escala do mês toda de uma vez, os serviços pretos e vermelhos.
+4 - sim começa a contar na saída 48 horas
+5 - sim
+
+Dados e cadastros
+
+1 - estas informações já tratadas em outra situação, vamos atentar no motor de gerar a escala
+2 - sim já existe funções para isso, estas informações já tratadas em outra situação, vamos atentar no motor de gerar a escala
+3 - abas escalas
+4 -  todas funcionam apenas como bloqueio simples por data/período
+
+Geração da escala
+1 - mensal
+2 - existem mais de um posto por dia, e tratado como tipo de escala
+3 - geração totalmente automática e depois ajuste manual
+4 - não teremos esse erro, a escala sempre vai crescer para direita, não tem limite ou fim
+5 - a cada novo serviço individual registrado durante a mesma execução
+
+Interface e operação
+estas informações já tratadas em outra situação, vamos atentar no motor de gerar a escala
+
+Técnica e arquitetura
+precisa encaixar esse motor em um sistema já existente
+mysql
+html
+
+Regra quando ninguém da menor quantidade puder assumir: 
+exemplo:
+s1carlos	09/02/26	07/05/26	08/05/26	13/05/26
+s1rogerio	08/02/26	01/03/26	04/04/26	09/04/26
+S1 mozer	06/02/26	02/03/26	05/04/26	25/04/26
+s1 pire		05/02/26	05/05/26	06/05/26	12/05/26
+sd ribeiro	02/02/26	03/03/26	08/04/26	11/05/26
+
+como vai ficar o proximo
+
+s1carlos	09/02/26	07/05/26	08/05/26	13/05/26
+s1rogerio	08/02/26	01/03/26	04/04/26	09/04/26
+S1 mozer	06/02/26	02/03/26	05/04/26	25/04/26
+s1 pire		05/02/26	05/05/26	06/05/26	12/05/26
+sd ribeiro	02/02/26	03/03/26	08/04/26	11/05/26	14/05/26
+
+
+
+Como funciona a folga em horas na prática: sai dia 10, so pode entrar dia 13
+
+Campos do cadastro do militar: ja existe vou compartilhar link do github, https://github.com/RibDevops/escala.git
+
+Quem pode tirar escala preta: todos
+
+Quem pode tirar escala vermelha: todos
+
+Tipos de indisponibilidade: registro individual ou por periodo
+
+Geração mensal/semanal/personalizada: mensal
+
+Quantos postos por dia: as escaladas são separadas separdamente
+
+O que fazer se ninguém puder assumir: cria uma nova coluna
+
+Tela estilo Excel: sim ou não: sim
+
+Exportações necessárias: sim
+
+Banco de dados: mysql
+
+Django templates ou API: Djando
+
+Nome definitivo do motor: ja existe vou compartilhar link do github, https://github.com/RibDevops/escala.git

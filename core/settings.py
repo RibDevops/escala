@@ -28,7 +28,7 @@
 # ALLOWED_HOSTS = ['*']
 
 
-# CSRF_TRUSTED_ORIGINS = ['http://10.100.0.34', 'http://localhost', 'http://demeter.xxxx.internet',  'https://escala.xxxx.internet']
+# CSRF_TRUSTED_ORIGINS = ['http://10.100.0.34', 'http://localhost', 'http://demeter.ciaer.interna',  'https://escala.ciaer.interna']
 
 # AUTH_USER_MODEL = 'escalas.UsuarioCustomizado'
 
@@ -110,7 +110,7 @@
 # ]
 
 
-# # internettionalization
+# # Internationalization
 # # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 # LANGUAGE_CODE = 'pt-br'
@@ -230,13 +230,13 @@
 # from django_auth_ldap.config import *
 # from django_auth_ldap.config import LDAPSearch
 
-# AUTH_LDAP_SERVER_URI = "ldap://10.100.0.0:389"
-# AUTH_LDAP_BIND_DN = "cn=django,ou=xxxx,dc=xxxx,dc=internet"
-# AUTH_LDAP_BIND_PASSWORD = "xxxxxyyy"
+# AUTH_LDAP_SERVER_URI = "ldap://10.100.0.1:389"
+# AUTH_LDAP_BIND_DN = "cn=django,ou=ciaer,dc=ciaer,dc=interna"
+# AUTH_LDAP_BIND_PASSWORD = "P0rM41s7"
 
 # AUTH_LDAP_USER_SEARCH = LDAPSearch(
-# #            "ou=xxxx,dc=xxxx,dc=internet", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
-#             "ou=xxxx,dc=xxxx,dc=internet", ldap.SCOPE_SUBTREE, "(sAMAccountName=%(user)s)"
+# #            "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
+#             "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(sAMAccountName=%(user)s)"
 #             )
 
 # AUTH_LDAP_USER_ATTR_MAP = {
@@ -265,8 +265,20 @@
 # AUTH_LDAP_CACHE_TIMEOUT = 3600        # Cache de grupo em segundos
 
 
+"""
+Django settings for core project.
+Django 5.2.x
+"""
+
 import os
 from pathlib import Path
+
+try:
+    import ldap
+    from django_auth_ldap.config import LDAPSearch
+    _LDAP_DISPONIVEL = True
+except ImportError:
+    _LDAP_DISPONIVEL = False
 
 # =============================================================================
 # PATHS
@@ -290,15 +302,10 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://10.100.0.0",
+    "http://10.100.0.34",
     "http://localhost",
-    "http://demeter.xxxx.internet",
-    "https://escala.xxxx.internet",
-    "https://*.replit.dev",
-    "https://*.replit.app",
-    "https://*.repl.co",
-    "https://*.kirk.replit.dev",
-    "https://*.picard.replit.dev",
+    "http://demeter.ciaer.interna",
+    "https://escala.ciaer.interna",
 ]
 
 # =============================================================================
@@ -394,7 +401,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # =============================================================================
-# internetTIONALIZATION
+# INTERNATIONALIZATION
 # =============================================================================
 
 LANGUAGE_CODE = "pt-br"
@@ -511,42 +518,37 @@ LOGGING = {
 # LDAP / ACTIVE DIRECTORY
 # =============================================================================
 
-# from django_auth_ldap.config import *
-# from django_auth_ldap.config import LDAPSearch
+if _LDAP_DISPONIVEL:
+    # Produção (Linux / python-ldap instalado) — autentica via AD
+    from django_auth_ldap.config import *
 
-# AUTH_LDAP_SERVER_URI = "ldap://10.100.0.1:389"
-# AUTH_LDAP_BIND_DN = "cn=django,ou=xxxx,dc=xxxx,dc=internet"
-# AUTH_LDAP_BIND_PASSWORD = "XXXXXX"
+    AUTH_LDAP_SERVER_URI = "ldap://10.100.0.1:389"
+    AUTH_LDAP_BIND_DN = "cn=django,ou=ciaer,dc=ciaer,dc=interna"
+    AUTH_LDAP_BIND_PASSWORD = "P0rM41s7"
 
-# AUTH_LDAP_USER_SEARCH = LDAPSearch(
-# #            "ou=xxxx,dc=xxxx,dc=internet", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
-#             "ou=xxxx,dc=xxxx,dc=internet", ldap.SCOPE_SUBTREE, "(sAMAccountName=%(user)s)"
-#             )
+    AUTH_LDAP_USER_SEARCH = LDAPSearch(
+        "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(sAMAccountName=%(user)s)"
+    )
 
-# AUTH_LDAP_USER_ATTR_MAP = {
-#             "username": "sAMAccountName",
-# #            "username": "uid",
-#                "first_name": "name",
-#                     "last_name": "physicalDeliveryOfficeName",
-# 			#"posto_nome": "cn",
-# #                        "email": "mail",
-# }
+    AUTH_LDAP_USER_ATTR_MAP = {
+        "username": "sAMAccountName",
+        "first_name": "name",
+        "last_name": "physicalDeliveryOfficeName",
+    }
 
+    AUTHENTICATION_BACKENDS = [
+        "core.backend.CustomLDAPBackend",
+        "django.contrib.auth.backends.ModelBackend",
+    ]
 
-# # AUTHENTICATION_BACKENDS = [
-# #             'django_auth_ldap.backend.LDAPBackend',
-# #             'django.contrib.auth.backends.ModelBackend',
-# # ]
+    AUTH_LDAP_ALWAYS_UPDATE_USER = True
+    AUTH_LDAP_CACHE_TIMEOUT = 3600
 
-# AUTHENTICATION_BACKENDS = [
-#             'core.backend.CustomLDAPBackend',
-#                 'django.contrib.auth.backends.ModelBackend',
-# ]
-
-
-# AUTH_LDAP_ALWAYS_UPDATE_USER = True
-
-# AUTH_LDAP_CACHE_TIMEOUT = 3600
+else:
+    # Teste local (Windows / sem python-ldap) — login local apenas
+    AUTHENTICATION_BACKENDS = [
+        "django.contrib.auth.backends.ModelBackend",
+    ]
 
 # =============================================================================
 # SECURITY OPTIONS (opcional)
@@ -567,6 +569,6 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 # =============================================================================
 
 if DEBUG:
-    internetL_IPS = [
+    INTERNAL_IPS = [
         "127.0.0.1",
     ]

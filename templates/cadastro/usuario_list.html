@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
-{% block titulo %}Usuários / Militares{% endblock %}
+{% block titulo %}Militares{% endblock %}
 {% block conteudo %}
+
 <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div>
-        <h1><i class="bi bi-people"></i> Militares e Usuários</h1>
-        <div class="subtitle">Todos os militares cadastrados têm acesso ao sistema</div>
+        <h1><i class="bi bi-person-badge"></i> Militares</h1>
+        <div class="subtitle">Efetivo cadastrado · {{ militares|length }} ativo{% if militares|length != 1 %}s{% endif %} · ordenado por antiguidade</div>
     </div>
     <a href="{% url 'militar_novo' %}" class="btn btn-mil-dourado">
         <i class="bi bi-person-plus-fill"></i> Novo militar
@@ -14,113 +15,201 @@
 <!-- Filtros -->
 <div class="card-mil mb-3">
     <div class="p-3 border-bottom">
-        <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
-            <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm"
-                   placeholder="Buscar nome de guerra, matrícula ou login…" style="max-width:260px;">
-            <select name="tipo_escala" class="form-select form-select-sm" style="max-width:200px;">
-                <option value="">Todas as escalas</option>
-                {% for te in tipos_escala %}
-                <option value="{{ te.id }}" {% if tipo_escala_filtro == te.id|stringformat:"s" %}selected{% endif %}>{{ te.nome }}</option>
-                {% endfor %}
-            </select>
-            <select name="perfil" class="form-select form-select-sm" style="max-width:180px;">
-                <option value="">Todos os papéis</option>
-                {% for val, label in perfis %}
-                <option value="{{ val }}" {% if perfil_filtro == val %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-sm btn-mil">
-                <i class="bi bi-search"></i> Filtrar
-            </button>
-            {% if q or perfil_filtro or tipo_escala_filtro %}
-            <a href="{% url 'usuario_listar' %}" class="btn btn-sm btn-mil-outline">Limpar</a>
-            {% endif %}
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">Buscar</label>
+                <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm"
+                       placeholder="Nome, matrícula, CPF ou login…">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Divisão</label>
+                <select name="divisao" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    {% for d in divisoes %}
+                    <option value="{{ d.id }}" {% if d.id|stringformat:"s" == divisao_filtro %}selected{% endif %}>{{ d.sigla }} — {{ d.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label small">Posto</label>
+                <select name="posto" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    {% for p in postos %}
+                    <option value="{{ p.id }}" {% if p.id|stringformat:"s" == posto_filtro %}selected{% endif %}>{{ p.sigla }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Tipo de Escala</label>
+                <select name="tipo_escala" class="form-select form-select-sm">
+                    <option value="">Todas as escalas</option>
+                    {% for te in tipos_escala %}
+                    <option value="{{ te.id }}" {% if tipo_escala_filtro == te.id|stringformat:"s" %}selected{% endif %}>{{ te.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Papel</label>
+                <select name="perfil" class="form-select form-select-sm">
+                    <option value="">Todos os papéis</option>
+                    {% for val, label in perfis %}
+                    <option value="{{ val }}" {% if perfil_filtro == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-mil flex-grow-1">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+                {% if q or divisao_filtro or posto_filtro or tipo_escala_filtro or perfil_filtro %}
+                <a href="{% url 'usuario_listar' %}" class="btn btn-sm btn-mil-outline" title="Limpar filtros">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+                {% endif %}
+            </div>
         </form>
     </div>
 
-    <!-- Tabela de militares -->
-    <table class="table table-mil mb-0">
-        <thead>
-            <tr>
-                <th>Posto / Nome de guerra</th>
-                <th>Login (username)</th>
-                <th>Papel</th>
-                <th>Escalas que participa</th>
-                <th style="width:90px;">Acesso</th>
-                <th style="width:120px;" class="text-end">Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for m in militares %}
-            <tr class="{% if not m.ativo %}table-secondary{% endif %}">
-                <td>
-                    <strong>{{ m.posto.sigla }} {{ m.nome_guerra }}</strong>
-                    {% if m.nome_completo %}
-                    <div class="small text-muted">{{ m.nome_completo }}</div>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if m.user %}
-                        <code class="small">{{ m.user.username }}</code>
-                        {% if m.user.is_superuser %}
-                            <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">SUPER</span>
-                        {% endif %}
-                    {% else %}
-                        <span class="text-muted small fst-italic">sem usuário</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if m.user %}
-                        {% if m.user.perfil == 'admin_om' %}
-                            <span class="badge-mil" style="background:#8a4000;">{{ m.user.get_perfil_display }}</span>
-                        {% elif m.user.perfil == 'escalante' %}
-                            <span class="badge-mil" style="background:#1a5fa8;">{{ m.user.get_perfil_display }}</span>
-                        {% elif m.user.perfil == 'chefe' %}
-                            <span class="badge-mil" style="background:#6f42c1;">{{ m.user.get_perfil_display }}</span>
-                        {% elif m.user.perfil == 'adjunto' %}
-                            <span class="badge-mil" style="background:#0d6efd;">{{ m.user.get_perfil_display }}</span>
+    <!-- Tabela principal -->
+    <div class="table-responsive">
+        <table class="table table-mil mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th style="width:90px;">Posto</th>
+                    <th>Nome de guerra</th>
+                    <th class="d-none d-lg-table-cell">Nome completo</th>
+                    <th class="d-none d-md-table-cell" style="width:110px;">Matrícula</th>
+                    <th class="d-none d-md-table-cell" style="width:80px;">Divisão</th>
+                    <th class="d-none d-xl-table-cell" style="width:110px;" title="Data da última promoção — mais antiga = mais antigo na lista">Ult. Promoção</th>
+                    <th style="width:140px;">Login</th>
+                    <th style="width:110px;">Papel</th>
+                    <th class="d-none d-lg-table-cell">Escalas</th>
+                    <th style="width:80px;">Acesso</th>
+                    <th style="width:110px;" class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in militares %}
+                <tr>
+                    <td><span class="badge-posto">{{ m.posto.sigla }}</span></td>
+                    <td><strong>{{ m.nome_guerra }}</strong></td>
+                    <td class="text-muted small d-none d-lg-table-cell">{{ m.nome_completo }}</td>
+                    <td class="d-none d-md-table-cell"><code class="small">{{ m.matricula }}</code></td>
+                    <td class="d-none d-md-table-cell small text-muted">{{ m.divisao.sigla|default:"—" }}</td>
+                    <td class="d-none d-xl-table-cell small text-muted">
+                        {% if m.data_ultima_promocao %}{{ m.data_ultima_promocao|date:"d/m/Y" }}{% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if m.user %}
+                            <code class="small">{{ m.user.username }}</code>
+                            {% if m.user.is_superuser %}
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">SUPER</span>
+                            {% endif %}
                         {% else %}
-                            <span class="badge-mil" style="background:#555;">{{ m.user.get_perfil_display }}</span>
+                            <span class="text-muted small fst-italic">sem login</span>
                         {% endif %}
-                    {% else %}
-                        <span class="badge bg-secondary">—</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% for te in m.tipos_escala.all %}
-                        <span class="badge bg-primary me-1" style="font-size:0.7rem;">{{ te.nome }}</span>
-                    {% empty %}
-                        <span class="text-muted small">Nenhuma</span>
-                    {% endfor %}
-                </td>
-                <td>
-                    {% if m.user and m.user.is_active %}
-                        <span class="badge-mil">Ativo</span>
-                    {% elif m.user %}
-                        <span class="badge-mil badge-inativo">Inativo</span>
-                    {% else %}
-                        <span class="badge bg-warning text-dark" style="font-size:0.7rem;">Sem login</span>
-                    {% endif %}
-                </td>
-                <td class="text-end">
-                    <a href="{% url 'militar_editar' m.id %}" class="btn btn-sm btn-mil-outline" title="Editar militar e acesso">
-                        <i class="bi bi-pencil"></i>
-                    </a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" class="text-center text-muted py-4">
-                    Nenhum militar encontrado.
-                    <a href="{% url 'militar_novo' %}">Cadastrar agora</a>.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                    </td>
+                    <td>
+                        {% if m.user %}
+                            {% if m.user.perfil == 'admin_om' %}
+                                <span class="badge-mil" style="background:#8a4000;">{{ m.user.get_perfil_display }}</span>
+                            {% elif m.user.perfil == 'escalante' %}
+                                <span class="badge-mil" style="background:#1a5fa8;">{{ m.user.get_perfil_display }}</span>
+                            {% elif m.user.perfil == 'chefe' %}
+                                <span class="badge-mil" style="background:#6f42c1;">{{ m.user.get_perfil_display }}</span>
+                            {% elif m.user.perfil == 'adjunto' %}
+                                <span class="badge-mil" style="background:#0d6efd;">{{ m.user.get_perfil_display }}</span>
+                            {% else %}
+                                <span class="badge-mil" style="background:#555;">{{ m.user.get_perfil_display }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-secondary" style="font-size:0.7rem;">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="d-none d-lg-table-cell">
+                        {% for te in m.tipos_escala.all %}
+                            <span class="badge bg-primary me-1" style="font-size:0.7rem;">{{ te.nome }}</span>
+                        {% empty %}
+                            <span class="text-muted small">Nenhuma</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if m.user and m.user.is_active %}
+                            <span class="badge-mil">Ativo</span>
+                        {% elif m.user %}
+                            <span class="badge-mil badge-inativo">Inativo</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark" style="font-size:0.7rem;">Sem login</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <a href="{% url 'militar_detalhe' m.id %}" class="btn btn-sm btn-mil" title="Detalhar">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{% url 'militar_editar' m.id %}" class="btn btn-sm btn-mil-outline" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" class="text-center text-muted py-4">
+                        Nenhum militar encontrado.
+                        <a href="{% url 'militar_novo' %}">Cadastrar agora</a>.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
-<!-- Usuários sem militar (admins/escalantes avulsos) -->
+<!-- Militares inativos -->
+{% if militares_inativos %}
+<div class="mb-3">
+    <button class="btn btn-mil-outline btn-sm mb-2" type="button"
+            data-bs-toggle="collapse" data-bs-target="#tabela-inativos"
+            aria-expanded="false">
+        <i class="bi bi-archive"></i>
+        Militares desativados ({{ militares_inativos|length }})
+        <i class="bi bi-chevron-down ms-1" id="chevron-inativos"></i>
+    </button>
+    <div class="collapse" id="tabela-inativos">
+        <div class="card-mil" style="opacity:.85;">
+            <div class="table-responsive">
+                <table class="table table-mil mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width:90px;">Posto</th>
+                            <th>Nome de guerra</th>
+                            <th class="d-none d-md-table-cell">Matrícula</th>
+                            <th class="d-none d-md-table-cell">Divisão</th>
+                            <th style="width:110px;" class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in militares_inativos %}
+                        <tr class="text-muted">
+                            <td><span class="badge-posto" style="opacity:.6;">{{ m.posto.sigla }}</span></td>
+                            <td><span style="text-decoration:line-through;">{{ m.nome_guerra }}</span></td>
+                            <td class="d-none d-md-table-cell"><code class="text-muted small">{{ m.matricula }}</code></td>
+                            <td class="d-none d-md-table-cell small">{{ m.divisao.sigla|default:"—" }}</td>
+                            <td class="text-end text-nowrap">
+                                <a href="{% url 'militar_editar' m.id %}" class="btn btn-sm btn-mil-outline" title="Reativar / Editar">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Usuários administrativos sem militar vinculado -->
 {% if usuarios_sem_militar %}
 <div class="card-mil mb-3">
     <div class="card-mil-header">
@@ -177,47 +266,12 @@
 </div>
 {% endif %}
 
-<!-- Legenda de papéis -->
-<div class="card-mil p-3">
-    <div class="row g-3">
-        <div class="col-md-8">
-            <h6 class="mb-2" style="color:var(--m-escuro);text-transform:uppercase;font-size:0.8rem;letter-spacing:0.05em;">
-                <i class="bi bi-info-circle"></i> Papéis disponíveis
-            </h6>
-            <div class="row g-2 small">
-                <div class="col-sm-6">
-                    <div class="p-2 border rounded">
-                        <strong>Militar (padrão)</strong><br>
-                        <span class="text-muted">Consulta escalas, registra indisponibilidade e solicita trocas.</span>
-                    </div>
-                </div>
-                <div class="col-sm-6">
-                    <div class="p-2 border rounded">
-                        <strong>Escalante</strong><br>
-                        <span class="text-muted">Gera escalas, aprova trocas e gerencia indisponibilidades.</span>
-                    </div>
-                </div>
-                <div class="col-sm-6">
-                    <div class="p-2 border rounded">
-                        <strong>Chefe / Adjunto</strong><br>
-                        <span class="text-muted">Publica escalas e homologa trocas de serviço.</span>
-                    </div>
-                </div>
-                <div class="col-sm-6">
-                    <div class="p-2 border rounded">
-                        <strong>Administrador da OM</strong><br>
-                        <span class="text-muted">Acesso total a todos os cadastros e configurações.</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 d-flex align-items-center">
-            <div class="p-3 rounded small" style="background:rgba(255,241,18,0.12);border:1px solid var(--m-amarelo);">
-                <i class="bi bi-shield-lock"></i> <strong>Autenticação LDAP</strong><br>
-                A senha é gerenciada pela rede (LDAP/Active Directory).
-                O username é gerado automaticamente ao cadastrar o militar.
-            </div>
-        </div>
-    </div>
-</div>
+<script>
+document.getElementById('tabela-inativos')?.addEventListener('show.bs.collapse', () => {
+    document.getElementById('chevron-inativos')?.classList.replace('bi-chevron-down','bi-chevron-up');
+});
+document.getElementById('tabela-inativos')?.addEventListener('hide.bs.collapse', () => {
+    document.getElementById('chevron-inativos')?.classList.replace('bi-chevron-up','bi-chevron-down');
+});
+</script>
 {% endblock %}

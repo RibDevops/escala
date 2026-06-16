@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static escala_filters %}<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -11,14 +11,14 @@
     <link rel="stylesheet" href="{% static 'css/militar.css' %}">
     <style>
         :root {
-            --dk-bg:       #111211;
-            --dk-surface:  #1c1d1c;
-            --dk-surface2: #232423;
-            --dk-surface3: #2a2b2a;
-            --dk-border:   rgba(255,241,18,.14);
-            --dk-yellow:   #FFF112;
-            --dk-text:     #e4e4e2;
-            --dk-muted:    rgba(228,228,226,.5);
+            --dk-bg:       #f0f2f5;
+            --dk-surface:  #ffffff;
+            --dk-surface2: #ffffff;
+            --dk-surface3: #f8fafc;
+            --dk-border:   #dde3ec;
+            --dk-yellow:   #c4992a;
+            --dk-text:     #1a2332;
+            --dk-muted:    #64748b;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
@@ -35,6 +35,7 @@
         .pub-header {
             background: var(--dk-surface);
             border-bottom: 3px solid var(--dk-yellow);
+            box-shadow: 0 1px 4px rgba(30,58,95,.08);
             padding: 1rem 1.8rem;
             display: flex;
             align-items: center;
@@ -51,7 +52,7 @@
             font-weight: 700;
             margin: 0;
             letter-spacing: .05em;
-            color: #fff;
+            color: #1e3a5f;
         }
         .pub-header .subtitle {
             font-size: .82rem;
@@ -131,14 +132,14 @@
             font-size: .85rem;
         }
         .mes-header.atual {
-            background: #1a2a40;
+            background: #1e3a5f;
             border-bottom: 2px solid var(--dk-yellow);
             color: #fff;
         }
         .mes-header.previsao {
-            background: #2e2000;
-            border-bottom: 2px solid #f0a500;
-            color: #f0c040;
+            background: #faf3e0;
+            border-bottom: 2px solid #c4992a;
+            color: #7a5c10;
         }
 
         /* ── Tabela de escala ───────────────────────────── */
@@ -168,8 +169,8 @@
         }
         .escala-table td.col-data { font-weight: 700; white-space: nowrap; }
         .escala-table td.col-dia  { color: #888; font-size: .78rem; }
-        .escala-table td.col-nome { font-weight: 700; }
-        .escala-table td.col-posto { color: #888; font-size: .78rem; }
+        .escala-table td.col-nome { font-weight: 600; }
+        .escala-table td.col-posto { display: none; } /* posto agora faz parte do col-nome */
         tr.hoje-row { background: #fffbe6 !important; }
         tr.hoje-row td { color: #1a1b1a; }
         .badge-hoje {
@@ -216,15 +217,15 @@
             align-items: center;
             gap: .5rem;
             padding: .38rem 0;
-            border-bottom: 1px solid rgba(255,241,18,.07);
+            border-bottom: 1px solid var(--dk-border);
             font-size: .86rem;
         }
         .proximos-lista li:last-child { border-bottom: none; }
         .prox-num {
             width: 22px; height: 22px;
             border-radius: 50%;
-            background: rgba(255,241,18,.1);
-            color: var(--dk-yellow);
+            background: #e8eef5;
+            color: #1e3a5f;
             font-weight: 800;
             font-size: .68rem;
             display: flex; align-items: center; justify-content: center;
@@ -237,16 +238,16 @@
 
         /* ── Alertas ────────────────────────────────────── */
         .alerta-dark {
-            background: var(--dk-surface2);
+            background: #f8fafc;
             border: 1px solid var(--dk-border);
-            border-left: 3px solid rgba(255,241,18,.4);
+            border-left: 3px solid var(--dk-yellow);
             border-radius: 7px;
             padding: .7rem 1rem;
             font-size: .85rem;
             color: var(--dk-muted);
             margin-bottom: 1rem;
         }
-        .alerta-dark.aviso { border-left-color: #f0a500; }
+        .alerta-dark.aviso { border-left-color: #d97706; }
 
         /* ── Controles topo ─────────────────────────────── */
         .topo-bar {
@@ -264,29 +265,28 @@
             padding: .25rem .6rem;
             border-radius: 4px;
         }
-        .badge-status.publicada { background: #1a3d1a; color: #5ae65a; border: 1px solid #2e6b2e; }
-        .badge-status.previsao  { background: #2e2000; color: #f0c040; border: 1px solid #6b4a00; }
+        .badge-status.publicada { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+        .badge-status.previsao  { background: #faf3e0; color: #7a5c10; border: 1px solid #e0c87a; }
         .badge-status.outro     { background: var(--dk-surface3); color: var(--dk-muted); border: 1px solid var(--dk-border); }
         .btn-matriz {
             margin-left: auto;
-            background: transparent;
-            border: 1px solid rgba(255,241,18,.3);
-            color: rgba(255,241,18,.8);
+            background: #fff;
+            border: 1px solid #dde3ec;
+            color: #1e3a5f;
             font-size: .78rem;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: .05em;
+            letter-spacing: .04em;
             padding: .35rem .9rem;
             border-radius: 5px;
             text-decoration: none;
-            transition: background .15s, color .15s;
+            transition: background .15s, border-color .15s;
             display: inline-flex;
             align-items: center;
             gap: .35rem;
         }
         .btn-matriz:hover {
-            background: rgba(255,241,18,.08);
-            color: var(--dk-yellow);
+            background: #e8eef5;
+            border-color: #1e3a5f;
         }
 
         /* ── Footer ─────────────────────────────────────── */
@@ -298,8 +298,8 @@
             margin-top: 1rem;
             border-top: 1px solid var(--dk-border);
         }
-        .footer-pub a { color: rgba(255,241,18,.5); text-decoration: none; }
-        .footer-pub a:hover { color: var(--dk-yellow); }
+        .footer-pub a { color: var(--dk-yellow); text-decoration: none; }
+        .footer-pub a:hover { color: #1e3a5f; }
 
         @media (max-width: 600px) {
             .pub-header h1 { font-size: 1.1rem; }
@@ -347,48 +347,61 @@
 
 <div class="topo-bar">
     {% if escala_atual %}
-        <span style="font-weight:700;font-size:.9rem;">
-            <i class="bi bi-calendar2-week" style="color:var(--dk-yellow);"></i>
-            {{ escala_atual.mes|stringformat:"02d" }}/{{ escala_atual.ano }}
-        </span>
+        {# ── Navegação entre meses ── #}
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+            {% if escala_anterior %}
+            <a href="?mes={{ escala_anterior.mes }}&ano={{ escala_anterior.ano }}"
+               class="btn-matriz" style="margin-left:0;" title="{{ nomes_meses.escala_anterior.mes }} {{ escala_anterior.ano }}">
+                <i class="bi bi-chevron-left"></i>
+                {{ nomes_meses|index:escala_anterior.mes }} {{ escala_anterior.ano }}
+            </a>
+            {% else %}
+            <span class="btn-matriz" style="margin-left:0;opacity:.35;cursor:default;">
+                <i class="bi bi-chevron-left"></i>
+            </span>
+            {% endif %}
+
+            <span style="font-weight:700;font-size:.95rem;padding:0 .3rem;">
+                <i class="bi bi-calendar2-week" style="color:var(--dk-yellow);"></i>
+                {{ nomes_meses|index:escala_atual.mes }} {{ escala_atual.ano }}
+            </span>
+
+            {% if escala_proxima %}
+            <a href="?mes={{ escala_proxima.mes }}&ano={{ escala_proxima.ano }}"
+               class="btn-matriz" style="margin-left:0;">
+                {{ nomes_meses|index:escala_proxima.mes }} {{ escala_proxima.ano }}
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            {% else %}
+            <span class="btn-matriz" style="margin-left:0;opacity:.35;cursor:default;">
+                <i class="bi bi-chevron-right"></i>
+            </span>
+            {% endif %}
+        </div>
+
         <span class="badge-status {% if escala_atual.status == 'publicada' %}publicada{% elif escala_atual.status == 'previsao' %}previsao{% else %}outro{% endif %}">
             {{ escala_atual.get_status_display }}
         </span>
-        {% if proxima_escala %}
-        <span class="badge-status outro">
-            <i class="bi bi-arrow-right-circle"></i>
-            {{ proxima_escala.get_status_display }} {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }} disponível
-        </span>
-        {% endif %}
     {% else %}
         <span style="color:var(--dk-muted);font-size:.88rem;">
             <i class="bi bi-calendar-x"></i> Nenhuma escala publicada ou em previsão.
         </span>
     {% endif %}
-    <a href="{{ tipo_escala.get_matriz_publica_url }}" class="btn-matriz">
-        <i class="bi bi-grid-3x3"></i> Ver Matriz
+    <a href="{% url 'quadrinho_visao' %}?tipo_escala={{ tipo_escala.id }}&tab=quadrinhos"
+       class="btn-matriz">
+        <i class="bi bi-grid-3x3-gap"></i> Quadrinho
     </a>
 </div>
 
 {% if escala_atual %}
 
-<!-- ══ Mês atual ══ -->
-<div class="d-flex align-items-center gap-2 mb-2">
-    <p class="section-title mb-0 flex-grow-1">
-        <i class="bi bi-calendar-check"></i>
-        {% with escala_atual.mes|stringformat:"02d" as mm %}{{ mm }}/{{ escala_atual.ano }}{% endwith %}
-        — Em andamento
-    </p>
-    <span class="badge-status {% if escala_atual.status == 'publicada' %}publicada{% elif escala_atual.status == 'previsao' %}previsao{% else %}outro{% endif %} mb-3">
-        {{ escala_atual.get_status_display }}
-    </span>
-</div>
-
+<!-- ══ Mês selecionado ══ -->
 {% if itens_atual %}
 <div class="escala-card">
-    <div class="mes-header atual">
+    <div class="mes-header {% if eh_mes_atual %}atual{% else %}previsao{% endif %}">
         <i class="bi bi-calendar-week"></i>
-        Restante de {{ escala_atual.mes|stringformat:"02d" }}/{{ escala_atual.ano }}
+        {{ nomes_meses|index:escala_atual.mes }} {{ escala_atual.ano }}
+        {% if eh_mes_atual %}<span style="font-size:.72rem;opacity:.7;margin-left:.4rem;">— Em andamento</span>{% endif %}
         <span style="margin-left:auto;font-size:.72rem;color:var(--dk-muted);">{{ itens_atual|length }} dia(s)</span>
     </div>
     <div class="table-responsive">
@@ -399,7 +412,7 @@
                     <th>Dia</th>
                     <th>Tipo</th>
                     <th>Militar</th>
-                    <th>Posto</th>
+                    <th>Substituto</th>
                 </tr>
             </thead>
             <tbody>
@@ -417,8 +430,20 @@
                         </span>
                         {% endif %}
                     </td>
-                    <td class="col-nome">{{ d.militar.nome_guerra }}</td>
-                    <td class="col-posto">{{ d.militar.posto.sigla }}</td>
+                    <td class="col-nome">
+                        {% if d.substituto %}
+                            <span class="text-decoration-line-through text-muted">{{ d.militar.posto.sigla }} {{ d.militar.nome_guerra }}</span>
+                        {% else %}
+                            {{ d.militar.posto.sigla }} {{ d.militar.nome_guerra }}
+                        {% endif %}
+                    </td>
+                    <td class="col-nome">
+                        {% if d.substituto %}
+                            <span style="color:#15803d;font-weight:600;">{{ d.substituto.posto.sigla }} {{ d.substituto.nome_guerra }}</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                 </tr>
             {% endfor %}
             </tbody>
@@ -431,8 +456,8 @@
 </div>
 {% endif %}
 
-<!-- ══ Próximo mês (previsão) ══ -->
-{% if proxima_escala and itens_proximo %}
+<!-- ══ Próximo mês (previsão) — só exibido no mês atual ══ -->
+{% if eh_mes_atual and proxima_escala and itens_proximo %}
 <div class="d-flex align-items-center gap-2 mb-2 mt-4">
     <p class="section-title mb-0 flex-grow-1" style="border-bottom-color:#f0a500;">
         <i class="bi bi-calendar2-plus"></i>
@@ -457,7 +482,7 @@
                     <th>Dia</th>
                     <th>Tipo</th>
                     <th>Militar</th>
-                    <th>Posto</th>
+                    <th>Substituto</th>
                 </tr>
             </thead>
             <tbody>
@@ -472,15 +497,27 @@
                         </span>
                         {% endif %}
                     </td>
-                    <td class="col-nome">{{ d.militar.nome_guerra }}</td>
-                    <td class="col-posto">{{ d.militar.posto.sigla }}</td>
+                    <td class="col-nome">
+                        {% if d.substituto %}
+                            <span class="text-decoration-line-through text-muted">{{ d.militar.posto.sigla }} {{ d.militar.nome_guerra }}</span>
+                        {% else %}
+                            {{ d.militar.posto.sigla }} {{ d.militar.nome_guerra }}
+                        {% endif %}
+                    </td>
+                    <td class="col-nome">
+                        {% if d.substituto %}
+                            <span style="color:#15803d;font-weight:600;">{{ d.substituto.posto.sigla }} {{ d.substituto.nome_guerra }}</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                 </tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
-{% elif proxima_escala %}
+{% elif eh_mes_atual and proxima_escala %}
 <div class="alerta-dark aviso mt-4">
     <i class="bi bi-calendar2-plus"></i>
     Previsão de {{ proxima_escala.mes|stringformat:"02d" }}/{{ proxima_escala.ano }} criada, mas ainda sem serviços lançados.
@@ -504,16 +541,21 @@
             {% for p in bloco.proximos %}
             <li>
                 <span class="prox-num">{{ forloop.counter }}</span>
-                <div>
-                    <div class="prox-nome">{{ p.militar.nome_guerra }}</div>
-                    <div class="prox-posto">{{ p.militar.posto.sigla }}</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="prox-nome">{{ p.militar.posto.sigla }} {{ p.militar.nome_guerra }}</div>
                 </div>
-                <span class="prox-total">{{ p.total }} serv.</span>
+                <span class="prox-total" title="Total geral / este tipo">
+                    <span style="font-weight:700;color:var(--dk-navy,#1e3a5f);">{{ p.contagem_tipo }}</span>
+                    <span style="opacity:.5;margin:0 2px;">/</span>
+                    <span>{{ p.total }}</span>
+                </span>
             </li>
             {% endfor %}
         </ul>
         <div class="prox-hint">
-            <i class="bi bi-info-circle"></i> Menor contagem — primeiros a escalar.
+            <i class="bi bi-info-circle"></i>
+            <strong>N / Total</strong> — contagem deste tipo / total geral.
+            Menor total = próximo a escalar. Empate: mais moderno primeiro.
         </div>
     </div>
     {% endif %}

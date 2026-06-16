@@ -92,9 +92,10 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Selecione outro dia de serviço para trocar *</label>
+                            <label class="form-label">Selecione o dia de serviço do militar que vai entrar *</label>
+                            <small class="text-muted d-block mb-1">Os dias exibidos são os serviços escalados do militar selecionado acima.</small>
                             <div id="servicosContainer2">
-                                <div class="text-muted">Selecione o tipo de escala primeiro</div>
+                                <div class="text-muted">Selecione o tipo de escala e o militar primeiro</div>
                             </div>
                         </div>
 
@@ -131,21 +132,111 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const tipoEscala = document.getElementById('tipoEscala');
-    const escalaStatus = document.getElementById('escalaStatus');
-    const servicosContainer = document.getElementById('servicosContainer');
+    const tipoEscala        = document.getElementById('tipoEscala');
+    const servicosContainer  = document.getElementById('servicosContainer');
     const servicosContainer2 = document.getElementById('servicosContainer2');
-    const trocaSimples = document.getElementById('trocaSimples');
-    const trocaMutua = document.getElementById('trocaMutua');
+    const trocaSimples       = document.getElementById('trocaSimples');
+    const trocaMutua         = document.getElementById('trocaMutua');
     const trocaMutuaContainer = document.getElementById('trocaMutuaContainer');
-    const militarEntra = document.getElementById('militarEntra');
-    const militarEntra2 = document.getElementById('militarEntra2');
+    const militarEntra       = document.getElementById('militarEntra');
+    const militarEntra2      = document.getElementById('militarEntra2');
+    const BASE_URL           = '{% url "troca_servicos_militar" %}';
 
-    // Mudar visibilidade da segunda perna
+    // -----------------------------------------------------------------------
+    // Monta o HTML da lista de serviços (radio buttons)
+    // -----------------------------------------------------------------------
+    function buildServicosHtml(servicos, radioName) {
+        if (!servicos || servicos.length === 0) return null;
+        let html = '<div class="list-group" style="max-height:300px;overflow-y:auto;">';
+        servicos.forEach(s => {
+            const badge = s.escala_status === 'publicada'
+                ? '<span class="badge bg-success ms-1">Publicada</span>'
+                : '<span class="badge bg-warning text-dark ms-1">Previsão</span>';
+            html += `
+                <label class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <div>
+                            <input type="radio" name="${radioName}" value="${s.data}" required>
+                            <strong>${s.data_display}</strong>
+                            <span class="badge ms-1" style="background-color:${s.tipo_servico_cor}">${s.tipo_servico}</span>
+                            ${badge}
+                        </div>
+                        <small class="text-muted">${s.escala_tipo}</small>
+                    </div>
+                </label>`;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    const msgVazio     = '<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle"></i> Nenhum serviço encontrado nos próximos 3 meses.</div>';
+    const msgCarreg    = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> Carregando serviços…</div>';
+    const msgSelecione = '<div class="text-muted">Selecione o tipo de escala primeiro</div>';
+    const msgSelMilitar = '<div class="text-muted">Selecione o militar primeiro</div>';
+
+    // -----------------------------------------------------------------------
+    // Busca serviços de um militar via AJAX
+    //   militarId = null  → militar logado
+    //   militarId = <id>  → outro militar (segunda perna da mútua)
+    // -----------------------------------------------------------------------
+    function fetchServicos(tipoEscalaId, militarId) {
+        let url = `${BASE_URL}?tipo_escala=${tipoEscalaId}`;
+        if (militarId) url += `&militar_id=${militarId}`;
+        return fetch(url).then(r => r.json());
+    }
+
+    // -----------------------------------------------------------------------
+    // Recarrega o container1 (meus serviços)
+    // -----------------------------------------------------------------------
+    function carregarMeusServicos() {
+        const tipoId = tipoEscala.value;
+        if (!tipoId) {
+            servicosContainer.innerHTML = msgSelecione;
+            return;
+        }
+        servicosContainer.innerHTML = msgCarreg;
+        fetchServicos(tipoId, null)
+            .then(data => {
+                const html = buildServicosHtml(data.servicos, 'data_servico_sai');
+                servicosContainer.innerHTML = html || msgVazio;
+            })
+            .catch(() => { servicosContainer.innerHTML = '<div class="text-danger">Erro ao carregar serviços</div>'; });
+    }
+
+    // -----------------------------------------------------------------------
+    // Recarrega o container2 (serviços do militar que vai entrar — 2ª perna)
+    // -----------------------------------------------------------------------
+    function carregarServicosSegundaPerna() {
+        const tipoId    = tipoEscala.value;
+        const militarId = militarEntra.value;  // militar selecionado na 1ª perna
+
+        if (!tipoId) {
+            servicosContainer2.innerHTML = msgSelecione;
+            return;
+        }
+        if (!militarId) {
+            servicosContainer2.innerHTML = msgSelMilitar;
+            return;
+        }
+
+        servicosContainer2.innerHTML = msgCarreg;
+        fetchServicos(tipoId, militarId)
+            .then(data => {
+                const html = buildServicosHtml(data.servicos, 'data_servico_sai_2');
+                servicosContainer2.innerHTML = html || msgVazio;
+            })
+            .catch(() => { servicosContainer2.innerHTML = '<div class="text-danger">Erro ao carregar serviços</div>'; });
+    }
+
+    // -----------------------------------------------------------------------
+    // Mostrar/ocultar segunda perna e atualizar container2 ao mudar tipo troca
+    // -----------------------------------------------------------------------
     function atualizarTipoTroca() {
         if (trocaMutua.checked) {
             trocaMutuaContainer.style.display = 'block';
             militarEntra2.setAttribute('required', 'required');
+            // Carrega os serviços do militar já selecionado (se houver)
+            carregarServicosSegundaPerna();
         } else {
             trocaMutuaContainer.style.display = 'none';
             militarEntra2.removeAttribute('required');
@@ -153,60 +244,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Eventos
+    // -----------------------------------------------------------------------
     trocaSimples.addEventListener('change', atualizarTipoTroca);
     trocaMutua.addEventListener('change', atualizarTipoTroca);
 
-    // Carregar serviços quando mudar tipo de escala
-    function carregarServicos(tipoEscalaId) {
-        if (!tipoEscalaId) {
-            servicosContainer.innerHTML = '<div class="text-muted">Selecione o tipo de escala primeiro</div>';
-            servicosContainer2.innerHTML = servicosContainer.innerHTML;
-            return;
-        }
-
-        servicosContainer.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> Carregando serviços…</div>';
-
-        const url = `{% url 'troca_servicos_militar' %}?tipo_escala=${tipoEscalaId}`;
-
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                if (data.servicos && data.servicos.length > 0) {
-                    let html = '<div class="list-group" style="max-height: 300px; overflow-y: auto;">';
-                    data.servicos.forEach(servico => {
-                        const statusBadge = servico.escala_status === 'publicada'
-                            ? '<span class="badge bg-success ms-1">Publicada</span>'
-                            : '<span class="badge bg-warning text-dark ms-1">Previsão</span>';
-                        html += `
-                            <label class="list-group-item list-group-item-action">
-                                <div class="d-flex w-100 justify-content-between align-items-center">
-                                    <div>
-                                        <input type="radio" name="data_servico_sai" value="${servico.data}" required>
-                                        <strong>${servico.data_display}</strong>
-                                        <span class="badge ms-1" style="background-color: ${servico.tipo_servico_cor}">${servico.tipo_servico}</span>
-                                        ${statusBadge}
-                                    </div>
-                                    <small class="text-muted">${servico.escala_tipo}</small>
-                                </div>
-                            </label>
-                        `;
-                    });
-                    html += '</div>';
-                    servicosContainer.innerHTML = html;
-                    servicosContainer2.innerHTML = html.replace(/name="data_servico_sai"/g, 'name="data_servico_sai_2"');
-                } else {
-                    servicosContainer.innerHTML = '<div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle"></i> Nenhum serviço encontrado nos próximos 3 meses para este tipo de escala.</div>';
-                    servicosContainer2.innerHTML = servicosContainer.innerHTML;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                servicosContainer.innerHTML = '<div class="text-danger">Erro ao carregar serviços</div>';
-            });
-    }
-
+    // Ao mudar o tipo de escala, recarrega meus serviços (container1)
+    // e, se for mútua, recarrega container2 com os serviços do militar alvo
     tipoEscala.addEventListener('change', function() {
-        carregarServicos(this.value);
+        carregarMeusServicos();
+        if (trocaMutua.checked) carregarServicosSegundaPerna();
+    });
+
+    // Ao mudar o militar que vai entrar: se for mútua, atualiza container2
+    militarEntra.addEventListener('change', function() {
+        if (trocaMutua.checked) carregarServicosSegundaPerna();
     });
 });
 </script>

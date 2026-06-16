@@ -228,10 +228,20 @@
                     {% endif %}
                 </div>
 
-                <div class="d-flex justify-content-between mt-4">
+                <div class="d-flex gap-2 flex-wrap mt-4">
                     <a href="{% url 'troca_listar' %}" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left"></i> Voltar
                     </a>
+                    {% if pode_editar %}
+                    <a href="{% url 'troca_editar' troca.id %}" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil"></i> Editar Motivo
+                    </a>
+                    {% endif %}
+                    {% if pode_cancelar %}
+                    <a href="{% url 'troca_cancelar' troca.id %}" class="btn btn-outline-danger">
+                        <i class="bi bi-trash"></i> Cancelar Troca
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

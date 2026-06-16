@@ -1,14 +1,28 @@
 """Context processor que injeta a OM ativa e a lista de OMs disponíveis."""
-from .models import OrganizacaoMilitar
+from .models import OrganizacaoMilitar, PerfilUsuario
 
 
 SESSION_KEY_OM = 'om_id_ativa'
 
 
 def obter_om_da_sessao(request):
-    """Resolve a OM ativa a partir da sessão, com fallback."""
+    """
+    Resolve a OM ativa a partir da sessão, com fallback.
+
+    Para usuários com perfil 'militar', a OM é sempre a do próprio militar —
+    eles não podem trocar de OM via sessão.
+    """
     if not getattr(request, 'user', None) or not request.user.is_authenticated:
         return None
+
+    # Militar comum: OM fixada pelo vínculo, nunca pela sessão
+    if getattr(request.user, 'perfil', None) == PerfilUsuario.MILITAR:
+        try:
+            om = request.user.militar.organizacao_militar
+            request.session[SESSION_KEY_OM] = om.id  # mantém sessão consistente
+            return om
+        except Exception:
+            pass
 
     om_id = request.session.get(SESSION_KEY_OM)
     if om_id:
@@ -24,14 +38,26 @@ def obter_om_da_sessao(request):
 
 
 def om_context(request):
-    """Disponibiliza `om_ativa`, `oms_disponiveis` e `militar_do_usuario` em todos os templates."""
+    """
+    Disponibiliza `om_ativa`, `oms_disponiveis` e `militar_do_usuario`
+    em todos os templates.
+
+    Regras de visibilidade de OMs:
+    - perfil 'militar': vê apenas a própria OM (sem switcher)
+    - demais perfis: vêem todas as OMs ativas (switcher habilitado)
+    """
     if not getattr(request, 'user', None) or not request.user.is_authenticated:
         return {'om_ativa': None, 'oms_disponiveis': [], 'militar_do_usuario': None}
 
     om_ativa = obter_om_da_sessao(request)
-    oms = list(OrganizacaoMilitar.objects.filter(ativo=True).order_by('sigla'))
 
-    # Militar vinculado ao usuário logado (None se for escalante/admin)
+    # Militar comum não deve ver nem poder trocar para outras OMs
+    if getattr(request.user, 'perfil', None) == PerfilUsuario.MILITAR:
+        oms = [om_ativa] if om_ativa else []
+    else:
+        oms = list(OrganizacaoMilitar.objects.filter(ativo=True).order_by('sigla'))
+
+    # Militar vinculado ao usuário logado (None se for escalante/admin/etc.)
     militar_do_usuario = None
     try:
         militar_do_usuario = request.user.militar

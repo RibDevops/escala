@@ -88,7 +88,6 @@ urlpatterns = [
     path('divisoes/<int:divisao_id>/excluir/', views.divisao_excluir, name='divisao_excluir'),
 
     # Militares
-    path('militares/', views.militar_listar, name='militar_listar'),
     path('militares/novo/', views.militar_form, name='militar_novo'),
     path('militares/<int:militar_id>/', views.militar_detalhe, name='militar_detalhe'),
     path('militares/<int:militar_id>/editar/', views.militar_form, name='militar_editar'),
@@ -179,5 +178,7 @@ urlpatterns = [
     path('troca/<int:troca_id>/aceitar/', views.troca_aceitar, name='troca_aceitar'),
     path('troca/<int:troca_id>/aprovar/', views.troca_aprovar_escalante, name='troca_aprovar_escalante'),
     path('troca/<int:troca_id>/homologar/', views.troca_homologar, name='troca_homologar'),
+    path('troca/<int:troca_id>/cancelar/', views.troca_cancelar, name='troca_cancelar'),
+    path('troca/<int:troca_id>/editar/', views.troca_editar, name='troca_editar'),
     path('troca/<int:troca_id>/', views.troca_detalhar, name='troca_detalhar'),
 ]

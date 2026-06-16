@@ -1,115 +1,84 @@
 """
 Sistema de Escala Militar - Django Signals
-Automatiza updates no Quadrinho quando escalas são criadas/deletadas
+Registra eventos de auditoria. O Quadrinho é gerenciado diretamente pelo
+MotorEscalaVertical (services.py) — NÃO incrementar/decrementar aqui para
+evitar dupla contagem.
 """
+
+import logging
 
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.utils import timezone
 from .models import EscalaItem, Quadrinho, Escala, UsuarioCustomizado
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
-# SIGNALS PARA ATUALIZAR QUADRINHO AUTOMATICAMENTE
+# SIGNALS DE AUDITORIA — EscalaItem
+# Apenas logging. O Quadrinho é atualizado pelo motor (services.py).
 # ============================================================================
 
 @receiver(post_save, sender=EscalaItem)
-def atualizar_quadrinho_ao_adicionar_item(sender, instance, created, **kwargs):
-    """
-    Quando um EscalaItem é criado, incrementa o Quadrinho correspondente.
-    Chamado automaticamente ao inserir um item de escala.
-    """
+def log_escala_item_criado(sender, instance, created, **kwargs):
+    """Registra criação de um item de escala no log de debug."""
     if not created:
-        # Se é uma atualização (não criação), ignora
         return
-    
     try:
-        # Obter informações necessárias
-        militar = instance.militar
-        tipo_escala = instance.escala.tipo_escala
-        tipo_servico = instance.calendario_dia.tipo_servico
-        ano = instance.escala.ano
-        
-        # Incrementar quadrinho
-        Quadrinho.incrementar(
-            militar=militar,
-            tipo_escala=tipo_escala,
-            tipo_servico=tipo_servico,
-            ano=ano,
-            quantidade=1
+        logger.debug(
+            "EscalaItem criado: militar=%s tipo=%s data=%s escala=%s/%s",
+            instance.militar.nome_guerra,
+            instance.calendario_dia.tipo_servico.nome,
+            instance.calendario_dia.data.strftime("%d/%m/%Y"),
+            instance.escala.mes,
+            instance.escala.ano,
         )
-        
-        print(f"✓ Quadrinho atualizado: {militar.nome_guerra} (+1 {tipo_escala.nome})")
-    
-    except Exception as e:
-        print(f"⚠ Erro ao atualizar Quadrinho: {e}")
+    except Exception:
+        pass  # Nunca deve quebrar o fluxo principal
 
 
 @receiver(post_delete, sender=EscalaItem)
-def atualizar_quadrinho_ao_remover_item(sender, instance, **kwargs):
-    """
-    Quando um EscalaItem é deletado, decrementa o Quadrinho correspondente.
-    Mantém a contagem em 0 no mínimo (não nega).
-    """
+def log_escala_item_removido(sender, instance, **kwargs):
+    """Registra remoção de um item de escala no log de debug."""
     try:
-        militar = instance.militar
-        tipo_escala = instance.escala.tipo_escala
-        tipo_servico = instance.calendario_dia.tipo_servico
-        ano = instance.escala.ano
-        
-        # Buscar quadrinho e decrementar
-        try:
-            quadrinho = Quadrinho.objects.get(
-                militar=militar,
-                tipo_escala=tipo_escala,
-                tipo_servico=tipo_servico,
-                ano=ano
-            )
-            
-            if quadrinho.quantidade > 0:
-                quadrinho.quantidade -= 1
-                quadrinho.save()
-                print(f"✓ Quadrinho atualizado: {militar.nome_guerra} (-1 {tipo_escala.nome})")
-            else:
-                print(f"ℹ Quadrinho já estava em zero: {militar.nome_guerra}")
-        
-        except Quadrinho.DoesNotExist:
-            print(f"⚠ Quadrinho não encontrado para {militar.nome_guerra}")
-    
-    except Exception as e:
-        print(f"⚠ Erro ao decrementar Quadrinho: {e}")
+        logger.debug(
+            "EscalaItem removido: militar=%s tipo=%s data=%s escala=%s/%s",
+            instance.militar.nome_guerra,
+            instance.calendario_dia.tipo_servico.nome,
+            instance.calendario_dia.data.strftime("%d/%m/%Y"),
+            instance.escala.mes,
+            instance.escala.ano,
+        )
+    except Exception:
+        pass
 
 
 # ============================================================================
-# SIGNALS PARA RASTREAMENTO DE AUDITORIA
+# SIGNALS DE AUDITORIA — Escala e Usuário
 # ============================================================================
 
 @receiver(post_save, sender=Escala)
-def registrar_publicacao_escala(sender, instance, created, **kwargs):
-    """
-    Registra quando uma escala é publicada (para auditoria).
-    """
+def log_escala_publicada(sender, instance, created, **kwargs):
+    """Registra quando uma escala é publicada."""
     if not created and instance.status == 'publicada' and instance.data_publicacao:
-        # Se está publicada, registra no sistema
-        msg = (
-            f"Escala {instance.mes:02d}/{instance.ano} "
-            f"({instance.tipo_escala.nome}) publicada em "
-            f"{instance.data_publicacao.strftime('%d/%m/%Y às %H:%M')}"
+        logger.info(
+            "Escala publicada: %02d/%s (%s) em %s",
+            instance.mes,
+            instance.ano,
+            instance.tipo_escala.nome,
+            instance.data_publicacao.strftime("%d/%m/%Y %H:%M"),
         )
-        print(f"📊 {msg}")
 
 
 @receiver(post_save, sender=UsuarioCustomizado)
-def registrar_criacao_usuario(sender, instance, created, **kwargs):
-    """
-    Registra criação de novo usuário.
-    """
+def log_usuario_criado(sender, instance, created, **kwargs):
+    """Registra criação de novo usuário."""
     if created:
-        msg = (
-            f"Novo usuário criado: {instance.username} "
-            f"({instance.get_perfil_display()})"
+        logger.info(
+            "Novo usuario criado: %s (%s)",
+            instance.username,
+            instance.get_perfil_display(),
         )
-        print(f"👤 {msg}")
 
 
 # ============================================================================
@@ -118,30 +87,21 @@ def registrar_criacao_usuario(sender, instance, created, **kwargs):
 
 def resetar_quadrinho_do_ano(ano: int):
     """
-    ATENÇÃO: Esta função reseta TODOS os Quadrinhos de um ano.
-    Use apenas se houver erro crítico ou necessidade de recalcular.
-    
-    Exemplo de uso:
-    >>> from .models import resetar_quadrinho_do_ano
-    >>> resetar_quadrinho_do_ano(2025)
-    
-    Args:
-        ano: Ano a resetar
+    Reseta TODOS os Quadrinhos de um ano e os recalcula a partir dos EscalaItem.
+    Use apenas em caso de erro crítico ou necessidade de recalcular do zero.
+
+    Exemplo de uso no shell Django:
+        from escalas.signals import resetar_quadrinho_do_ano
+        resetar_quadrinho_do_ano(2026)
     """
-    from django.db import connection
-    
-    print(f"⚠️  RESETANDO Quadrinhos de {ano}...")
-    
-    # Deletar todos os Quadrinhos do ano
+    print(f"RESETANDO Quadrinhos de {ano}...")  # OK aqui — chamado só no shell
+
     deletados = Quadrinho.objects.filter(ano=ano).delete()[0]
-    print(f"  → Deletados {deletados} Quadrinhos")
-    
-    # Recalcular a partir dos EscalaItem
-    print(f"  → Recalculando...")
-    
+    print(f"  Deletados {deletados} Quadrinhos")
+
     escalas = Escala.objects.filter(ano=ano, status='publicada')
     total_itens = 0
-    
+
     for escala in escalas:
         for item in escala.itens.all():
             Quadrinho.incrementar(
@@ -149,31 +109,8 @@ def resetar_quadrinho_do_ano(ano: int):
                 tipo_escala=escala.tipo_escala,
                 tipo_servico=item.calendario_dia.tipo_servico,
                 ano=ano,
-                quantidade=1
             )
             total_itens += 1
-    
-    print(f"  → Reprocessados {total_itens} itens de escala")
-    print(f"✅ Reset concluído!")
 
-
-# ============================================================================
-# APPS CONFIG - REGISTRAR SIGNALS
-# ============================================================================
-
-def ready():
-    """
-    Chamada automaticamente quando a app é inicializada.
-    Coloque isto em apps.py:
-    
-    from django.apps import AppConfig
-    
-    class SeuAppConfig(AppConfig):
-        default_auto_field = 'django.db.models.BigAutoField'
-        name = 'seu_app'
-        
-        def ready(self):
-            import seu_app.signals  # Importa este arquivo
-    """
-    # Signals já estão registrados acima via decoradores @receiver
-    pass
+    print(f"  Reprocessados {total_itens} itens de escala")
+    print(f"Reset concluido!")

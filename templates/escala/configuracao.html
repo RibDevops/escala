@@ -3,74 +3,66 @@
 
 {% block conteudo %}
 <style>
-body {
-    background-color: #1a1b1a !important;
-    background-image: none !important;
-    color: #e4e4e2 !important;
-}
-main.container { background: transparent !important; }
-
+/* ── Configuração de Escala — tema clean ── */
 .cfg-card {
-    background: #252625;
-    border: 1px solid rgba(255,241,18,.18);
+    background: #fff;
+    border: 1px solid #dde3ec;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 2px 12px rgba(0,0,0,.45);
+    box-shadow: 0 1px 4px rgba(30,58,95,.07);
 }
 .cfg-card-header {
-    background: #1a1b1a;
-    border-bottom: 2px solid #FFF112;
+    background: #f0f2f5;
+    border-bottom: 2px solid #c4992a;
     padding: .7rem 1.1rem;
     display: flex;
     align-items: center;
     gap: .55rem;
     font-weight: 700;
-    font-size: .85rem;
+    font-size: .82rem;
     text-transform: uppercase;
     letter-spacing: .06em;
-    color: #e8e8e6;
+    color: #1e3a5f;
 }
 .cfg-card-body { padding: 1.4rem; }
 
 .cfg-form-label {
     display: block;
-    font-size: .78rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    color: rgba(232,232,230,.65);
+    font-size: .8rem;
+    font-weight: 600;
+    color: #1a2332;
     margin-bottom: .4rem;
 }
 .cfg-input {
-    background: #1a1b1a;
-    border: 1px solid rgba(255,241,18,.25);
+    background: #fff;
+    border: 1px solid #dde3ec;
     border-radius: 5px;
-    color: #e8e8e6;
+    color: #1a2332;
     padding: .5rem .8rem;
     font-size: .95rem;
     width: 100%;
-    transition: border-color .15s;
+    transition: border-color .15s, box-shadow .15s;
 }
 .cfg-input:focus {
     outline: none;
-    border-color: #FFF112;
-    box-shadow: 0 0 0 3px rgba(255,241,18,.12);
+    border-color: #1e3a5f;
+    box-shadow: 0 0 0 3px rgba(30,58,95,.1);
 }
 .cfg-hint {
     font-size: .75rem;
-    color: rgba(232,232,230,.45);
+    color: #64748b;
     margin-top: .35rem;
 }
 .cfg-calc {
     font-size: .78rem;
     font-weight: 700;
-    color: #FFF112;
+    color: #1e3a5f;
     margin-top: .3rem;
     min-height: 1.1em;
 }
 .cfg-divider {
     border: 0;
-    border-top: 1px solid rgba(255,241,18,.12);
+    border-top: 1px solid #dde3ec;
     margin: 1.2rem 0;
 }
 .cfg-switch-row {
@@ -89,8 +81,8 @@ main.container { background: transparent !important; }
     position: absolute;
     inset: 0;
     border-radius: 999px;
-    background: #3a3b3a;
-    border: 1px solid rgba(255,241,18,.2);
+    background: #dde3ec;
+    border: 1px solid #c5cdd9;
     cursor: pointer;
     transition: background .2s, border-color .2s;
 }
@@ -100,55 +92,53 @@ main.container { background: transparent !important; }
     left: 3px; top: 3px;
     width: 16px; height: 16px;
     border-radius: 50%;
-    background: rgba(232,232,230,.45);
-    transition: transform .2s, background .2s;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    transition: transform .2s;
 }
 .cfg-switch-toggle input:checked + .cfg-switch-track {
-    background: rgba(255,241,18,.18);
-    border-color: #FFF112;
+    background: #1e3a5f;
+    border-color: #1e3a5f;
 }
 .cfg-switch-toggle input:checked + .cfg-switch-track::after {
     transform: translateX(20px);
-    background: #FFF112;
 }
 .cfg-switch-label strong {
     display: block;
     font-size: .88rem;
     font-weight: 700;
-    color: #e8e8e6;
+    color: #1a2332;
     margin-bottom: .2rem;
 }
 .cfg-switch-label span {
     font-size: .78rem;
-    color: rgba(232,232,230,.5);
+    color: #64748b;
 }
-
 .cfg-example {
-    background: #1a1b1a;
-    border: 1px solid rgba(255,241,18,.15);
-    border-left: 3px solid #FFF112;
+    background: #f8fafc;
+    border: 1px solid #dde3ec;
+    border-left: 3px solid #c4992a;
     border-radius: 6px;
     padding: .75rem 1rem;
     font-size: .82rem;
-    color: rgba(232,232,230,.75);
+    color: #1a2332;
 }
-.cfg-example strong { color: #e8e8e6; }
-
 .cfg-info-card {
-    background: #1e1f1e;
-    border: 1px solid rgba(255,241,18,.12);
+    background: #fff;
+    border: 1px solid #dde3ec;
     border-radius: 8px;
     overflow: hidden;
+    box-shadow: 0 1px 4px rgba(30,58,95,.07);
 }
 .cfg-info-header {
-    background: #252625;
-    border-bottom: 1px solid rgba(255,241,18,.15);
+    background: #f0f2f5;
+    border-bottom: 1px solid #dde3ec;
     padding: .6rem 1rem;
-    font-size: .78rem;
+    font-size: .75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .06em;
-    color: rgba(232,232,230,.55);
+    color: #64748b;
     display: flex;
     align-items: center;
     gap: .4rem;
@@ -160,19 +150,15 @@ main.container { background: transparent !important; }
     margin: 0;
     padding-left: 1.1rem;
     font-size: .82rem;
-    color: rgba(232,232,230,.6);
+    color: #1a2332;
 }
 .cfg-info-body li { margin-bottom: .5rem; }
-.cfg-info-body li strong { color: rgba(232,232,230,.85); }
-
 .btn-cfg-save {
-    background: #FFF112;
-    color: #1a1b1a;
+    background: #1e3a5f;
+    color: #fff;
     border: none;
-    font-weight: 800;
-    font-size: .82rem;
-    text-transform: uppercase;
-    letter-spacing: .06em;
+    font-weight: 700;
+    font-size: .84rem;
     padding: .55rem 1.3rem;
     border-radius: 5px;
     cursor: pointer;
@@ -181,14 +167,12 @@ main.container { background: transparent !important; }
     align-items: center;
     gap: .4rem;
 }
-.btn-cfg-save:hover { background: #e6d800; }
+.btn-cfg-save:hover { background: #152b48; }
 .btn-cfg-cancel {
-    background: transparent;
-    border: 1px solid rgba(232,232,230,.2);
-    color: rgba(232,232,230,.65);
-    font-size: .82rem;
-    text-transform: uppercase;
-    letter-spacing: .06em;
+    background: #fff;
+    border: 1px solid #c5cdd9;
+    color: #64748b;
+    font-size: .84rem;
     padding: .55rem 1.1rem;
     border-radius: 5px;
     cursor: pointer;
@@ -198,38 +182,33 @@ main.container { background: transparent !important; }
     gap: .4rem;
     transition: border-color .15s, color .15s;
 }
-.btn-cfg-cancel:hover {
-    border-color: rgba(232,232,230,.45);
-    color: #e8e8e6;
-}
+.btn-cfg-cancel:hover { border-color: #1e3a5f; color: #1e3a5f; }
 .btn-cfg-back {
-    background: transparent;
-    border: 1px solid rgba(232,232,230,.18);
-    color: rgba(232,232,230,.55);
+    background: #fff;
+    border: 1px solid #dde3ec;
+    color: #64748b;
     font-size: .82rem;
     padding: .35rem .7rem;
     border-radius: 5px;
     text-decoration: none;
     transition: border-color .15s, color .15s;
 }
-.btn-cfg-back:hover { border-color: rgba(232,232,230,.45); color: #e8e8e6; }
-
+.btn-cfg-back:hover { border-color: #1e3a5f; color: #1e3a5f; }
 .page-title-dark {
-    font-family: 'Cinzel', serif;
     font-size: 1.35rem;
     font-weight: 700;
-    color: #e8e8e6;
+    color: #1e3a5f;
     margin: 0;
 }
 .om-tag {
-    font-size: .8rem;
-    color: rgba(232,232,230,.5);
+    font-size: .82rem;
+    color: #64748b;
     display: flex;
     align-items: center;
     gap: .35rem;
     margin-bottom: 1.5rem;
 }
-.om-tag strong { color: rgba(232,232,230,.75); }
+.om-tag strong { color: #1a2332; }
 </style>
 
 <div class="row justify-content-center">
@@ -268,7 +247,7 @@ main.container { background: transparent !important; }
                                    value="{{ config.folga_minima_horas }}">
                             <div class="cfg-hint">
                                 Horas de descanso obrigatório após encerramento de um serviço.
-                                <strong style="color:rgba(232,232,230,.7)">Padrão: 48 h (2 dias)</strong>.
+                                <strong style="color:#1e3a5f">Padrão: 48 h (2 dias)</strong>.
                             </div>
                             <div class="cfg-calc" id="folga-calc"></div>
                         </div>
@@ -282,7 +261,7 @@ main.container { background: transparent !important; }
                                    value="{{ config.duracao_servico_horas }}">
                             <div class="cfg-hint">
                                 Quantas horas dura um serviço padrão.
-                                <strong style="color:rgba(232,232,230,.7)">Padrão: 24 h</strong>.
+                                <strong style="color:#1e3a5f">Padrão: 24 h</strong>.
                             </div>
                         </div>
 

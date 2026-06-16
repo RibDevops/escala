@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block titulo %}Cancelar Troca — Sistema de Escala{% endblock %}
+
+{% block conteudo %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-trash"></i> Cancelar Troca {{ troca.numero_controle }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-1"><strong>Tipo:</strong> {{ troca.tipo_escala.nome }} — {{ troca.get_tipo_troca_display }}</p>
+                <p class="mb-1"><strong>Solicitante:</strong> {{ troca.militar_sai.nome_guerra }}</p>
+                <p class="mb-1"><strong>Data do serviço:</strong> {{ troca.data_servico_sai|date:"d/m/Y" }}</p>
+                <p class="mb-3"><strong>Motivo:</strong> {{ troca.motivo }}</p>
+
+                <div class="alert alert-warning small">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Esta ação é irreversível. A troca será excluída permanentemente.
+                </div>
+
+                <div class="d-flex gap-2">
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Confirmar Cancelamento
+                        </button>
+                    </form>
+                    <a href="{% url 'troca_detalhar' troca.id %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

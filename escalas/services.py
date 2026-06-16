@@ -62,6 +62,7 @@ from .models import (
     EscalaCalendarioOverride,
     EscalaItem,
     Indisponibilidade,
+    LancamentoManualQuadrinho,
     Militar,
     Quadrinho,
     TipoServico,
@@ -233,33 +234,46 @@ class MotorEscalaVertical:
 
     def _carregar_matriz_historica(self):
         """
-        Carrega a MATRIZ HISTÓRICA do banco (Quadrinho).
+        Carrega a MATRIZ HISTÓRICA do banco.
 
         Conta o TOTAL de serviços de cada militar:
-          - Soma todos os tipos de serviço (Preto + Vermelho + Roxo)
-          - Para este tipo_escala e ano
-          - Usa Quadrinho.total = ajuste_inicial + quantidade
+          - Quadrinho: soma Preto + Vermelho + Roxo (ajuste_inicial + quantidade)
+          - LancamentoManualQuadrinho: lastro, atestado, férias, etc.
+            (também contam no total — são "serviços equivalentes" para fins de
+             balanceamento, exatamente como aparecem na coluna Total do quadrinho visual)
 
         Este total é a "coluna Count" da planilha — define a PRIORIDADE.
         Quem tem MENOS count tem mais prioridade.
         """
         mil_ids = [m.id for m in self.lista_militares]
 
+        # Serviços reais (Preto + Vermelho + Roxo)
         quadrinhos = Quadrinho.objects.filter(
             militar_id__in=mil_ids,
             tipo_escala=self.tipo_escala,
             ano=self.ano,
         )
-
         for q in quadrinhos:
             if q.militar_id in self.counts_historicos:
                 self.counts_historicos[q.militar_id] += q.total
+
+        # Lançamentos manuais (lastro, atestado, férias, dispensa, etc.)
+        # Esses contam no total do quadrinho exibido — o motor precisa considerá-los
+        # para que a prioridade reflita o mesmo número que o escalante vê na tela.
+        lancamentos = LancamentoManualQuadrinho.objects.filter(
+            militar_id__in=mil_ids,
+            tipo_escala=self.tipo_escala,
+            ano=self.ano,
+        )
+        for lm in lancamentos:
+            if lm.militar_id in self.counts_historicos:
+                self.counts_historicos[lm.militar_id] += lm.quantidade
 
         # Sincronizar matriz operacional com histórica
         for mil_id in self.counts_historicos:
             self.counts_operacional[mil_id] = self.counts_historicos[mil_id]
 
-        self._log("\nMATRIZ HISTÓRICA (count do banco = prioridade inicial):")
+        self._log("\nMATRIZ HISTÓRICA (Quadrinho + Lançamentos Manuais = prioridade inicial):")
         for m in sorted(self.lista_militares, key=lambda x: self.counts_historicos[x.id]):
             self._log(f"  {m.nome_guerra:20s} → {self.counts_historicos[m.id]} serviço(s)")
 
