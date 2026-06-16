@@ -232,7 +232,7 @@
 
 # AUTH_LDAP_SERVER_URI = "ldap://10.100.0.1:389"
 # AUTH_LDAP_BIND_DN = "cn=django,ou=ciaer,dc=ciaer,dc=interna"
-# AUTH_LDAP_BIND_PASSWORD = "P0rM41s7"
+# AUTH_LDAP_BIND_PASSWORD = "xxxxx"
 
 # AUTH_LDAP_USER_SEARCH = LDAPSearch(
 # #            "ou=CIAER,dc=ciaer,dc=interna", ldap.SCOPE_SUBTREE, "(uid=%(user)s)"
@@ -306,6 +306,12 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost",
     "http://demeter.ciaer.interna",
     "https://escala.ciaer.interna",
+    "https://*.replit.dev",
+    "https://*.replit.app",
+    "https://*.repl.co",
+    "https://*.janeway.replit.dev",
+    "https://*.kirk.replit.dev",
+    "https://*.picard.replit.dev",
 ]
 
 # =============================================================================
