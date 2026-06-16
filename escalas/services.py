@@ -193,9 +193,14 @@ class MotorEscalaVertical:
         """
         Carrega militares ativos ordenados por antiguidade.
 
-        Ordem: posto__ordem_hierarquica ASC → data_ultima_promocao ASC → nome_guerra ASC
-          Índice 0  = TOPO (mais antigo, Ten/Cel/etc.)
-          Índice -1 = BASE (mais moderno, Cb/Sd/mais júnior)
+        Ordem de antiguidade (TOPO → BASE):
+          1º posto__ordem_hierarquica ASC  — menor número = posto mais alto = mais antigo
+          2º data_ultima_promocao     ASC  — data mais velha = mais antigo no mesmo posto
+          3º nota                     DESC — nota maior = mais antigo (mesmo posto e data)
+          4º nome_guerra              ASC  — desempate alfabético final
+
+          Índice 0  = TOPO (mais antigo)
+          Índice -1 = BASE (mais moderno)
 
         A varredura de desempate é BASE → TOPO (mais moderno primeiro).
         Na chave de ordenação usamos +indice_por_id para que o maior índice
@@ -205,7 +210,7 @@ class MotorEscalaVertical:
         self.lista_militares = list(
             Militar.objects.filter(organizacao_militar=self.om, ativo=True)
             .select_related('posto')
-            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
         )
 
         if not self.lista_militares:

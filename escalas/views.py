@@ -817,7 +817,7 @@ def quadrinho_visao(request):
         list(
             Militar.objects.filter(organizacao_militar=om, ativo=True)
             .select_related('posto')
-            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
         )
         if om else []
     )
@@ -979,7 +979,7 @@ def indisponibilidade_listar(request):
         militares = (
             Militar.objects.filter(organizacao_militar=om, ativo=True)
             .select_related('posto')
-            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
         ) if om else []
         filtro_mil = request.GET.get('militar', '')
         if filtro_mil:
@@ -1556,7 +1556,7 @@ def escala_detalhar(request, escala_id):
             organizacao_militar=escala.organizacao_militar, ativo=True
         )
         .select_related('posto')
-        .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+        .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
     )
 
     return render(request, 'escala/detalhar.html', {
@@ -2112,7 +2112,7 @@ def escala_matriz(request, escala_id):
     militares = list(
         Militar.objects.filter(organizacao_militar=om, ativo=True)
         .select_related('posto')
-        .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+        .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
     )
 
     # Dias do calendário do mês
@@ -2431,7 +2431,7 @@ def escala_publica(request, slug):
     # Regras (idênticas ao MotorEscalaVertical):
     #   1. Ordenação: MENOR total geral (preto + vermelho + roxo) vai primeiro
     #   2. Empate no total: BASE→TOPO (mais moderno tem prioridade)
-    #      lista_militares = order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+    #      lista_militares =.order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
     #      desempate_por_id = n-1-i  →  BASE (índice n-1) = 0 = prioridade máxima no empate
     #
     # Exibição: mostra a contagem de CADA tipo separado + o total geral.
@@ -2443,7 +2443,7 @@ def escala_publica(request, slug):
         list(
             Militar.objects.filter(organizacao_militar=om, ativo=True)
             .select_related('posto')
-            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
         )
         if om else []
     )
@@ -2551,7 +2551,7 @@ def matriz_publica(request, slug):
         militares = list(
             Militar.objects.filter(organizacao_militar=om, ativo=True)
             .select_related('posto')
-            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+            .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
         )
 
         dias = list(
@@ -2876,7 +2876,7 @@ def quadrinho_exportar(request):
     militares = list(
         Militar.objects.filter(organizacao_militar=om, ativo=True)
         .select_related('posto')
-        .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', 'nome_guerra')
+        .order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
     )
 
     if not militares:

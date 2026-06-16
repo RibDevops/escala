@@ -96,10 +96,15 @@ Para repopular do zero: `python manage.py seed_dados --reset`
 
 ## Modelo: Militar — Antiguidade
 
-Ordenação de antiguidade: `posto__ordem_hierarquica ASC` → `data_ultima_promocao ASC` → `nome_guerra ASC`.
-- `data_ultima_promocao` é opcional (null=True). Quando preenchida, a data **mais antiga** indica o militar **mais antigo** dentro do mesmo posto.
-- NULLs aparecem antes de qualquer data na ordenação ASC do SQLite — recomenda-se preencher o campo para todos os militares.
-- Critério aplicado em: listagem de militares, engine de geração, quadrinho, indisponibilidades, matriz.
+Ordenação de antiguidade (4 critérios em cascata):
+1. `posto__ordem_hierarquica ASC` — menor número = posto mais alto = mais antigo (TenBrig=1, 3ºSgt=14)
+2. `data_ultima_promocao ASC` — data mais velha = mais antigo dentro do mesmo posto
+3. `-nota DESC` — nota maior = mais antigo (mesmo posto e mesma data de promoção); NULL = último
+4. `nome_guerra ASC` — desempate alfabético final
+
+- `data_ultima_promocao` é opcional (null=True). NULLs no SQLite com ASC aparecem primeiro — recomenda-se preencher para todos.
+- `nota` é opcional (null=True). NULL significa sem nota cadastrada → tratado como mais moderno dentro do grupo.
+- Critério aplicado em: listagem de militares, motor de geração (`services.py`), quadrinho, indisponibilidades, matriz.
 
 ## Motor de Geração (`escalas/engine_escala.py`) — `gerar_escala_multi_tipo`
 
