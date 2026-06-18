@@ -22,6 +22,18 @@
             <i class="bi bi-file-earmark-excel"></i> Exportar Excel
         </a>
         {% endif %}
+        {% if not militar_proprio and tipo_escala_atual and not todos_anos %}
+        <button type="button" class="btn btn-mil btn-sm" id="btn-abrir-adicionar-quadrinho"
+                data-tipo-escala-id="{{ tipo_escala_atual.id }}"
+                data-ano="{{ ano }}"
+                title="Adicionar ou editar quadrinho de qualquer militar">
+            <i class="bi bi-plus-circle"></i> Adicionar Quadrinho
+        </button>
+        <button type="button" class="btn btn-outline-danger btn-sm" id="btn-abrir-zerar-om"
+                title="Zerar ajuste e sistema de todos os militares neste tipo/ano">
+            <i class="bi bi-arrow-counterclockwise"></i> Zerar Todos
+        </button>
+        {% endif %}
         <form method="get" class="d-flex gap-2 align-items-center">
             {% if tipo_escala_atual.id %}<input type="hidden" name="tipo_escala" value="{{ tipo_escala_atual.id }}">{% endif %}
             <input type="hidden" name="ordem" value="{{ ordem|default:'' }}">
@@ -621,6 +633,89 @@
 </div>
 
 <!-- ================================================================== -->
+<!-- MODAL: ADICIONAR / EDITAR QUADRINHO (global — cabeçalho)          -->
+<!-- ================================================================== -->
+<div class="modal fade" id="modalAdicionarQuadrinho" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--m-escuro);color:#fff;border-bottom:3px solid var(--m-amarelo);">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Adicionar / Editar Quadrinho</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Militar <span class="text-danger">*</span></label>
+                    <select id="add-qd-militar" class="form-select">
+                        <option value="">Selecione…</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Tipo de Serviço <span class="text-danger">*</span></label>
+                    <select id="add-qd-tipo-servico" class="form-select">
+                        <option value="">Selecione…</option>
+                    </select>
+                </div>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Saldo inicial (legado)</label>
+                        <input type="number" id="add-qd-ajuste" class="form-control" min="0" value="0">
+                        <div class="form-text">Serviços antes do sistema entrar.</div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Quantidade sistema</label>
+                        <input type="number" id="add-qd-quantidade" class="form-control" min="0" value="0">
+                        <div class="form-text">Contagem automática corrigida.</div>
+                    </div>
+                </div>
+                <div id="add-qd-valores-atuais" class="alert alert-secondary py-2 small mt-3 d-none">
+                    <i class="bi bi-info-circle"></i> Valores atuais carregados. Edite e salve para atualizar.
+                </div>
+                <div id="add-qd-erro" class="alert alert-danger d-none py-2 mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-mil" id="btn-salvar-adicionar-quadrinho">
+                    <i class="bi bi-check-lg"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- MODAL: ZERAR TODOS OS QUADRINHOS DA OM                             -->
+<!-- ================================================================== -->
+<div class="modal fade" id="modalZerarOm" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-danger" style="background:#fff1f1;">
+                <h5 class="modal-title text-danger">
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>Zerar Todos os Quadrinhos
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Isso vai zerar o <strong>saldo inicial</strong> e a <strong>quantidade do sistema</strong>
+                de <strong>todos os militares</strong> para
+                <strong>{{ tipo_escala_atual.nome }}</strong> / <strong>{{ ano }}</strong>.</p>
+                <div class="alert alert-warning py-2 small">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Lançamentos manuais <em>não</em> são removidos.
+                    Esta ação não pode ser desfeita.
+                </div>
+                <div id="zerar-om-erro" class="alert alert-danger d-none py-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btn-confirmar-zerar-om">
+                    <i class="bi bi-arrow-counterclockwise"></i> Confirmar — Zerar Tudo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================== -->
 <!-- MODAL: CONFIRMAR EXCLUSÃO (compartilhado para lançamento e item)   -->
 <!-- ================================================================== -->
 <div class="modal fade" id="modalConfirmarExcluirMatriz" tabindex="-1" aria-hidden="true">
@@ -1070,6 +1165,153 @@
             this.disabled = false;
         }
     });
+
+    // ── MODAL ADICIONAR QUADRINHO (global) ───────────────────────────────────
+
+    const btnAbrirAdicionar = document.getElementById('btn-abrir-adicionar-quadrinho');
+    const modalAdicionarEl  = document.getElementById('modalAdicionarQuadrinho');
+    if (btnAbrirAdicionar && modalAdicionarEl) {
+        const bsAdicionar = new bootstrap.Modal(modalAdicionarEl);
+        const urlAdicionar = '{% url "quadrinho_ajax_adicionar" %}';
+
+        let _addQdTipoEscalaId = btnAbrirAdicionar.dataset.tipoEscalaId;
+        let _addQdAno = btnAbrirAdicionar.dataset.ano;
+
+        // Popula os selects ao abrir o modal
+        btnAbrirAdicionar.addEventListener('click', async function () {
+            document.getElementById('add-qd-erro').classList.add('d-none');
+            document.getElementById('add-qd-valores-atuais').classList.add('d-none');
+            document.getElementById('add-qd-ajuste').value = 0;
+            document.getElementById('add-qd-quantidade').value = 0;
+
+            const selMil = document.getElementById('add-qd-militar');
+            const selTs  = document.getElementById('add-qd-tipo-servico');
+            selMil.innerHTML = '<option value="">Selecione…</option>';
+            selTs.innerHTML  = '<option value="">Selecione…</option>';
+
+            try {
+                const url = `${urlAdicionar}?tipo_escala_id=${_addQdTipoEscalaId}&ano=${_addQdAno}`;
+                const d = await getAjax(url);
+                d.militares.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.textContent = m.label;
+                    selMil.appendChild(opt);
+                });
+                d.tipos_servico.forEach(ts => {
+                    const opt = document.createElement('option');
+                    opt.value = ts.id;
+                    opt.textContent = ts.label;
+                    selTs.appendChild(opt);
+                });
+            } catch(e) {
+                document.getElementById('add-qd-erro').textContent = 'Erro ao carregar dados.';
+                document.getElementById('add-qd-erro').classList.remove('d-none');
+            }
+            bsAdicionar.show();
+        });
+
+        // Ao mudar militar ou tipo_servico, carrega valores atuais
+        async function carregarValoresAtuais() {
+            const milId = document.getElementById('add-qd-militar').value;
+            const tsId  = document.getElementById('add-qd-tipo-servico').value;
+            if (!milId || !tsId) return;
+            try {
+                const url = `${urlAdicionar}?tipo_escala_id=${_addQdTipoEscalaId}&ano=${_addQdAno}&militar_id=${milId}&tipo_servico_id=${tsId}`;
+                const d = await getAjax(url);
+                document.getElementById('add-qd-ajuste').value = d.ajuste_inicial;
+                document.getElementById('add-qd-quantidade').value = d.quantidade;
+                if (d.ajuste_inicial > 0 || d.quantidade > 0) {
+                    document.getElementById('add-qd-valores-atuais').classList.remove('d-none');
+                } else {
+                    document.getElementById('add-qd-valores-atuais').classList.add('d-none');
+                }
+            } catch(e) {}
+        }
+        document.getElementById('add-qd-militar').addEventListener('change', carregarValoresAtuais);
+        document.getElementById('add-qd-tipo-servico').addEventListener('change', carregarValoresAtuais);
+
+        document.getElementById('btn-salvar-adicionar-quadrinho').addEventListener('click', async function () {
+            const erroEl = document.getElementById('add-qd-erro');
+            erroEl.classList.add('d-none');
+            const milId = document.getElementById('add-qd-militar').value;
+            const tsId  = document.getElementById('add-qd-tipo-servico').value;
+            if (!milId || !tsId) {
+                erroEl.textContent = 'Selecione o militar e o tipo de serviço.';
+                erroEl.classList.remove('d-none');
+                return;
+            }
+            this.disabled = true;
+            try {
+                const d = await postAjax(urlAdicionar, {
+                    militar_id:      milId,
+                    tipo_escala_id:  _addQdTipoEscalaId,
+                    tipo_servico_id: tsId,
+                    ano:             _addQdAno,
+                    ajuste_inicial:  document.getElementById('add-qd-ajuste').value,
+                    quantidade:      document.getElementById('add-qd-quantidade').value,
+                });
+                if (!d.ok) {
+                    erroEl.textContent = d.erro || 'Erro desconhecido.';
+                    erroEl.classList.remove('d-none');
+                } else {
+                    // Atualiza célula na tabela, se visível
+                    setCellValor(d.militar_id, d.tipo_servico_id, d.total);
+                    recalcTotals();
+                    bsAdicionar.hide();
+                }
+            } catch(e) {
+                erroEl.textContent = 'Falha na comunicação com o servidor.';
+                erroEl.classList.remove('d-none');
+            } finally {
+                this.disabled = false;
+            }
+        });
+    }
+
+    // ── MODAL ZERAR TODOS ────────────────────────────────────────────────────
+
+    const btnAbrirZerar = document.getElementById('btn-abrir-zerar-om');
+    const modalZerarEl  = document.getElementById('modalZerarOm');
+    if (btnAbrirZerar && modalZerarEl) {
+        const bsZerar = new bootstrap.Modal(modalZerarEl);
+        const urlZerarOm = '{% url "quadrinho_zerar_om" %}';
+
+        btnAbrirZerar.addEventListener('click', function () {
+            document.getElementById('zerar-om-erro').classList.add('d-none');
+            bsZerar.show();
+        });
+
+        document.getElementById('btn-confirmar-zerar-om').addEventListener('click', async function () {
+            const erroEl = document.getElementById('zerar-om-erro');
+            erroEl.classList.add('d-none');
+            this.disabled = true;
+            try {
+                const d = await postAjax(urlZerarOm, {
+                    tipo_escala_id: '{{ tipo_escala_atual.id|default:"" }}',
+                    ano: '{{ ano|default:"" }}',
+                });
+                if (!d.ok) {
+                    erroEl.textContent = d.erro || 'Erro desconhecido.';
+                    erroEl.classList.remove('d-none');
+                } else {
+                    bsZerar.hide();
+                    // Zera todas as células visiveis na tabela
+                    document.querySelectorAll('td.quadrinho-cell').forEach(cell => {
+                        cell.dataset.valor = '0';
+                        const span = cell.querySelector('.cell-valor');
+                        if (span) { span.textContent = '0'; span.classList.add('text-muted'); }
+                    });
+                    recalcTotals();
+                }
+            } catch(e) {
+                erroEl.textContent = 'Falha na comunicação com o servidor.';
+                erroEl.classList.remove('d-none');
+            } finally {
+                this.disabled = false;
+            }
+        });
+    }
 
     // ── Ativar aba Quadrinhos via ?tab=quadrinhos na URL ──────────────────
     (function activateTabFromUrl() {

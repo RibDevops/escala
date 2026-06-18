@@ -106,6 +106,8 @@ urlpatterns = [
         name='quadrinho_editar',
     ),
     path('quadrinho/exportar/', views.quadrinho_exportar, name='quadrinho_exportar'),
+    path('quadrinho/zerar-om/', views.quadrinho_zerar_om, name='quadrinho_zerar_om'),
+    path('quadrinho/ajax-adicionar/', views.quadrinho_ajax_adicionar, name='quadrinho_ajax_adicionar'),
     path(
         'quadrinho/<int:militar_id>/<int:tipo_escala_id>/'
         '<int:tipo_servico_id>/<int:ano>/ajax-editar/',
