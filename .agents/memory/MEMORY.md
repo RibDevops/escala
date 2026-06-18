@@ -1,0 +1,1 @@
+- [Motor v2 — decisões de algoritmo](motor-v2-decisoes.md) — navegação por coluna, count por tipo, Snapshot, fallback configurável

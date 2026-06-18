@@ -17,7 +17,8 @@ Aplicação Django 6.0 para gestão de escalas militares da **FAB (Força Aérea
   - `models.py` — domínio completo
   - `views.py` — dashboard, cadastros e **views de escala** (listar, criar, detalhar, gerar, publicar)
   - `views_escala_legado.py` — views antigas de escala (referência)
-  - `engine_escala.py` — **motor de geração automática por matriz** (algoritmo principal)
+  - `engine_escala.py` — motor legado (referência apenas, não usado em produção)
+  - `services.py` — **Motor v2** (`MotorEscalaVertical` + `gerar_escala_vertical`): Snapshot Operacional, navegação por coluna, count por tipo
   - `forms_cadastro.py` — ModelForms com BootstrapFormMixin + `EscalaCriarForm`
   - `templatetags/escala_filters.py` — filtro `index` para templates
   - `urls.py` — rotas dos cadastros + rotas de escala (`/escalas/`)

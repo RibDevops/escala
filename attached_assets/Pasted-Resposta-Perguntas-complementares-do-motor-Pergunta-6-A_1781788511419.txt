@@ -1,0 +1,149 @@
+Resposta — Perguntas complementares do motor
+
+## Pergunta 6 — AjusteInicial e LancamentoManual contam como coluna?
+
+Resposta: sim, contam.
+
+Para navegação do quadrinho, o count correto deve ser:
+
+```text
+total_operacional = ajuste_inicial + quantidade + lançamentos_manuais
+```
+
+Motivo:
+
+O quadrinho representa o histórico real/manual da escala. Se um militar já tinha lastro, ajuste inicial ou lançamento manual, isso precisa ocupar coluna na navegação, porque ele já está “adiantado” no quadrinho.
+
+Exemplo:
+
+```text
+Pire:
+ajuste_inicial = 2
+quantidade = 1
+manual = 1
+total = 4
+```
+
+Então Pire está como se tivesse S1, S2, S3 e S4 preenchidos. O próximo lançamento dele seria S5.
+
+Conclusão:
+
+* `ajuste_inicial` conta.
+* `Quadrinho.quantidade` conta.
+* `LancamentoManualQuadrinho.quantidade` conta.
+* Todos ocupam células no quadrinho de navegação.
+* Não são apenas relatório.
+
+---
+
+## Pergunta 7 — Snapshot Vermelha vê as Pretas recém-geradas?
+
+Resposta: o quadrinho Vermelha não soma Pretas. Mas a folga global sim enxerga as Pretas.
+
+A Opção A está correta, com este detalhe:
+
+O Snapshot da Vermelha deve usar:
+
+```text
+1. Quadrinho Vermelha do banco
+2. Lançamentos manuais da Vermelha
+3. Ajuste inicial da Vermelha
+4. Folga global em memória
+5. Indisponibilidades reais
+```
+
+As Pretas recém-geradas não entram no count da Vermelha.
+
+Mas entram na `folga_global`.
+
+Exemplo:
+
+```text
+Ribeiro fez Preta em 08/06
+```
+
+Isso não aumenta o quadrinho Vermelha dele.
+
+Mas bloqueia Ribeiro para Vermelha nos dias cobertos pela folga.
+
+Conclusão:
+
+* Quadrinhos são separados por tipo.
+* Folga é global.
+* O único elo entre Preta, Vermelha e Roxa é a folga global e as indisponibilidades reais.
+* O count de um tipo não interfere no count do outro.
+
+---
+
+## Pergunta 8 — Quadrinho reinicia ou acumula entre meses?
+
+Resposta: acumula.
+
+A navegação por coluna deve usar o count acumulado do ano ou do período configurado no quadrinho.
+
+Não deve resetar a cada mês.
+
+Exemplo:
+
+```text
+Ribeiro já tem 5 Pretas acumuladas no ano.
+```
+
+Então, em junho, ele começa como se estivesse na próxima coluna:
+
+```text
+S6
+```
+
+Carlos tem 2 Pretas acumuladas:
+
+```text
+S3
+```
+
+Logo Carlos está mais atrasado no quadrinho Preta e tende a ser chamado antes.
+
+Conclusão:
+
+* O quadrinho é histórico acumulado.
+* Não reinicia mensalmente.
+* A escala mensal é nova, mas o quadrinho continua.
+* O período de acumulação deve ser o ano do quadrinho, salvo se futuramente o sistema permitir outro período configurável.
+
+---
+
+# Consolidação técnica
+
+Para montar o Snapshot de um tipo de serviço, usar:
+
+```text
+count_base_por_militar =
+    Quadrinho.ajuste_inicial
+  + Quadrinho.quantidade
+  + soma(LancamentoManualQuadrinho.quantidade)
+```
+
+filtrado por:
+
+```text
+militar
+tipo_escala
+tipo_servico
+ano
+```
+
+Depois aplicar:
+
+```text
+folga_global
+indisponibilidades reais
+```
+
+A navegação deve usar esse count como posição inicial da coluna.
+
+Exemplo:
+
+```text
+count_base = 4
+próxima coluna = S5
+```

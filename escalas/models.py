@@ -1559,6 +1559,16 @@ class ConfiguracaoEscala(models.Model):
         )
     )
 
+    permitir_quebrar_folga = models.BooleanField(
+        verbose_name="Permitir quebrar folga em último caso",
+        default=True,
+        help_text=(
+            "Se ativado, quando todos os militares estiverem em folga, o motor "
+            "escala o de menor count (com alerta ⚠ e forcar_escala=True). "
+            "Se desativado, o dia fica sem cobertura e gera alerta crítico 🚨."
+        )
+    )
+
     data_atualizacao = models.DateTimeField(auto_now=True)
 
     class Meta:

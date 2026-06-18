@@ -1,56 +1,57 @@
 """
-MotorEscalaVertical — Simulação computacional do processo humano de escalamento.
+MotorEscalaVertical v2 — Navegação por Quadrinho com Snapshot Operacional
 
 CONCEITO CENTRAL
 ================
-O algoritmo imita exatamente o comportamento de um escalante humano
-preenchendo uma planilha Excel operacional.
+O motor reproduz o procedimento manual da planilha. Não é uma otimização
+matemática — é uma simulação fiel do escalante humano navegando o quadrinho.
 
-MATRIZ HISTÓRICA (persistida no banco via Quadrinho):
-    Cada militar tem uma linha.
-    As colunas representam o Nº do serviço (1º, 2º, 3º...).
-    A célula contém a DATA do serviço.
-    Contém APENAS serviços reais — é a fonte da verdade.
+QUADRINHO (histórico oficial, por tipo de serviço)
+===================================================
+Cada tipo de serviço (Preta, Vermelha, Roxa) tem seu próprio quadrinho.
+As colunas representam o Nº do serviço (S1=1º, S2=2º...).
+A posição de cada militar = ajuste_inicial + quantidade + lançamentos_manuais.
 
-MATRIZ OPERACIONAL (temporária, em memória):
-    Gerada no início de cada execução.
-    Contém: serviços reais + folgas temporárias + indisponibilidades.
-    A folga ocupa posições temporariamente — NÃO cria serviço real.
-    Descartada ao fim da geração — NÃO persiste no banco.
+SNAPSHOT OPERACIONAL (temporário, por serviço)
+===============================================
+Antes de cada serviço, é criado um Snapshot: visão temporária do quadrinho
+com os bloqueios do dia (folga, indisponibilidade) aplicados.
+O Snapshot não altera o quadrinho — é descartado após cada serviço.
 
-ALGORITMO POR DIA
-=================
-    1. Ordenar militares: MENOR quantidade total de serviços reais (Quadrinho.total
-       acumulado de TODOS os tipos de serviço do tipo_escala + ano corrente)
-    2. Desempate: BASE → TOPO (mais moderno/júnior vem PRIMEIRO quando counts iguais)
-       "de baixo para cima" = começa pelo Cb/Sd (mais moderno, fundo da lista)
-    3. Verificar: sem indisponibilidade E sem folga global
-    4. Primeiro válido recebe o serviço
-    5. Folga marcada na matriz operacional (temporária, não conta como serviço)
+ALGORITMO DE NAVEGAÇÃO
+======================
+1. Menor coluna (menor count do tipo) → mais prioritária
+2. Dentro da coluna: BASE → TOPO (mais moderno primeiro)
+3. Primeiro DISPONIVEL vence
+4. Se coluna inteira bloqueada: próxima coluna à direita, reinicia do BASE
+5. Cada serviço gera nova execução completa
 
-FOLGA
-=====
-    - GLOBAL: Preto bloqueia Vermelho e vice-versa
-    - Configurável em HORAS (TipoEscala.folga_minima_horas ou ConfiguracaoEscala)
-    - NÃO persiste, NÃO aumenta o count real do militar
+FOLGA GLOBAL
+============
+Um serviço Preta bloqueia Vermelha e vice-versa.
+Folga existe apenas em memória — não altera o quadrinho.
+Carry-over: serviços do mês anterior propagam folga para o início do mês.
 
 ORDEM DE GERAÇÃO
 ================
-    Preto completo (todos os dias 01→31) → Vermelho completo → outros tipos
-    (ordenado por TipoServico.ordem ASC)
+Preta completa → Vermelha completa → demais tipos (TipoServico.ordem ASC).
+A folga_global é compartilhada entre todos os tipos.
 
-FALLBACK CONTROLADO
-===================
-    1. Tentar todos em ordem (menor count → BASE→TOPO)
-    2. Se todos bloqueados APENAS por folga → fallback com alerta (folga relaxada)
-    3. Se todos com indisponibilidade real → dia vazio + alerta crítico
-       (indisponibilidade NUNCA é quebrada)
+FALLBACK
+========
+1. Militar com indisponibilidade real: NUNCA escalado automaticamente.
+2. Militar em folga: escalado apenas se config.permitir_quebrar_folga=True,
+   com alerta ⚠ e forcar_escala=True.
+3. Todos indisponíveis: dia vazio + alerta crítico 🚨.
 """
 
 import logging
 import calendar
+from dataclasses import dataclass, field
 from datetime import date, timedelta
+from enum import Enum
 from typing import Dict, List, Optional, Set, Tuple
+
 from django.db import transaction
 from django.db.models import F
 from django.core.exceptions import ValidationError
@@ -71,15 +72,47 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
+# ==============================================================================
+# SNAPSHOT OPERACIONAL — estruturas de dados
+# ==============================================================================
+
+class EstadoCelula(Enum):
+    DISPONIVEL   = "DISPONIVEL"
+    FOLGA        = "FOLGA"
+    INDISPONIVEL = "INDISPONIVEL"
+
+
+@dataclass
+class LinhaSnapshot:
+    """Representa a situação de um militar no Snapshot de um serviço."""
+    militar: Militar
+    indice: int           # posição na lista de antiguidade (0=TOPO, n-1=BASE)
+    coluna: int           # count atual do tipo (ajuste + quantidade + manuais)
+    estado: EstadoCelula
+    motivo: Optional[str] = None
+
+
+@dataclass
+class SnapshotOperacional:
+    """Visão temporária do quadrinho para um dia e tipo de serviço."""
+    data: date
+    tipo_servico: TipoServico
+    linhas: List[LinhaSnapshot] = field(default_factory=list)
+
+
+# ==============================================================================
+# MOTOR PRINCIPAL
+# ==============================================================================
+
 class MotorEscalaVertical:
     """
-    Simula o processo humano de escalamento em planilha Excel.
+    Simula o processo humano de escalamento em planilha.
 
     Estados durante a execução:
-    - counts_historicos  : carregado do banco (Quadrinho), imutável
-    - counts_operacional : histórico + serviços desta sessão (em memória)
-    - folga_global       : bloqueios temporários por folga (em memória, descartado)
-    - indisponibilidades : férias/licença do período (em memória, NUNCA quebrado)
+    - counts_historicos_por_tipo  : carregado do banco por tipo, imutável
+    - counts_operacional_por_tipo : histórico + gerados nesta sessão, por tipo
+    - folga_global                : bloqueios temporários (descartados ao fim)
+    - indisponibilidades          : férias/licença (NUNCA quebradas)
     """
 
     def __init__(self, escala: Escala):
@@ -90,25 +123,23 @@ class MotorEscalaVertical:
         self.mes = escala.mes
         self.config = ConfiguracaoEscala.obter_para_om(self.om)
 
-        # Militares (índice 0 = TOPO/mais antigo, índice n-1 = BASE/mais moderno)
-        # Desempate: BASE → TOPO (mais moderno ganha quando counts iguais)
+        # Militares: índice 0=TOPO/mais antigo, índice n-1=BASE/mais moderno
         self.lista_militares: List[Militar] = []
         self.indice_por_id: Dict[int, int] = {}
-        self.desempate_por_id: Dict[int, int] = {}  # 0=BASE(prioridade), n-1=TOPO
 
-        # MATRIZ HISTÓRICA: Quadrinho.total somado por militar (todos os tipos de serviço)
-        self.counts_historicos: Dict[int, int] = {}
-
-        # MATRIZ OPERACIONAL (temporária): histórico + gerados nesta sessão
-        self.counts_operacional: Dict[int, int] = {}
+        # Counts por tipo de serviço:
+        #   {tipo_servico_id: {militar_id: count}}
+        #   count = ajuste_inicial + quantidade + soma(lancamentos_manuais)
+        self.counts_historicos_por_tipo: Dict[int, Dict[int, int]] = {}
+        self.counts_operacional_por_tipo: Dict[int, Dict[int, int]] = {}
 
         # Folga global (temporária): {militar_id: set(datas bloqueadas)}
         self.folga_global: Dict[int, Set[date]] = {}
 
-        # Indisponibilidades reais: NUNCA quebradas
+        # Indisponibilidades reais: {militar_id: set(datas)}
         self.indisponibilidades: Dict[int, Set[date]] = {}
 
-        # Resultados e log operacional
+        # Resultados
         self.alocacoes_criadas: int = 0
         self.dias_sem_militar: List[date] = []
         self.alertas: List[str] = []
@@ -125,14 +156,14 @@ class MotorEscalaVertical:
         Retorna dict com: sucesso, alocacoes_criadas, dias_sem_militar, alertas, log
         """
         self._log("=" * 60)
-        self._log(f"MOTOR ESCALA VERTICAL")
+        self._log("MOTOR ESCALA VERTICAL v2 — Snapshot por Quadrinho")
         self._log(f"{self.tipo_escala.nome} — {self.mes:02d}/{self.ano} — {self.om.sigla}")
         self._log("=" * 60)
 
         with transaction.atomic():
             self._limpar_itens_existentes()
             self._carregar_militares()
-            self._carregar_matriz_historica()
+            self._carregar_quadrinhos()
             self._carregar_indisponibilidades()
             self._inicializar_carryover()
             self._processar_todos_os_tipos()
@@ -142,7 +173,9 @@ class MotorEscalaVertical:
         if self.dias_sem_militar:
             self._log(f"ATENÇÃO: {len(self.dias_sem_militar)} dia(s) sem cobertura")
         if self.alertas:
-            self._log(f"ALERTAS: {len(self.alertas)}")
+            self._log(f"ALERTAS ({len(self.alertas)}):")
+            for a in self.alertas:
+                self._log(f"  {a}")
         self._log("=" * 60)
 
         return {
@@ -193,19 +226,14 @@ class MotorEscalaVertical:
         """
         Carrega militares ativos ordenados por antiguidade.
 
-        Ordem de antiguidade (TOPO → BASE):
-          1º posto__ordem_hierarquica ASC  — menor número = posto mais alto = mais antigo
-          2º data_ultima_promocao     ASC  — data mais velha = mais antigo no mesmo posto
-          3º nota                     DESC — nota maior = mais antigo (mesmo posto e data)
-          4º nome_guerra              ASC  — desempate alfabético final
+        Ordem (TOPO → BASE):
+          1º posto__ordem_hierarquica ASC  — menor = mais antigo
+          2º data_ultima_promocao     ASC  — mais velha = mais antigo no posto
+          3º nota                     DESC — maior nota = mais antigo
+          4º nome_guerra              ASC  — desempate estável
 
-          Índice 0  = TOPO (mais antigo)
-          Índice -1 = BASE (mais moderno)
-
-        A varredura de desempate é BASE → TOPO (mais moderno primeiro).
-        Na chave de ordenação usamos +indice_por_id para que o maior índice
-        (BASE / mais moderno) fique com valor MENOR e ganhe a disputa:
-          sorted key = (count, n - 1 - indice)  →  índice maior = valor menor
+        índice 0  = TOPO (mais antigo)
+        índice n-1 = BASE (mais moderno) — primeiro a ser escalado em empate
         """
         self.lista_militares = list(
             Militar.objects.filter(organizacao_militar=self.om, ativo=True)
@@ -218,69 +246,75 @@ class MotorEscalaVertical:
 
         n = len(self.lista_militares)
         self.indice_por_id = {m.id: i for i, m in enumerate(self.lista_militares)}
-        # Chave de desempate: inverte o índice para que a BASE (mais moderno) venha primeiro.
-        # Cb João (índice n-1) → desempate_key = 0  (menor = prioridade mais alta)
-        # Ten Silva (índice 0) → desempate_key = n-1 (maior = prioridade mais baixa)
-        self.desempate_por_id = {m.id: (n - 1 - i) for i, m in enumerate(self.lista_militares)}
 
         for m in self.lista_militares:
-            self.counts_historicos[m.id] = 0
-            self.counts_operacional[m.id] = 0
             self.folga_global[m.id] = set()
 
-        self._log(f"\nMilitares ({len(self.lista_militares)}) — TOPO=mais antigo, BASE=mais moderno:")
+        self._log(f"\nMilitares ({n}) — índice 0=TOPO(mais antigo), {n-1}=BASE(mais moderno):")
         for i, m in enumerate(self.lista_militares):
-            posicao = "TOPO" if i == 0 else ("BASE" if i == len(self.lista_militares) - 1 else f"idx {i}")
-            self._log(f"  {i}: {m.posto.sigla} {m.nome_guerra} [{posicao}] (desempate={self.desempate_por_id[m.id]})")
+            label = "TOPO" if i == 0 else ("BASE" if i == n - 1 else f"idx {i}")
+            self._log(f"  {i}: {m.posto.sigla} {m.nome_guerra} [{label}]")
 
     # ==========================================================================
-    # PASSO 3 — MATRIZ HISTÓRICA (Quadrinho → counts_historicos)
+    # PASSO 3 — CARREGAR QUADRINHOS POR TIPO
     # ==========================================================================
 
-    def _carregar_matriz_historica(self):
+    def _carregar_quadrinhos(self):
         """
-        Carrega a MATRIZ HISTÓRICA do banco.
+        Carrega o count de cada militar para cada tipo de serviço.
 
-        Conta o TOTAL de serviços de cada militar:
-          - Quadrinho: soma Preto + Vermelho + Roxo (ajuste_inicial + quantidade)
-          - LancamentoManualQuadrinho: lastro, atestado, férias, etc.
-            (também contam no total — são "serviços equivalentes" para fins de
-             balanceamento, exatamente como aparecem na coluna Total do quadrinho visual)
+        count = ajuste_inicial + quantidade + soma(LancamentoManualQuadrinho)
+        Filtrado por: tipo_escala + ano (acumulativo anual, não reseta por mês).
 
-        Este total é a "coluna Count" da planilha — define a PRIORIDADE.
-        Quem tem MENOS count tem mais prioridade.
+        Estes counts definem a "coluna" de cada militar no quadrinho.
+        Militar com count=3 está na coluna S3 → próximo serviço seria S4.
         """
         mil_ids = [m.id for m in self.lista_militares]
 
-        # Serviços reais (Preto + Vermelho + Roxo)
+        # 1. Quadrinhos do banco: ajuste_inicial + quantidade
         quadrinhos = Quadrinho.objects.filter(
             militar_id__in=mil_ids,
             tipo_escala=self.tipo_escala,
             ano=self.ano,
-        )
-        for q in quadrinhos:
-            if q.militar_id in self.counts_historicos:
-                self.counts_historicos[q.militar_id] += q.total
+        ).select_related('tipo_servico')
 
-        # Lançamentos manuais (lastro, atestado, férias, dispensa, etc.)
-        # Esses contam no total do quadrinho exibido — o motor precisa considerá-los
-        # para que a prioridade reflita o mesmo número que o escalante vê na tela.
+        for q in quadrinhos:
+            ts_id = q.tipo_servico_id
+            if ts_id not in self.counts_historicos_por_tipo:
+                self.counts_historicos_por_tipo[ts_id] = {m.id: 0 for m in self.lista_militares}
+            # q.total = ajuste_inicial + quantidade
+            self.counts_historicos_por_tipo[ts_id][q.militar_id] = q.total
+
+        # 2. Lançamentos manuais: também ocupam colunas no quadrinho
         lancamentos = LancamentoManualQuadrinho.objects.filter(
             militar_id__in=mil_ids,
             tipo_escala=self.tipo_escala,
             ano=self.ano,
-        )
+        ).select_related('tipo_servico')
+
         for lm in lancamentos:
-            if lm.militar_id in self.counts_historicos:
-                self.counts_historicos[lm.militar_id] += lm.quantidade
+            ts_id = lm.tipo_servico_id
+            if ts_id not in self.counts_historicos_por_tipo:
+                self.counts_historicos_por_tipo[ts_id] = {m.id: 0 for m in self.lista_militares}
+            self.counts_historicos_por_tipo[ts_id][lm.militar_id] += lm.quantidade
 
-        # Sincronizar matriz operacional com histórica
-        for mil_id in self.counts_historicos:
-            self.counts_operacional[mil_id] = self.counts_historicos[mil_id]
+        # 3. Copiar histórico → operacional (será atualizado a cada serviço gerado)
+        self.counts_operacional_por_tipo = {
+            ts_id: dict(counts)
+            for ts_id, counts in self.counts_historicos_por_tipo.items()
+        }
 
-        self._log("\nMATRIZ HISTÓRICA (Quadrinho + Lançamentos Manuais = prioridade inicial):")
-        for m in sorted(self.lista_militares, key=lambda x: self.counts_historicos[x.id]):
-            self._log(f"  {m.nome_guerra:20s} → {self.counts_historicos[m.id]} serviço(s)")
+        # Log por tipo
+        self._log("\nQUADRINHOS POR TIPO (count = ajuste + quantidade + manuais):")
+        for ts_id, counts in self.counts_historicos_por_tipo.items():
+            try:
+                ts = TipoServico.objects.get(id=ts_id)
+                ts_nome = ts.nome
+            except TipoServico.DoesNotExist:
+                ts_nome = str(ts_id)
+            self._log(f"  [{ts_nome}]")
+            for m in sorted(self.lista_militares, key=lambda x: (counts[x.id], self.indice_por_id[x.id])):
+                self._log(f"    col {counts[m.id]:>3} — {m.posto.sigla} {m.nome_guerra}")
 
     # ==========================================================================
     # PASSO 4 — INDISPONIBILIDADES REAIS (nunca quebradas)
@@ -290,7 +324,7 @@ class MotorEscalaVertical:
         """
         Carrega indisponibilidades reais: férias, licença, missão, etc.
 
-        ESTAS NUNCA SÃO QUEBRADAS — nem no fallback de último recurso.
+        ESTAS NUNCA SÃO QUEBRADAS.
         Inclui bloqueios pré/pós-férias se configurado.
         """
         primeiro_dia, ultimo_dia = self._intervalo_mes()
@@ -341,9 +375,8 @@ class MotorEscalaVertical:
 
         Se o militar teve serviço nos últimos N dias antes deste mês,
         os primeiros dias do mês ficam bloqueados por folga.
-
-        A folga é GLOBAL — qualquer tipo de serviço (Preto/Vermelho)
-        do mês anterior bloqueia os primeiros dias deste mês.
+        A folga é GLOBAL — qualquer tipo (Preta/Vermelha) do mês anterior
+        bloqueia os primeiros dias deste mês.
         """
         primeiro_dia, _ = self._intervalo_mes()
         janela_td = timedelta(days=self._janela_bloqueio())
@@ -379,23 +412,14 @@ class MotorEscalaVertical:
 
     def _processar_todos_os_tipos(self):
         """
-        Carrega dias do mês, aplica overrides por escala, e processa tipo por tipo.
+        Carrega dias do mês, aplica overrides e processa tipo por tipo.
 
-        Ordem: TipoServico.ordem ASC
-          → Preto (ordem=0) completo primeiro
-          → Vermelho (ordem=1) completo depois
-          → etc.
-
-        Override: se o escalante trocou o tipo de um dia nesta escala específica
-          (EscalaCalendarioOverride), o CalendarioDia desse dia é substituído
-          pelo CalendarioDia com o novo tipo — sem alterar o calendário global da OM.
-
-        A folga_global é COMPARTILHADA entre todos os tipos:
-        um serviço Preto bloqueia dias Vermelhos seguintes.
+        Ordem: TipoServico.ordem ASC (Preta → Vermelha → Roxa...).
+        A folga_global é compartilhada entre todos os tipos.
+        Cada tipo usa seu próprio quadrinho (counts_operacional_por_tipo[ts.id]).
         """
         primeiro_dia, ultimo_dia = self._intervalo_mes()
 
-        # Carregar todos os dias da OM para o mês
         todos_os_dias = list(
             CalendarioDia.objects.filter(
                 organizacao_militar=self.om,
@@ -411,33 +435,20 @@ class MotorEscalaVertical:
                 "Gere o calendário automático primeiro."
             )
 
-        # Aplicar overrides desta escala (não afeta o calendário global da OM)
+        # Aplicar overrides desta escala
         overrides = {
             ov.data: ov.tipo_servico
             for ov in EscalaCalendarioOverride.objects.filter(
                 escala=self.escala,
             ).select_related('tipo_servico')
         }
-
         if overrides:
             self._log(f"\nOverrides de calendário nesta escala: {len(overrides)} dia(s)")
-            # Para cada dia com override, encontra o CalendarioDia que já aponta
-            # para o tipo correto (o override pode ter já atualizado o cd.tipo_servico)
-            # ou usa o cd existente (que foi atualizado pela view ajax).
-            dias_com_override = []
             for cd in todos_os_dias:
                 if cd.data in overrides:
-                    tipo_override = overrides[cd.data]
-                    self._log(
-                        f"  {cd.data:%d/%m}: {cd.tipo_servico.nome} → {tipo_override.nome}"
-                    )
-                    # O CalendarioDia já foi atualizado pela view ajax — usar como está
-                    dias_com_override.append(cd)
-                else:
-                    dias_com_override.append(cd)
-            todos_os_dias = dias_com_override
+                    self._log(f"  {cd.data:%d/%m}: {cd.tipo_servico.nome} → {overrides[cd.data].nome}")
 
-        # Agrupar por tipo mantendo a ordem por `tipo_servico.ordem`
+        # Agrupar por tipo mantendo ordem por TipoServico.ordem
         tipos_em_ordem: List[TipoServico] = []
         dias_por_tipo: Dict[str, List[CalendarioDia]] = {}
         for dia in sorted(todos_os_dias, key=lambda d: (d.tipo_servico.ordem, d.data)):
@@ -448,11 +459,17 @@ class MotorEscalaVertical:
             dias_por_tipo[nome].append(dia)
 
         self._log(
-            f"\nTipos a processar em ordem: "
+            f"\nOrdem de geração: "
             + " → ".join(f"{t.nome} ({len(dias_por_tipo[t.nome])} dias)" for t in tipos_em_ordem)
         )
 
         for tipo_servico in tipos_em_ordem:
+            # Garantir entrada no dicionário operacional para tipos sem histórico
+            if tipo_servico.id not in self.counts_operacional_por_tipo:
+                self.counts_operacional_por_tipo[tipo_servico.id] = {
+                    m.id: 0 for m in self.lista_militares
+                }
+
             dias = sorted(dias_por_tipo[tipo_servico.nome], key=lambda d: d.data)
             self._log(f"\n{'─' * 50}")
             self._log(f"TIPO: {tipo_servico.nome} ({len(dias)} dias)")
@@ -462,91 +479,152 @@ class MotorEscalaVertical:
                 self._processar_dia(dia)
 
     # ==========================================================================
-    # PASSO 7 — PROCESSAR UM DIA
+    # PASSO 7 — PROCESSAR UM DIA (Snapshot + Navegação)
     # ==========================================================================
 
     def _processar_dia(self, dia: CalendarioDia):
         """
-        Para um dia: encontra o próximo militar válido e registra.
-
-        Ordenação de busca:
-          1. Menor counts_operacional (menor count = maior prioridade)
-          2. Desempate: BASE → TOPO (maior índice na lista de antiguidade → menor)
-
-        Verificação por militar:
-          ✓ Sem indisponibilidade (férias/licença)
-          ✓ Sem folga global (qualquer tipo de serviço recente)
-
-        Fallback:
-          - Todos em folga (sem indisponibilidade): relaxa folga + alerta
-          - Todos com indisponibilidade: dia vazio + alerta crítico
+        Para cada serviço:
+          1. Cria Snapshot Operacional (quadrinho + bloqueios do dia)
+          2. Navega: menor coluna → BASE → TOPO
+          3. Registra o primeiro DISPONIVEL
+          4. Fallback se ninguém disponível
         """
         data = dia.data
-        self._log(f"\n  {data.strftime('%d/%m/%Y')} ({dia.tipo_servico.nome})")
+        ts = dia.tipo_servico
+        counts_tipo = self.counts_operacional_por_tipo[ts.id]
 
-        # Ordenar: menor count → BASE (mais moderno) primeiro em empate
-        # desempate_por_id: 0 = BASE (mais júnior, maior prioridade),
-        #                   n-1 = TOPO (mais antigo, menor prioridade)
-        militares_ordenados = sorted(
-            self.lista_militares,
-            key=lambda m: (
-                self.counts_operacional[m.id],
-                self.desempate_por_id[m.id],
-            )
-        )
+        self._log(f"\n  {data.strftime('%d/%m/%Y')} ({ts.nome})")
 
-        ordem_resumo = " → ".join(
-            f"{m.nome_guerra}[{self.counts_operacional[m.id]}]"
-            for m in militares_ordenados
-        )
-        self._log(f"    Verificando (menor count primeiro, BASE→TOPO): {ordem_resumo}")
+        # Montar Snapshot
+        snapshot = self._criar_snapshot(data, ts, counts_tipo)
+        self._log(self._fmt_snapshot(snapshot))
 
-        # Tentativa principal: sem indisponibilidade E sem folga
-        for militar in militares_ordenados:
-            motivo = self._verificar_militar(militar, data)
-            if motivo == 'OK':
-                self._registrar_servico(dia, militar, forcado=False)
-                return
-            self._log(f"    ✗ {militar.nome_guerra} — {motivo}")
+        # Navegar: menor coluna → BASE → TOPO
+        escolhida = self._navegar_snapshot(snapshot)
 
-        # Fallback: classificar bloqueios
-        bloqueados_so_por_folga = [
-            m for m in militares_ordenados
-            if data not in self.indisponibilidades.get(m.id, set())
-            and data in self.folga_global.get(m.id, set())
+        if escolhida is not None:
+            self._registrar_servico(dia, escolhida.militar, forcado=False)
+            return
+
+        # Nenhum DISPONIVEL encontrado — fallback
+        self._tratar_fallback(dia, snapshot)
+
+    def _criar_snapshot(
+        self,
+        data: date,
+        tipo_servico: TipoServico,
+        counts_tipo: Dict[int, int],
+    ) -> SnapshotOperacional:
+        """
+        Cria o Snapshot Operacional para um dia e tipo de serviço.
+
+        Para cada militar:
+          coluna = count atual do tipo (posição no quadrinho)
+          estado = DISPONIVEL | FOLGA | INDISPONIVEL
+
+        O Snapshot não altera o quadrinho real.
+        """
+        linhas = []
+        for i, militar in enumerate(self.lista_militares):
+            coluna = counts_tipo[militar.id]
+
+            if data in self.indisponibilidades.get(militar.id, set()):
+                estado = EstadoCelula.INDISPONIVEL
+                motivo = "férias/licença"
+            elif data in self.folga_global.get(militar.id, set()):
+                estado = EstadoCelula.FOLGA
+                motivo = "folga global"
+            else:
+                estado = EstadoCelula.DISPONIVEL
+                motivo = None
+
+            linhas.append(LinhaSnapshot(
+                militar=militar,
+                indice=i,
+                coluna=coluna,
+                estado=estado,
+                motivo=motivo,
+            ))
+
+        return SnapshotOperacional(data=data, tipo_servico=tipo_servico, linhas=linhas)
+
+    def _navegar_snapshot(self, snapshot: SnapshotOperacional) -> Optional[LinhaSnapshot]:
+        """
+        Navega o Snapshot: menor coluna → BASE → TOPO.
+
+        Algoritmo fiel à planilha:
+          1. Encontra a menor coluna (menor count entre todos os militares)
+          2. Percorre a coluna de baixo para cima (BASE=mais moderno → TOPO=mais antigo)
+          3. Retorna o primeiro DISPONIVEL encontrado
+          4. Se a coluna inteira for bloqueada, passa para a próxima coluna à direita
+          5. Ao mudar de coluna, reinicia a busca pelo BASE
+        """
+        # Colunas em ordem crescente (menor = mais prioritária)
+        colunas = sorted(set(l.coluna for l in snapshot.linhas))
+
+        for coluna in colunas:
+            candidatos = [l for l in snapshot.linhas if l.coluna == coluna]
+            # BASE → TOPO: índice decrescente (maior índice = BASE = mais moderno)
+            candidatos.sort(key=lambda l: -l.indice)
+
+            coluna_tem_disponivel = False
+            for linha in candidatos:
+                if linha.estado == EstadoCelula.DISPONIVEL:
+                    coluna_tem_disponivel = True
+                    return linha
+
+            if not coluna_tem_disponivel:
+                self._log(
+                    f"    Coluna {coluna}: todos bloqueados "
+                    f"({', '.join(l.militar.nome_guerra + '=' + l.estado.value for l in candidatos)})"
+                    f" → próxima coluna"
+                )
+
+        return None
+
+    def _tratar_fallback(self, dia: CalendarioDia, snapshot: SnapshotOperacional):
+        """
+        Fallback quando nenhum militar está DISPONIVEL.
+
+        Regra:
+          - Militares com FOLGA (sem indisponibilidade real):
+              se config.permitir_quebrar_folga=True → escala o de menor coluna
+              (BASE no empate) com alerta ⚠ e forcar_escala=True
+              se False → dia sem cobertura + alerta 🚨
+          - Todos com INDISPONIVEL: dia sem cobertura + alerta crítico 🚨
+        """
+        data = dia.data
+
+        bloqueados_por_folga = [
+            l for l in snapshot.linhas
+            if l.estado == EstadoCelula.FOLGA
         ]
 
-        if bloqueados_so_por_folga:
-            # Relaxar folga para o de menor count (já está ordenado)
-            escolhido = bloqueados_so_por_folga[0]
+        if bloqueados_por_folga and self.config.permitir_quebrar_folga:
+            # Menor coluna, BASE primeiro no empate
+            bloqueados_por_folga.sort(key=lambda l: (l.coluna, -l.indice))
+            escolhida = bloqueados_por_folga[0]
             alerta = (
                 f"⚠ {data.strftime('%d/%m/%Y')} [{dia.tipo_servico.nome}]: "
-                f"todos em folga. Fallback: folga relaxada → {escolhido.nome_guerra}"
+                f"todos em folga — folga relaxada → {escolhida.militar.nome_guerra}"
             )
             self.alertas.append(alerta)
             self._log(f"    {alerta}")
-            self._registrar_servico(dia, escolhido, forcado=True)
+            self._registrar_servico(dia, escolhida.militar, forcado=True)
+
         else:
-            # Todos com indisponibilidade real → dia vazio
+            if bloqueados_por_folga:
+                motivo = "configuração não permite quebrar folga"
+            else:
+                motivo = "todos com férias/licença"
             alerta = (
                 f"🚨 {data.strftime('%d/%m/%Y')} [{dia.tipo_servico.nome}]: "
-                f"nenhum militar disponível — todos com férias/licença. Dia sem cobertura."
+                f"nenhum militar disponível ({motivo}) — dia sem cobertura."
             )
             self.alertas.append(alerta)
             self._log(f"    {alerta}")
             self.dias_sem_militar.append(data)
-
-    def _verificar_militar(self, militar: Militar, data: date) -> str:
-        """
-        Verifica se o militar pode ser escalado na data.
-
-        Returns 'OK' ou descrição do bloqueio.
-        """
-        if data in self.indisponibilidades.get(militar.id, set()):
-            return 'indisponibilidade (férias/licença)'
-        if data in self.folga_global.get(militar.id, set()):
-            return 'em período de folga'
-        return 'OK'
 
     # ==========================================================================
     # REGISTRAR SERVIÇO
@@ -554,17 +632,18 @@ class MotorEscalaVertical:
 
     def _registrar_servico(self, dia: CalendarioDia, militar: Militar, forcado: bool):
         """
-        Registra o serviço no banco e atualiza a MATRIZ OPERACIONAL (em memória).
+        Registra o serviço no banco e atualiza o estado operacional.
 
         Persistido no banco:
           - EscalaItem (serviço real)
-          - Quadrinho.incrementar (histórico real)
+          - Quadrinho.incrementar (count do tipo específico)
 
-        Em memória apenas (descartado ao fim):
-          - counts_operacional[militar.id] += 1
-          - folga_global[militar.id] += próximos N dias
+        Em memória (descartado ao fim):
+          - counts_operacional_por_tipo[ts.id][mil.id] += 1
+          - folga_global[mil.id] += próximos N dias (global para todos os tipos)
         """
-        obs = 'Motor Vertical' + (' [folga relaxada — fallback]' if forcado else '')
+        ts = dia.tipo_servico
+        obs = 'Motor v2' + (' [folga relaxada — fallback]' if forcado else '')
 
         EscalaItem.objects.create(
             escala=self.escala,
@@ -574,28 +653,28 @@ class MotorEscalaVertical:
             forcar_escala=forcado,
         )
 
-        # Persistir no histórico (Quadrinho)
+        # Persistir no quadrinho do tipo específico
         Quadrinho.incrementar(
             militar=militar,
             tipo_escala=self.tipo_escala,
-            tipo_servico=dia.tipo_servico,
+            tipo_servico=ts,
             ano=self.ano,
         )
 
-        # Atualizar MATRIZ OPERACIONAL (em memória)
-        count_anterior = self.counts_operacional[militar.id]
-        self.counts_operacional[militar.id] += 1
+        # Atualizar count operacional SOMENTE do tipo gerado
+        count_anterior = self.counts_operacional_por_tipo[ts.id][militar.id]
+        self.counts_operacional_por_tipo[ts.id][militar.id] += 1
 
-        # Marcar folga GLOBAL temporária (não persiste, não conta como serviço)
+        # Folga GLOBAL: bloqueia este militar para TODOS os tipos
         janela = self._janela_bloqueio()
         for k in range(1, janela + 1):
             self.folga_global[militar.id].add(dia.data + timedelta(days=k))
 
         self.alocacoes_criadas += 1
         self._log(
-            f"    ✓ {militar.nome_guerra} "
-            f"(count: {count_anterior} → {self.counts_operacional[militar.id]})"
-            f" | folga até: {(dia.data + timedelta(days=janela)).strftime('%d/%m')}"
+            f"    ✓ {militar.posto.sigla} {militar.nome_guerra}"
+            f" [{ts.nome}] col {count_anterior} → {count_anterior + 1}"
+            f" | folga até {(dia.data + timedelta(days=janela)).strftime('%d/%m')}"
             + (" [FALLBACK]" if forcado else "")
         )
 
@@ -604,22 +683,33 @@ class MotorEscalaVertical:
     # ==========================================================================
 
     def _folga_dias(self) -> int:
-        """Folga mínima em dias (usa override do TipoEscala ou config global)."""
-        if self.tipo_escala.folga_minima_horas is not None:
-            horas = self.tipo_escala.folga_minima_horas
-        else:
-            horas = self.config.folga_minima_dias * 24
-        return max(1, (horas + 23) // 24)  # arredonda para cima
+        """Folga mínima em dias inteiros (arredondado para cima)."""
+        horas = self.tipo_escala.folga_minima_horas
+        if horas is None:
+            horas = self.config.folga_minima_horas
+        return max(1, (horas + 23) // 24)
 
     def _janela_bloqueio(self) -> int:
-        """Dias totais bloqueados após serviço = duração_serviço + folga_mínima."""
+        """Dias totais bloqueados após serviço = duração + folga mínima."""
         return self.config.duracao_servico_dias + self._folga_dias()
 
     def _intervalo_mes(self) -> Tuple[date, date]:
-        """Retorna (primeiro_dia, ultimo_dia) do mês."""
         primeiro_dia = date(self.ano, self.mes, 1)
         ultimo_num = calendar.monthrange(self.ano, self.mes)[1]
         return primeiro_dia, date(self.ano, self.mes, ultimo_num)
+
+    def _fmt_snapshot(self, snapshot: SnapshotOperacional) -> str:
+        """Formata o Snapshot para o log."""
+        linhas = sorted(snapshot.linhas, key=lambda l: (l.coluna, -l.indice))
+        header = f"    Snapshot {snapshot.data:%d/%m/%Y} [{snapshot.tipo_servico.nome}] (col=count acumulado do tipo):"
+        corpo = "\n".join(
+            f"      col {l.coluna:>3} — {l.militar.posto.sigla} {l.militar.nome_guerra:<20} "
+            f"[{'BASE' if l.indice == len(snapshot.linhas) - 1 else ('TOPO' if l.indice == 0 else f'idx {l.indice}')}]"
+            f" → {l.estado.value}"
+            + (f" ({l.motivo})" if l.motivo else "")
+            for l in linhas
+        )
+        return header + "\n" + corpo
 
     def _log(self, msg: str):
         self.log.append(msg)
