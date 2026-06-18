@@ -261,17 +261,19 @@ class MotorEscalaVertical:
 
     def _carregar_quadrinhos(self):
         """
-        Carrega o count de cada militar para cada tipo de serviço.
+        Carrega counts históricos para referência/log.
 
-        count = ajuste_inicial + quantidade + soma(LancamentoManualQuadrinho)
-        Filtrado por: tipo_escala + ano (acumulativo anual, não reseta por mês).
+        REGRA: Ciclo independente por mês — a geração sempre começa do zero
+        (counts_operacional = 0 para todos). O histórico (ajuste_inicial +
+        quantidade + lançamentos) é carregado apenas para exibição no log;
+        NÃO afeta a ordem de escalamento.
 
-        Estes counts definem a "coluna" de cada militar no quadrinho.
-        Militar com count=3 está na coluna S3 → próximo serviço seria S4.
+        Dentro de um mês, a ordem é determinada exclusivamente pela posição na
+        lista de antiguidade: BASE (mais moderno) → TOPO (mais antigo).
         """
         mil_ids = [m.id for m in self.lista_militares]
 
-        # 1. Quadrinhos do banco: ajuste_inicial + quantidade
+        # 1. Quadrinhos do banco: ajuste_inicial + quantidade (somente para log)
         quadrinhos = Quadrinho.objects.filter(
             militar_id__in=mil_ids,
             tipo_escala=self.tipo_escala,
@@ -282,10 +284,9 @@ class MotorEscalaVertical:
             ts_id = q.tipo_servico_id
             if ts_id not in self.counts_historicos_por_tipo:
                 self.counts_historicos_por_tipo[ts_id] = {m.id: 0 for m in self.lista_militares}
-            # q.total = ajuste_inicial + quantidade
             self.counts_historicos_por_tipo[ts_id][q.militar_id] = q.total
 
-        # 2. Lançamentos manuais: também ocupam colunas no quadrinho
+        # 2. Lançamentos manuais: também no histórico (somente para log)
         lancamentos = LancamentoManualQuadrinho.objects.filter(
             militar_id__in=mil_ids,
             tipo_escala=self.tipo_escala,
@@ -298,14 +299,13 @@ class MotorEscalaVertical:
                 self.counts_historicos_por_tipo[ts_id] = {m.id: 0 for m in self.lista_militares}
             self.counts_historicos_por_tipo[ts_id][lm.militar_id] += lm.quantidade
 
-        # 3. Copiar histórico → operacional (será atualizado a cada serviço gerado)
-        self.counts_operacional_por_tipo = {
-            ts_id: dict(counts)
-            for ts_id, counts in self.counts_historicos_por_tipo.items()
-        }
+        # 3. Operacional SEMPRE começa do zero — ciclo independente por mês.
+        #    Não copiar histórico: a posição de antiguidade (BASE→TOPO) é que
+        #    define quem serve primeiro, não o saldo acumulado.
+        self.counts_operacional_por_tipo = {}
 
-        # Log por tipo
-        self._log("\nQUADRINHOS POR TIPO (count = ajuste + quantidade + manuais):")
+        # Log (mostra histórico para referência, mas não é usado na geração)
+        self._log("\nQUADRINHOS HISTÓRICOS (somente referência — geração começa do zero):")
         for ts_id, counts in self.counts_historicos_por_tipo.items():
             try:
                 ts = TipoServico.objects.get(id=ts_id)
@@ -313,8 +313,11 @@ class MotorEscalaVertical:
             except TipoServico.DoesNotExist:
                 ts_nome = str(ts_id)
             self._log(f"  [{ts_nome}]")
-            for m in sorted(self.lista_militares, key=lambda x: (counts[x.id], self.indice_por_id[x.id])):
-                self._log(f"    col {counts[m.id]:>3} — {m.posto.sigla} {m.nome_guerra}")
+            for m in sorted(self.lista_militares, key=lambda x: self.indice_por_id[x.id]):
+                self._log(
+                    f"    histórico {counts.get(m.id, 0):>3} "
+                    f"— {m.posto.sigla} {m.nome_guerra}"
+                )
 
     # ==========================================================================
     # PASSO 4 — INDISPONIBILIDADES REAIS (nunca quebradas)
