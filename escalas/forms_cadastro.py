@@ -29,7 +29,9 @@ class BootstrapFormMixin:
         for name, field in self.fields.items():
             widget = field.widget
             css = widget.attrs.get('class', '')
-            if isinstance(widget, (forms.Select, forms.SelectMultiple)):
+            if isinstance(widget, forms.CheckboxSelectMultiple):
+                pass  # Renderizado manualmente no template como toggle buttons
+            elif isinstance(widget, (forms.Select, forms.SelectMultiple)):
                 widget.attrs['class'] = (css + ' form-select').strip()
             elif isinstance(widget, forms.CheckboxInput):
                 widget.attrs['class'] = (css + ' form-check-input').strip()
@@ -169,6 +171,7 @@ class MilitarForm(BootstrapFormMixin, forms.ModelForm):
         self.fields['posto'].queryset = Posto.objects.filter(ativo=True).order_by(
             'ordem_hierarquica'
         )
+        self.fields['posto'].label_from_instance = lambda obj: obj.sigla
         self.fields['especialidade'].queryset = Especialidade.objects.filter(
             ativo=True
         ).order_by('nome')

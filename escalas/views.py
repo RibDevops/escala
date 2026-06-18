@@ -1592,7 +1592,7 @@ def militar_form(request, militar_id=None):
             else:
                 # Atualiza campos de acesso do usuário vinculado
                 usuario = militar.user
-                novo_username = request.POST.get('user_username', '').strip().lower()
+                novo_username = (form.cleaned_data.get('username_ldap') or '').strip().lower()
                 novo_perfil = request.POST.get('user_perfil', '')
                 user_ativo = request.POST.get('user_ativo') == 'on'
                 changed = False
