@@ -75,9 +75,7 @@
         <table class="table table-mil mb-0 align-middle">
             <thead>
                 <tr>
-                    <th style="width:90px;">Posto</th>
-                    <th>Nome de guerra</th>
-                    <th class="d-none d-lg-table-cell">Nome completo</th>
+                    <th>Militar</th>
                     <th class="d-none d-md-table-cell" style="width:110px;">Matrícula</th>
                     <th class="d-none d-md-table-cell" style="width:80px;">Divisão</th>
                     <th class="d-none d-xl-table-cell" style="width:110px;" title="Data da última promoção — mais antiga = mais antigo na lista">Ult. Promoção</th>
@@ -91,9 +89,10 @@
             <tbody>
                 {% for m in militares %}
                 <tr>
-                    <td><span class="badge-posto">{{ m.posto.sigla }}</span></td>
-                    <td><strong>{{ m.nome_guerra }}</strong></td>
-                    <td class="text-muted small d-none d-lg-table-cell">{{ m.nome_completo }}</td>
+                    <td>
+                        <span class="badge-posto me-1">{{ m.posto.sigla }}</span>
+                        <strong>{{ m.nome_guerra }}</strong>
+                    </td>
                     <td class="d-none d-md-table-cell"><code class="small">{{ m.matricula }}</code></td>
                     <td class="d-none d-md-table-cell small text-muted">{{ m.divisao.sigla|default:"—" }}</td>
                     <td class="d-none d-xl-table-cell small text-muted">
@@ -153,7 +152,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="11" class="text-center text-muted py-4">
+                    <td colspan="9" class="text-center text-muted py-4">
                         Nenhum militar encontrado.
                         <a href="{% url 'militar_novo' %}">Cadastrar agora</a>.
                     </td>
@@ -180,8 +179,7 @@
                 <table class="table table-mil mb-0 align-middle">
                     <thead>
                         <tr>
-                            <th style="width:90px;">Posto</th>
-                            <th>Nome de guerra</th>
+                            <th>Militar</th>
                             <th class="d-none d-md-table-cell">Matrícula</th>
                             <th class="d-none d-md-table-cell">Divisão</th>
                             <th style="width:110px;" class="text-end">Ações</th>
@@ -190,8 +188,10 @@
                     <tbody>
                         {% for m in militares_inativos %}
                         <tr class="text-muted">
-                            <td><span class="badge-posto" style="opacity:.6;">{{ m.posto.sigla }}</span></td>
-                            <td><span style="text-decoration:line-through;">{{ m.nome_guerra }}</span></td>
+                            <td>
+                                <span class="badge-posto me-1" style="opacity:.6;">{{ m.posto.sigla }}</span>
+                                <span style="text-decoration:line-through;">{{ m.nome_guerra }}</span>
+                            </td>
                             <td class="d-none d-md-table-cell"><code class="text-muted small">{{ m.matricula }}</code></td>
                             <td class="d-none d-md-table-cell small">{{ m.divisao.sigla|default:"—" }}</td>
                             <td class="text-end text-nowrap">
