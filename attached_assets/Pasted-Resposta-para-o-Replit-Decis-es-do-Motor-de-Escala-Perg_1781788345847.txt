@@ -1,0 +1,177 @@
+Resposta para o Replit — Decisões do Motor de Escala
+
+## Pergunta 1 — Count por tipo ou total?
+
+Resposta: o count usado para navegar no quadrinho deve ser por tipo de serviço.
+
+Quando estiver gerando Preta, o motor deve olhar o quadrinho da Preta.
+
+Quando estiver gerando Vermelha, o motor deve olhar o quadrinho da Vermelha.
+
+Quando estiver gerando Roxa, o motor deve olhar o quadrinho da Roxa.
+
+O total geral pode existir para relatório, estatística ou conferência, mas não deve definir a navegação principal da escala.
+
+Regra correta:
+
+* Quadrinho Preta decide serviço Preta.
+* Quadrinho Vermelha decide serviço Vermelha.
+* Quadrinho Roxa decide serviço Roxa.
+* A folga é global, mas o quadrinho é separado por tipo.
+
+Então o código atual que soma Preta + Vermelha + Roxa em um único count não representa fielmente a planilha manual.
+
+---
+
+## Pergunta 2 — Ordem de processamento: por tipo ou cronológica?
+
+Resposta: manter por tipo, não cronológica.
+
+A regra manual confirmada é:
+
+1. Gera toda a Preta.
+2. Depois gera toda a Vermelha.
+3. Depois outros tipos, se existirem, conforme ordem configurada.
+
+Porém, a folga é global.
+
+Isso significa:
+
+* Um serviço Preta pode bloquear um serviço Vermelha.
+* Um serviço Vermelha pode bloquear um serviço Preta.
+* Mesmo gerando por tipo, a folga global precisa ser consultada sempre.
+
+Exemplo:
+
+Se a Preta de 07/05 foi gerada antes da Vermelha, ela pode bloquear a Vermelha de 08/05.
+
+Isso é aceitável dentro da lógica da planilha, porque o procedimento manual trabalha primeiro um quadrinho e depois outro.
+
+Conclusão:
+
+* Ordem de geração: por tipo.
+* Folga: global.
+* Quadrinho: separado por tipo.
+
+---
+
+## Pergunta 3 — Navegação por coluna pode ser substituída por sorted por count?
+
+Resposta: não deve substituir.
+
+Mesmo que em muitos casos o resultado seja igual, o algoritmo correto não é "ordenar por count".
+
+O algoritmo correto é navegar no quadrinho:
+
+1. Encontrar a menor coluna com célula vazia.
+2. Percorrer essa coluna de baixo para cima.
+3. Ignorar quem já está preenchido, indisponível ou em folga.
+4. Escolher o primeiro disponível.
+5. Se ninguém naquela coluna puder assumir, ir para a próxima coluna à direita.
+6. Reiniciar a busca de baixo para cima.
+
+O sorted por count aproxima a lógica, mas não reproduz exatamente a planilha.
+
+A diferença principal é esta:
+
+* Na planilha, a coluna importa.
+* No sorted, só o número importa.
+
+Como queremos fidelidade total ao procedimento manual, o motor deve implementar navegação por coluna.
+
+---
+
+## Pergunta 4 — Snapshot formal é necessário?
+
+Resposta: para funcionar, até daria para fazer sem Snapshot formal. Mas para este projeto, o Snapshot é recomendado e deve ser implementado.
+
+Motivo:
+
+O Snapshot deixa separado:
+
+1. O quadrinho real, que é histórico e não deve ser alterado por folga ou indisponibilidade.
+2. A visão temporária usada para decidir o próximo serviço.
+3. A navegação da escala.
+4. Os motivos de bloqueio.
+
+O quadrinho real nunca deve ser modificado por folga ou indisponibilidade.
+
+A folga e a indisponibilidade aparecem apenas no Snapshot Operacional.
+
+Para cada serviço:
+
+1. Monta Snapshot.
+2. Aplica preenchidos reais.
+3. Aplica indisponibilidades.
+4. Aplica folga global.
+5. Navega menor coluna, baixo para cima.
+6. Registra primeiro disponível.
+7. Atualiza quadrinho real.
+8. Atualiza folga global.
+9. Descarta Snapshot.
+
+Isso vai facilitar teste, log, explicação visual e manutenção.
+
+Conclusão:
+
+* Snapshot não é obrigatório matematicamente.
+* Mas é obrigatório arquiteturalmente para manter fidelidade, clareza e evolução segura.
+
+---
+
+## Pergunta 5 — Fallback de folga deve ser configurável?
+
+Resposta: sim, deve ser configurável por OM ou por TipoEscala.
+
+A regra operacional ideal é:
+
+1. Indisponibilidade real nunca pode ser quebrada.
+2. Folga pode ser quebrada somente se a configuração permitir.
+3. Quando quebrar folga, deve gerar alerta e marcar o EscalaItem com forcar_escala=True.
+4. Se a configuração não permitir quebrar folga, o dia deve ficar sem cobertura e gerar alerta crítico.
+
+Sugestão de configuração:
+
+* permitir_quebrar_folga_em_ultimo_caso = True/False
+
+Comportamento:
+
+Se todos estiverem bloqueados:
+
+* Se todos estão indisponíveis por férias/licença/missão:
+
+  * dia fica sem cobertura.
+* Se existem militares bloqueados apenas por folga:
+
+  * se permitir quebrar folga: escolhe o primeiro pela navegação do Snapshot e registra com alerta.
+  * se não permitir: dia fica sem cobertura.
+
+Conclusão:
+
+O código atual não deve deixar isso hardcoded. Deve virar configuração.
+
+---
+
+# Decisão final consolidada
+
+O motor correto deve seguir estas regras:
+
+1. O quadrinho é separado por tipo de serviço.
+2. A folga é global.
+3. A geração é por tipo: Preta completa, depois Vermelha, depois demais tipos.
+4. Cada serviço gera uma nova execução completa.
+5. Cada serviço cria um Snapshot Operacional novo.
+6. O quadrinho real nunca recebe marcação temporária de folga ou indisponibilidade.
+7. A navegação é por coluna, não por sorted simples.
+8. A busca é sempre de baixo para cima.
+9. O primeiro disponível vence.
+10. Se a coluna acabar, vai para a próxima coluna à direita e recomeça de baixo para cima.
+11. Indisponibilidade real nunca é quebrada.
+12. Folga pode ser quebrada apenas se configurado.
+13. O fallback de folga deve gerar alerta e marcar forcar_escala=True.
+14. O código atual precisa ser ajustado principalmente em:
+
+    * count por tipo;
+    * navegação real por coluna;
+    * Snapshot formal;
+    * fallback configurável.
