@@ -1,0 +1,95 @@
+Verifiquei. Melhorou, mas ainda não está fiel à regra que validamos.
+
+O ponto mais crítico: o services.py ainda diz e faz count somado de todos os tipos e ainda usa sorted(count, desempate) em vez de navegação real por coluna/snapshot. No arquivo atual aparece: “Quadrinho.total acumulado de TODOS os tipos” e _carregar_matriz_historica() busca Quadrinho filtrando por tipo_escala e ano, mas não por tipo_servico.
+
+O que ficou certo
+
+A ordenação de militares ficou boa:
+
+.order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
+
+Isso respeita:
+
+TOPO = mais antigo
+BASE = mais moderno
+
+E o desempate BASE→TOPO também está coerente.
+
+Também ficou certo:
+
+geração por tipo: Preto completo, depois Vermelho etc.
+folga global em memória;
+carry-over do mês anterior;
+ajuste_inicial + quantidade + LancamentoManualQuadrinho contando para navegação;
+campo permitir_quebrar_folga foi criado em ConfiguracaoEscala.
+O que ainda está errado
+1. Count ainda está somando Preta + Vermelha + Roxa
+
+Hoje:
+
+quadrinhos = Quadrinho.objects.filter(
+    militar_id__in=mil_ids,
+    tipo_escala=self.tipo_escala,
+    ano=self.ano,
+)
+
+Falta filtrar por:
+
+tipo_servico=tipo_servico_atual
+
+O correto é carregar/recalcular a matriz para cada tipo de serviço.
+
+2. Não existe Snapshot formal
+
+O código ainda faz:
+
+militares_ordenados = sorted(...)
+for militar in militares_ordenados:
+    verificar...
+
+Isso funciona parecido em alguns casos, mas não representa bem a planilha. O correto é:
+
+para cada dia:
+    montar snapshot do tipo atual
+    achar menor coluna
+    varrer de baixo para cima
+    primeiro DISPONÍVEL vence
+3. Fallback configurável foi criado no model, mas parece não estar sendo usado
+
+O campo existe:
+
+permitir_quebrar_folga
+
+Mas em _processar_dia() o fallback ainda relaxa folga direto quando encontra bloqueados_so_por_folga. Precisa virar:
+
+if bloqueados_so_por_folga and self.config.permitir_quebrar_folga:
+    ...
+else:
+    dia sem cobertura
+Minha resposta para o Replit
+
+Pode enviar isso:
+
+Ainda não está 100% correto.
+
+O model melhorou: permitir_quebrar_folga foi criado, a ordenação hierárquica está correta e o motor já mantém folga global.
+
+Mas services.py ainda precisa de 3 ajustes críticos:
+
+1. O count da matriz histórica não pode somar todos os tipos de serviço.
+   Para gerar Preta, usar apenas Quadrinho/LancamentoManual de Preta.
+   Para gerar Vermelha, usar apenas Vermelha.
+   Folga é global, mas quadrinho/count é por tipo.
+
+2. A navegação ainda está baseada em sorted(count, desempate).
+   Precisamos implementar SnapshotOperacional real:
+   - montar snapshot por tipo_servico e data;
+   - calcular coluna pelo count daquele tipo;
+   - aplicar folga/indisponibilidade como estado temporário;
+   - navegar menor coluna, baixo para cima;
+   - primeiro DISPONÍVEL vence.
+
+3. O campo permitir_quebrar_folga existe no model, mas o motor precisa respeitá-lo.
+   Se False, não pode relaxar folga; deve deixar dia sem cobertura com alerta.
+
+Resumo: estrutura caminhou bem, mas o coração do algoritmo ainda precisa ser corrigido.
