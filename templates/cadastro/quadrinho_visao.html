@@ -308,7 +308,13 @@
                             {% with entrada=linha.entradas|index:forloop.counter0 %}
                             <td class="text-center p-1 qm-cell">
                                 {% if entrada %}
-                                    {% if entrada.tipo == 'data' %}
+                                    {% if entrada.tipo == 'historico' %}
+                                    <span class="badge rounded-pill qm-badge"
+                                          style="background:#888;color:#fff;font-size:0.68rem;white-space:nowrap;"
+                                          title="Serviço anterior ao sistema (ajuste inicial)">
+                                        Hist.
+                                    </span>
+                                    {% elif entrada.tipo == 'data' %}
                                     <div class="qm-cell-inner">
                                         <span class="badge rounded-pill qm-badge"
                                               style="background-color:{{ secao.tipo_servico.cor_hex }};color:#fff;font-size:0.72rem;white-space:nowrap;"

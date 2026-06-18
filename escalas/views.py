@@ -903,6 +903,22 @@ def quadrinho_visao(request):
                 (item['calendario_dia__data'], item['id'], item['observacao'] or '')
             )
 
+        # Ajuste inicial por (mil_id, ts_id) — histórico pré-sistema sem datas
+        # Somado por todos os anos quando todos_anos_matriz=True
+        from django.db.models import Sum as _SumQ
+        ajuste_mat_filtro = dict(
+            militar_id__in=[m.id for m in militares_antiguidade],
+            tipo_escala=tipo_escala_atual,
+            tipo_servico_id__in=[ts.id for ts in tipos_servico],
+        )
+        if not todos_anos_matriz:
+            ajuste_mat_filtro['ano'] = matriz_ano
+        ajuste_inicial_map = {}  # (mil_id, ts_id) -> total ajuste_inicial
+        for row in Quadrinho.objects.filter(**ajuste_mat_filtro).values(
+            'militar_id', 'tipo_servico_id'
+        ).annotate(total_aj=_SumQ('ajuste_inicial')):
+            ajuste_inicial_map[(row['militar_id'], row['tipo_servico_id'])] = row['total_aj'] or 0
+
         for ts in tipos_servico:
             bloco = por_ts.get(ts.id)
 
@@ -911,6 +927,10 @@ def quadrinho_visao(request):
             max_entradas = 0
 
             for m in militares_antiguidade:
+                # Entradas de histórico pré-sistema (ajuste_inicial sem datas)
+                n_historico = ajuste_inicial_map.get((m.id, ts.id), 0)
+                entradas_historico = [{'tipo': 'historico'} for _ in range(n_historico)]
+
                 # Lançamentos manuais expandidos (cada lm com qtd=N vira N células)
                 lms = lancamentos_matriz.get((m.id, ts.id), [])
                 entradas_manuais = []
@@ -931,8 +951,8 @@ def quadrinho_visao(request):
                     for d, eid, obs in raw_reais
                 ]
 
-                # Serviços reais vêm primeiro; lançamentos manuais (lastro) ficam ao final
-                entradas = entradas_reais + entradas_manuais
+                # Ordem: histórico pré-sistema → serviços reais → lançamentos manuais
+                entradas = entradas_historico + entradas_reais + entradas_manuais
                 total = len(entradas)
                 total_geral_ts += total
                 max_entradas = max(max_entradas, total)
