@@ -631,9 +631,10 @@ def quadrinho_visao(request):
 
     ano_atual = _date.today().year
     try:
-        ano = int(request.GET.get('ano') or ano_atual)
+        ano = int(request.GET.get('ano') or 0)
     except ValueError:
-        ano = ano_atual
+        ano = 0
+    todos_anos = (ano == 0)
 
     tipo_escala_param = request.GET.get('tipo_escala', '')
 
@@ -662,25 +663,47 @@ def quadrinho_visao(request):
             if om else []
         )
 
-    quadrinhos_map = {}
+    # ── Carregar quadrinhos (todos os anos ou ano específico) ─────────────────
+    # quadrinhos_info_map: (mil_id, ts_id) -> {'ajuste': int, 'quantidade': int, 'qd': obj|None}
+    quadrinhos_info_map = {}
     if om and tipo_escala_atual and militares and tipos_servico:
-        for qd in Quadrinho.objects.filter(
+        from django.db.models import Sum as _Sum
+        filtro_q = dict(
             militar__in=militares,
             tipo_escala=tipo_escala_atual,
             tipo_servico__in=tipos_servico,
-            ano=ano,
-        ):
-            quadrinhos_map[(qd.militar_id, qd.tipo_servico_id)] = qd
+        )
+        if not todos_anos:
+            filtro_q['ano'] = ano
+
+        if todos_anos:
+            for row in Quadrinho.objects.filter(**filtro_q).values(
+                'militar_id', 'tipo_servico_id'
+            ).annotate(total_aj=_Sum('ajuste_inicial'), total_qt=_Sum('quantidade')):
+                quadrinhos_info_map[(row['militar_id'], row['tipo_servico_id'])] = {
+                    'ajuste_inicial': row['total_aj'] or 0,
+                    'quantidade': row['total_qt'] or 0,
+                    'qd': None,
+                }
+        else:
+            for qd in Quadrinho.objects.filter(**filtro_q):
+                quadrinhos_info_map[(qd.militar_id, qd.tipo_servico_id)] = {
+                    'ajuste_inicial': qd.ajuste_inicial,
+                    'quantidade': qd.quantidade,
+                    'qd': qd,
+                }
 
     # Lançamentos manuais somados por (militar, tipo_servico)
     lancamentos_totais_map = {}  # (mil_id, ts_id) -> soma de quantidades
     if om and tipo_escala_atual and militares and tipos_servico:
-        for lm in LancamentoManualQuadrinho.objects.filter(
+        filtro_lm = dict(
             militar__in=militares,
             tipo_escala=tipo_escala_atual,
             tipo_servico__in=tipos_servico,
-            ano=ano,
-        ):
+        )
+        if not todos_anos:
+            filtro_lm['ano'] = ano
+        for lm in LancamentoManualQuadrinho.objects.filter(**filtro_lm):
             chave = (lm.militar_id, lm.tipo_servico_id)
             lancamentos_totais_map[chave] = lancamentos_totais_map.get(chave, 0) + lm.quantidade
 
@@ -691,18 +714,18 @@ def quadrinho_visao(request):
         celulas = []
         total_militar = 0
         for ts in tipos_servico:
-            qd = quadrinhos_map.get((m.id, ts.id))
-            valor_sistema = qd.total if qd else 0
+            info = quadrinhos_info_map.get((m.id, ts.id), {'ajuste_inicial': 0, 'quantidade': 0, 'qd': None})
+            valor_sistema = info['ajuste_inicial'] + info['quantidade']
             valor_manual = lancamentos_totais_map.get((m.id, ts.id), 0)
             valor = valor_sistema + valor_manual
             celulas.append({
                 'tipo_servico': ts,
-                'quadrinho': qd,
+                'quadrinho': info['qd'],
                 'valor': valor,
                 'valor_sistema': valor_sistema,
                 'valor_manual': valor_manual,
-                'ajuste_inicial': qd.ajuste_inicial if qd else 0,
-                'quantidade': qd.quantidade if qd else 0,
+                'ajuste_inicial': info['ajuste_inicial'],
+                'quantidade': info['quantidade'],
             })
             totais_coluna[ts.id] += valor
             total_militar += valor
@@ -772,11 +795,13 @@ def quadrinho_visao(request):
         # Busca:
         #  (a) itens onde este militar é titular E não há substituto (serviu de fato)
         #  (b) itens onde este militar é o substituto (cobriu outro)
+        filtro_itens_reg = dict(escala__tipo_escala=tipo_escala_atual)
+        if not todos_anos:
+            filtro_itens_reg['calendario_dia__data__year'] = ano
         itens = EscalaItem.objects.filter(
             _Q(militar_id__in=militar_ids, substituto__isnull=True) |
             _Q(substituto_id__in=militar_ids),
-            calendario_dia__data__year=ano,
-            escala__tipo_escala=tipo_escala_atual,
+            **filtro_itens_reg,
         ).select_related(
             'militar__posto',
             'substituto__posto',
@@ -808,9 +833,10 @@ def quadrinho_visao(request):
     except ValueError:
         matriz_mes = 0
     try:
-        matriz_ano = int(request.GET.get('matriz_ano') or ano)
+        matriz_ano = int(request.GET.get('matriz_ano') or 0)  # 0 = todos os anos
     except ValueError:
-        matriz_ano = ano
+        matriz_ano = 0
+    todos_anos_matriz = (matriz_ano == 0)
 
     # Militares em ordem de antiguidade para a Matriz (independente do filtro de totais)
     militares_antiguidade = (
@@ -825,13 +851,14 @@ def quadrinho_visao(request):
     # Lançamentos manuais da matriz, agrupados por (mil_id, ts_id)
     lancamentos_matriz = {}  # (mil_id, ts_id) -> list of LancamentoManualQuadrinho
     if om and tipo_escala_atual and militares_antiguidade and tipos_servico:
-        filtro_lm = dict(
+        filtro_lm_mat = dict(
             militar_id__in=[m.id for m in militares_antiguidade],
             tipo_escala=tipo_escala_atual,
             tipo_servico_id__in=[ts.id for ts in tipos_servico],
-            ano=matriz_ano,
         )
-        for lm in LancamentoManualQuadrinho.objects.filter(**filtro_lm).select_related('tipo_servico'):
+        if not todos_anos_matriz:
+            filtro_lm_mat['ano'] = matriz_ano
+        for lm in LancamentoManualQuadrinho.objects.filter(**filtro_lm_mat).select_related('tipo_servico'):
             chave = (lm.militar_id, lm.tipo_servico_id)
             lancamentos_matriz.setdefault(chave, []).append(lm)
 
@@ -841,8 +868,9 @@ def quadrinho_visao(request):
         filtro_itens = dict(
             militar_id__in=[m.id for m in militares_antiguidade],
             escala__tipo_escala=tipo_escala_atual,
-            calendario_dia__data__year=matriz_ano,
         )
+        if not todos_anos_matriz:
+            filtro_itens['calendario_dia__data__year'] = matriz_ano
         if matriz_mes:
             filtro_itens['calendario_dia__data__month'] = matriz_mes
 
@@ -925,7 +953,7 @@ def quadrinho_visao(request):
                 'total_geral': total_geral_ts,
             })
 
-    anos_opcoes_matriz = list(range(ano_atual + 1, ano_atual - 5, -1))
+    anos_opcoes_matriz = [0] + list(range(ano_atual + 1, ano_atual - 5, -1))
 
     return render(
         request,
@@ -933,6 +961,7 @@ def quadrinho_visao(request):
         {
             'om': om,
             'ano': ano,
+            'todos_anos': todos_anos,
             'anos_opcoes': anos_opcoes,
             'tipos_escala': tipos_escala,
             'tipo_escala_atual': tipo_escala_atual,
@@ -947,6 +976,7 @@ def quadrinho_visao(request):
             'matriz_secoes': matriz_secoes,
             'matriz_mes': matriz_mes,
             'matriz_ano': matriz_ano,
+            'todos_anos_matriz': todos_anos_matriz,
             'anos_opcoes_matriz': anos_opcoes_matriz,
             'nomes_meses': NOMES_MESES,
         },

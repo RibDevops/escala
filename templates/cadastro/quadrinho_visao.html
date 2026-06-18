@@ -8,7 +8,7 @@
         <div class="subtitle">
             Contagem de serviços por militar &middot;
             {% if om %}{{ om.sigla }}{% else %}—{% endif %}
-            &middot; {{ ano }}
+            &middot; {% if todos_anos %}<strong>Histórico completo</strong>{% else %}{{ ano }}{% endif %}
             {% if tipo_escala_atual %} &middot; <strong>{{ tipo_escala_atual.nome }}</strong>{% endif %}
             {% if militar_proprio %} &middot; <span class="text-warning">{{ militar_proprio|posto_nome }}</span>{% endif %}
         </div>
@@ -27,6 +27,7 @@
             <input type="hidden" name="ordem" value="{{ ordem|default:'' }}">
             <label class="small text-muted mb-0">Ano:</label>
             <select name="ano" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+                <option value="0" {% if todos_anos %}selected{% endif %}>Todos os anos</option>
                 {% for a in anos_opcoes %}
                     <option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>
                 {% endfor %}
@@ -79,7 +80,7 @@
     <div class="tab-pane fade show active" id="pills-totais" role="tabpanel">
         <div class="card-mil">
             <div class="card-mil-header d-flex justify-content-between align-items-center">
-                <span>{{ tipo_escala_atual.nome }} &middot; {{ ano }}</span>
+                <span>{{ tipo_escala_atual.nome }} &middot; {% if todos_anos %}Histórico completo{% else %}{{ ano }}{% endif %}</span>
                 <div class="d-flex gap-2 align-items-center">
                     <span class="small text-muted">Ordenar:</span>
                     <a href="?ano={{ ano }}&tipo_escala={{ tipo_escala_atual.id }}&ordem=desc"
@@ -151,6 +152,7 @@
                                               title="Ajuste legado: {{ c.ajuste_inicial }} · Sistema: {{ c.quantidade }} · Manual: {{ c.valor_manual }}">
                                             {{ c.valor }}
                                         </span>
+                                        {% if not todos_anos %}
                                         <div class="cell-actions">
                                             <button type="button"
                                                     class="btn btn-link btn-sm p-0 text-primary btn-editar-celula"
@@ -186,6 +188,7 @@
                                                 <i class="bi bi-plus-circle"></i>
                                             </button>
                                         </div>
+                                        {% endif %}
                                     </div>
                                     {% endif %}
                                 </td>
@@ -253,7 +256,11 @@
             </select>
             <select name="matriz_ano" class="form-select form-select-sm" style="width:auto;">
                 {% for a in anos_opcoes_matriz %}
-                    <option value="{{ a }}" {% if a == matriz_ano %}selected{% endif %}>{{ a }}</option>
+                    {% if a == 0 %}
+                        <option value="0" {% if todos_anos_matriz %}selected{% endif %}>Todos os anos</option>
+                    {% else %}
+                        <option value="{{ a }}" {% if a == matriz_ano %}selected{% endif %}>{{ a }}</option>
+                    {% endif %}
                 {% endfor %}
             </select>
             <button type="submit" class="btn btn-sm btn-mil">
@@ -267,7 +274,7 @@
                 <span class="badge rounded-pill" style="background-color:{{ secao.tipo_servico.cor_hex }};color:#fff;">
                     {{ secao.tipo_servico.nome }}
                 </span>
-                <span>Registros de Serviço — {{ matriz_ano }}{% if matriz_mes %}/{{ matriz_mes|stringformat:"02d" }}{% endif %}</span>
+                <span>Registros de Serviço — {% if todos_anos_matriz %}Todos os anos{% else %}{{ matriz_ano }}{% endif %}{% if matriz_mes %}/{{ matriz_mes|stringformat:"02d" }}{% endif %}</span>
                 <span class="badge bg-secondary ms-auto">{{ secao.total_geral }} serviço(s)</span>
             </div>
 
