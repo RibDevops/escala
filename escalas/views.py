@@ -1167,8 +1167,14 @@ def quadrinho_editar(request, militar_id, tipo_escala_id, tipo_servico_id, ano):
 @login_required
 @require_POST
 def quadrinho_zerar_om(request):
-    """Zera ajuste_inicial e quantidade de TODOS os quadrinhos da OM ativa para
-    tipo_escala e ano informados via POST. Não remove os registros, apenas zera."""
+    """Apaga tudo relacionado ao quadrinho de uma OM/tipo_escala/ano:
+    - Zera Quadrinho.ajuste_inicial e quantidade
+    - Deleta LancamentoManualQuadrinho
+    - Deleta EscalaItem das escalas daquele tipo/ano
+    - Reverte Escala para status 'rascunho' (sem itens gerados)
+
+    Se ano=0, apaga para TODOS os anos.
+    """
     om = obter_om_ativa(request)
     if not om:
         return JsonResponse({'ok': False, 'erro': 'Nenhuma OM ativa.'}, status=400)
@@ -1179,21 +1185,50 @@ def quadrinho_zerar_om(request):
     except (ValueError, TypeError):
         return JsonResponse({'ok': False, 'erro': 'Parâmetros inválidos.'}, status=400)
 
-    if not tipo_escala_id or not ano:
-        return JsonResponse({'ok': False, 'erro': 'tipo_escala e ano são obrigatórios.'}, status=400)
+    if not tipo_escala_id:
+        return JsonResponse({'ok': False, 'erro': 'tipo_escala é obrigatório.'}, status=400)
 
     tipo_escala = get_object_or_404(TipoEscala, pk=tipo_escala_id)
+    todos_anos = (ano == 0)
 
-    atualizados = Quadrinho.objects.filter(
-        militar__organizacao_militar=om,
-        tipo_escala=tipo_escala,
-        ano=ano,
-    ).update(ajuste_inicial=0, quantidade=0)
+    # Filtro base para Quadrinho e LancamentoManualQuadrinho
+    filtro_q = dict(militar__organizacao_militar=om, tipo_escala=tipo_escala)
+    if not todos_anos:
+        filtro_q['ano'] = ano
 
+    # 1. Zera Quadrinho
+    qt_quadrinhos = Quadrinho.objects.filter(**filtro_q).update(
+        ajuste_inicial=0, quantidade=0
+    )
+
+    # 2. Deleta LancamentoManualQuadrinho
+    qt_lancamentos, _ = LancamentoManualQuadrinho.objects.filter(**filtro_q).delete()
+
+    # 3. Deleta EscalaItem (via Escala) e reverte status das escalas
+    filtro_escala = dict(organizacao_militar=om, tipo_escala=tipo_escala)
+    if not todos_anos:
+        filtro_escala['ano'] = ano
+
+    escalas_afetadas = Escala.objects.filter(**filtro_escala)
+    qt_itens = EscalaItem.objects.filter(escala__in=escalas_afetadas).delete()[0]
+
+    # Reverte escalas geradas para rascunho
+    escalas_afetadas.filter(
+        status__in=['previsao', 'publicada']
+    ).update(status='rascunho')
+
+    periodo = f'{ano}' if not todos_anos else 'todos os anos'
     return JsonResponse({
         'ok': True,
-        'atualizados': atualizados,
-        'mensagem': f'{atualizados} quadrinho(s) zerado(s) para {tipo_escala.nome} / {ano}.',
+        'quadrinhos_zerados': qt_quadrinhos,
+        'lancamentos_removidos': qt_lancamentos,
+        'itens_removidos': qt_itens,
+        'mensagem': (
+            f'{tipo_escala.nome} / {periodo}: '
+            f'{qt_quadrinhos} quadrinho(s) zerado(s), '
+            f'{qt_lancamentos} lançamento(s) removido(s), '
+            f'{qt_itens} serviço(s) de escala removido(s).'
+        ),
     })
 
 

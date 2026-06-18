@@ -22,16 +22,21 @@
             <i class="bi bi-file-earmark-excel"></i> Exportar Excel
         </a>
         {% endif %}
-        {% if not militar_proprio and tipo_escala_atual and not todos_anos %}
+        {% if not militar_proprio and tipo_escala_atual %}
+        {% if not todos_anos %}
         <button type="button" class="btn btn-mil btn-sm" id="btn-abrir-adicionar-quadrinho"
                 data-tipo-escala-id="{{ tipo_escala_atual.id }}"
                 data-ano="{{ ano }}"
                 title="Adicionar ou editar quadrinho de qualquer militar">
             <i class="bi bi-plus-circle"></i> Adicionar Quadrinho
         </button>
+        {% endif %}
         <button type="button" class="btn btn-outline-danger btn-sm" id="btn-abrir-zerar-om"
-                title="Zerar ajuste e sistema de todos os militares neste tipo/ano">
-            <i class="bi bi-arrow-counterclockwise"></i> Zerar Todos
+                data-tipo-escala-id="{{ tipo_escala_atual.id }}"
+                data-ano="{% if todos_anos %}0{% else %}{{ ano }}{% endif %}"
+                data-todos-anos="{% if todos_anos %}1{% else %}0{% endif %}"
+                title="Apagar tudo: contadores, lançamentos e serviços gerados">
+            <i class="bi bi-arrow-counterclockwise"></i> Zerar Tudo
         </button>
         {% endif %}
         <form method="get" class="d-flex gap-2 align-items-center">
@@ -683,32 +688,35 @@
 </div>
 
 <!-- ================================================================== -->
-<!-- MODAL: ZERAR TODOS OS QUADRINHOS DA OM                             -->
+<!-- MODAL: ZERAR TUDO (quadrinhos + lançamentos + serviços gerados)    -->
 <!-- ================================================================== -->
 <div class="modal fade" id="modalZerarOm" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header border-danger" style="background:#fff1f1;">
                 <h5 class="modal-title text-danger">
-                    <i class="bi bi-arrow-counterclockwise me-2"></i>Zerar Todos os Quadrinhos
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>Zerar Tudo — <span id="zerar-om-titulo-tipo"></span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Isso vai zerar o <strong>saldo inicial</strong> e a <strong>quantidade do sistema</strong>
-                de <strong>todos os militares</strong> para
-                <strong>{{ tipo_escala_atual.nome }}</strong> / <strong>{{ ano }}</strong>.</p>
-                <div class="alert alert-warning py-2 small">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    Lançamentos manuais <em>não</em> são removidos.
-                    Esta ação não pode ser desfeita.
+                <p id="zerar-om-descricao"></p>
+                <div class="alert alert-danger py-2 small">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    <strong>Esta ação remove permanentemente:</strong>
+                    <ul class="mb-0 mt-1">
+                        <li>Contadores do quadrinho (ajuste + sistema → 0)</li>
+                        <li>Todos os lançamentos manuais</li>
+                        <li>Todos os serviços gerados pelas escalas</li>
+                        <li>Escalas publicadas/previsão voltam para <em>Rascunho</em></li>
+                    </ul>
                 </div>
                 <div id="zerar-om-erro" class="alert alert-danger d-none py-2"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-danger" id="btn-confirmar-zerar-om">
-                    <i class="bi bi-arrow-counterclockwise"></i> Confirmar — Zerar Tudo
+                    <i class="bi bi-arrow-counterclockwise"></i> Confirmar — Apagar Tudo
                 </button>
             </div>
         </div>
@@ -1269,15 +1277,35 @@
         });
     }
 
-    // ── MODAL ZERAR TODOS ────────────────────────────────────────────────────
+    // ── MODAL ZERAR TUDO ─────────────────────────────────────────────────────
 
     const btnAbrirZerar = document.getElementById('btn-abrir-zerar-om');
     const modalZerarEl  = document.getElementById('modalZerarOm');
     if (btnAbrirZerar && modalZerarEl) {
-        const bsZerar = new bootstrap.Modal(modalZerarEl);
+        const bsZerar    = new bootstrap.Modal(modalZerarEl);
         const urlZerarOm = '{% url "quadrinho_zerar_om" %}';
 
+        let _zerarTipoEscalaId = '';
+        let _zerarAno = '';
+
         btnAbrirZerar.addEventListener('click', function () {
+            _zerarTipoEscalaId = this.dataset.tipoEscalaId;
+            _zerarAno          = this.dataset.ano;
+            const todosAnos    = this.dataset.todosAnos === '1';
+            const tipoNome     = this.closest('.page-header')
+                ? document.querySelector('.page-header .subtitle strong:last-of-type')?.textContent
+                : '';
+
+            document.getElementById('zerar-om-titulo-tipo').textContent =
+                this.closest('.d-flex')
+                    ?.closest('.page-header')
+                    ?.querySelector('.subtitle strong:last-of-type')?.textContent
+                || '{{ tipo_escala_atual.nome }}';
+
+            document.getElementById('zerar-om-descricao').innerHTML = todosAnos
+                ? `Será apagado <strong>tudo</strong> de <strong>{{ tipo_escala_atual.nome }}</strong> em <strong>todos os anos</strong> desta OM.`
+                : `Será apagado <strong>tudo</strong> de <strong>{{ tipo_escala_atual.nome }}</strong> no ano <strong>${_zerarAno}</strong> desta OM.`;
+
             document.getElementById('zerar-om-erro').classList.add('d-none');
             bsZerar.show();
         });
@@ -1286,29 +1314,26 @@
             const erroEl = document.getElementById('zerar-om-erro');
             erroEl.classList.add('d-none');
             this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Apagando…';
             try {
                 const d = await postAjax(urlZerarOm, {
-                    tipo_escala_id: '{{ tipo_escala_atual.id|default:"" }}',
-                    ano: '{{ ano|default:"" }}',
+                    tipo_escala_id: _zerarTipoEscalaId,
+                    ano: _zerarAno,
                 });
                 if (!d.ok) {
                     erroEl.textContent = d.erro || 'Erro desconhecido.';
                     erroEl.classList.remove('d-none');
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Confirmar — Apagar Tudo';
                 } else {
-                    bsZerar.hide();
-                    // Zera todas as células visiveis na tabela
-                    document.querySelectorAll('td.quadrinho-cell').forEach(cell => {
-                        cell.dataset.valor = '0';
-                        const span = cell.querySelector('.cell-valor');
-                        if (span) { span.textContent = '0'; span.classList.add('text-muted'); }
-                    });
-                    recalcTotals();
+                    // Recarrega a página para refletir remoção dos EscalaItems na matriz
+                    location.reload();
                 }
             } catch(e) {
                 erroEl.textContent = 'Falha na comunicação com o servidor.';
                 erroEl.classList.remove('d-none');
-            } finally {
                 this.disabled = false;
+                this.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Confirmar — Apagar Tudo';
             }
         });
     }
