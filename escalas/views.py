@@ -2210,17 +2210,57 @@ def escala_calendario_trocar_tipo(request, escala_id):
     })
 
 
+def _decrementar_quadrinho_da_escala(escala):
+    """
+    Decrementa o Quadrinho.quantidade de cada serviço gerado pela escala.
+    Recalcula os counts via EscalaItem remanescentes, garantindo consistência.
+    Deve ser chamado ANTES de deletar os itens da escala.
+    """
+    from django.db.models import Count as _Count
+    tipo_escala = escala.tipo_escala
+
+    servicos = (
+        escala.itens
+        .select_related('militar', 'calendario_dia__tipo_servico')
+        .values('militar_id', 'calendario_dia__tipo_servico_id', 'calendario_dia__data__year')
+        .annotate(qt=_Count('id'))
+    )
+
+    combos = {
+        (r['militar_id'], r['calendario_dia__tipo_servico_id'], r['calendario_dia__data__year'])
+        for r in servicos
+    }
+
+    for mil_id, ts_id, ano in combos:
+        new_count = EscalaItem.objects.filter(
+            militar_id=mil_id,
+            escala__tipo_escala=tipo_escala,
+            calendario_dia__tipo_servico_id=ts_id,
+            calendario_dia__data__year=ano,
+        ).exclude(escala=escala).count()
+
+        Quadrinho.objects.filter(
+            militar_id=mil_id,
+            tipo_escala=tipo_escala,
+            tipo_servico_id=ts_id,
+            ano=ano,
+        ).update(quantidade=new_count)
+
+
 @login_required
 @require_POST
 def escala_limpar(request, escala_id):
-    """Remove todos os itens da escala (só Previsão)."""
+    """Remove todos os itens da escala (só Previsão) e decrementa o quadrinho."""
     escala = get_object_or_404(Escala, pk=escala_id)
     if escala.status != 'previsao':
         messages.error(request, 'Não é possível limpar uma escala publicada.')
     else:
         total = escala.itens.count()
+        _decrementar_quadrinho_da_escala(escala)
         escala.itens.all().delete()
-        messages.success(request, f'{total} item(ns) removido(s).')
+        escala.status = 'rascunho'
+        escala.save(update_fields=['status'])
+        messages.success(request, f'{total} item(ns) removido(s). Quadrinho ajustado.')
     return redirect('escala_detalhar', escala_id=escala_id)
 
 
@@ -2275,14 +2315,15 @@ def escala_publicar(request, escala_id):
 @login_required
 @require_POST
 def escala_excluir(request, escala_id):
-    """Exclui completamente uma escala (cabeçalho + todos os itens)."""
+    """Exclui completamente uma escala (cabeçalho + todos os itens) e decrementa quadrinho."""
     escala = get_object_or_404(Escala, pk=escala_id)
     if escala.status == 'publicada':
         messages.error(request, 'Escalas publicadas não podem ser excluídas.')
         return redirect('escala_detalhar', escala_id=escala_id)
     nome = str(escala)
+    _decrementar_quadrinho_da_escala(escala)
     escala.delete()
-    messages.success(request, f'Escala "{nome}" excluída com sucesso.')
+    messages.success(request, f'Escala "{nome}" excluída com sucesso. Quadrinho ajustado.')
     return redirect('escala_listar')
 
 

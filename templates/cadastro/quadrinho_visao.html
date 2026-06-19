@@ -143,11 +143,28 @@
                                     <strong>{{ linha.militar.nome_guerra }}</strong>
                                     <div class="small text-muted">{{ linha.militar.nome_completo }}</div>
                                 {% else %}
-                                <a href="{% url 'militar_detalhe' linha.militar.id %}?ano={{ ano }}"
-                                   class="text-decoration-none">
-                                    <strong>{{ linha.militar.nome_guerra }}</strong>
-                                </a>
-                                <div class="small text-muted">{{ linha.militar.nome_completo }}</div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <div>
+                                        <a href="{% url 'militar_detalhe' linha.militar.id %}?ano={{ ano }}"
+                                           class="text-decoration-none">
+                                            <strong>{{ linha.militar.nome_guerra }}</strong>
+                                        </a>
+                                        <div class="small text-muted">{{ linha.militar.nome_completo }}</div>
+                                    </div>
+                                    {% if not todos_anos %}
+                                    <button type="button"
+                                            class="btn btn-link btn-sm p-0 text-success btn-add-lancamento ms-1"
+                                            title="Adicionar lançamento manual"
+                                            data-militar="{{ linha.militar.id }}"
+                                            data-tipo-escala="{{ tipo_escala_atual.id }}"
+                                            data-tipo-servico=""
+                                            data-ano="{{ ano }}"
+                                            data-militar-nome="{{ linha.militar.posto.sigla }} {{ linha.militar.nome_guerra }}"
+                                            data-tipo-servico-nome="">
+                                        <i class="bi bi-plus-circle fs-5"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
                                 {% endif %}
                             </td>
                             {% for c in linha.celulas %}
@@ -516,6 +533,14 @@
             </div>
             <div class="modal-body">
                 <p class="text-muted small mb-3" id="modal-lancamento-info"></p>
+                <div class="mb-3 d-none" id="modal-lancamento-ts-wrapper">
+                    <label class="form-label fw-semibold">Tipo de serviço <span class="text-danger">*</span></label>
+                    <select id="modal-lancamento-ts" class="form-select">
+                        {% for ts in tipos_servico %}
+                        <option value="{{ ts.id }}">{{ ts.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Categoria</label>
                     <select id="modal-lancamento-tipo" class="form-select">
@@ -944,15 +969,25 @@
 
     document.querySelectorAll('.btn-add-lancamento').forEach(btn => {
         btn.addEventListener('click', function () {
+            const tsId = this.dataset.tipoServico;
+            const tsWrapper = document.getElementById('modal-lancamento-ts-wrapper');
             _lancamentoData = {
                 militar_id: this.dataset.militar,
                 tipo_escala_id: this.dataset.tipoEscala,
-                tipo_servico_id: this.dataset.tipoServico,
+                tipo_servico_id: tsId,
                 ano: this.dataset.ano,
             };
-            _activeCellId = getCellId(this.dataset.militar, this.dataset.tipoServico);
-            document.getElementById('modal-lancamento-info').textContent =
-                `${this.dataset.militarNome} — ${this.dataset.tipoServicoNome}`;
+            _activeCellId = tsId ? getCellId(this.dataset.militar, tsId) : '';
+            // Se não tem tipo pré-definido (botão ao lado do nome), mostra seletor
+            if (!tsId) {
+                tsWrapper.classList.remove('d-none');
+                document.getElementById('modal-lancamento-info').textContent =
+                    `${this.dataset.militarNome} — escolha o tipo de serviço abaixo`;
+            } else {
+                tsWrapper.classList.add('d-none');
+                document.getElementById('modal-lancamento-info').textContent =
+                    `${this.dataset.militarNome} — ${this.dataset.tipoServicoNome}`;
+            }
             document.getElementById('modal-lancamento-tipo').value = 'lastro';
             document.getElementById('modal-lancamento-label').value = '';
             document.getElementById('modal-lancamento-quantidade').value = '1';
@@ -966,9 +1001,22 @@
         const erroEl = document.getElementById('modal-lancamento-erro');
         erroEl.classList.add('d-none');
         this.disabled = true;
+
+        // Se o tipo de serviço não estava pré-definido, pegar do seletor
+        const payload = { ..._lancamentoData };
+        if (!payload.tipo_servico_id) {
+            payload.tipo_servico_id = document.getElementById('modal-lancamento-ts').value;
+        }
+        if (!payload.tipo_servico_id) {
+            erroEl.textContent = 'Selecione o tipo de serviço.';
+            erroEl.classList.remove('d-none');
+            this.disabled = false;
+            return;
+        }
+
         try {
             const data = await postAjax(urlLancamento, {
-                ..._lancamentoData,
+                ...payload,
                 tipo: document.getElementById('modal-lancamento-tipo').value,
                 label: document.getElementById('modal-lancamento-label').value,
                 quantidade: document.getElementById('modal-lancamento-quantidade').value,
@@ -978,7 +1026,8 @@
                 erroEl.textContent = data.erro || 'Erro desconhecido.';
                 erroEl.classList.remove('d-none');
             } else {
-                const cell = document.getElementById(_activeCellId);
+                const cellId = getCellId(payload.militar_id, payload.tipo_servico_id);
+                const cell = document.getElementById(cellId);
                 if (cell) {
                     cell.dataset.valor = data.total;
                     const span = cell.querySelector('.cell-valor');
