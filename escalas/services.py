@@ -338,24 +338,30 @@ class MotorEscalaVertical:
             tipo__exclui_do_sorteio=True,
             data_inicio__lte=ultimo_dia,
             data_fim__gte=primeiro_dia - folga_td,
-        ).values_list('militar_id', 'data_inicio', 'data_fim')
+        ).select_related('tipo')
 
-        for mil_id, ini, fim in registros:
+        for ind in registros:
+            mil_id = ind.militar_id
+            ini = ind.data_inicio
+            fim = ind.data_fim
             self.indisponibilidades.setdefault(mil_id, set())
 
+            # Bloqueia os dias do período cadastrado
             cursor = ini
             while cursor <= fim:
                 if primeiro_dia <= cursor <= ultimo_dia:
                     self.indisponibilidades[mil_id].add(cursor)
                 cursor += timedelta(days=1)
 
-            if self.config.bloquear_pre_ferias:
+            # Pré-bloqueio: somente se o tipo tiver gera_bloqueio_pre=True (ex: Férias)
+            if ind.tipo.gera_bloqueio_pre:
                 cursor = max(primeiro_dia, ini - folga_td)
                 while cursor < ini and cursor <= ultimo_dia:
                     self.indisponibilidades[mil_id].add(cursor)
                     cursor += timedelta(days=1)
 
-            if self.config.bloquear_pos_ferias:
+            # Pós-bloqueio: somente se o tipo tiver gera_bloqueio_pos=True (ex: Férias)
+            if ind.tipo.gera_bloqueio_pos:
                 cursor = fim + timedelta(days=1)
                 while cursor <= min(ultimo_dia, fim + folga_td):
                     self.indisponibilidades[mil_id].add(cursor)

@@ -166,12 +166,13 @@ TIPOS_ESCALA = [
 ]
 
 TIPOS_INDISPONIBILIDADE = [
-    ('Férias', 'Período de férias regulamentares', True),
-    ('Licença Médica', 'Afastamento por motivo de saúde', True),
-    ('Missão', 'Em missão fora da OM', True),
-    ('Dispensa', 'Dispensa do serviço', True),
-    ('Curso', 'Em curso/capacitação', True),
-    ('Voo Internacional', 'Escala em missão internacional', True),
+    # (nome, descricao, exclui_do_sorteio, gera_bloqueio_pre, gera_bloqueio_pos)
+    ('Férias',            'Período de férias regulamentares',    True, True,  True),
+    ('Licença Médica',    'Afastamento por motivo de saúde',     True, False, False),
+    ('Missão',            'Em missão fora da OM',                True, False, False),
+    ('Dispensa',          'Dispensa do serviço',                 True, False, False),
+    ('Curso',             'Em curso/capacitação',                True, False, False),
+    ('Voo Internacional', 'Escala em missão internacional',      True, False, False),
 ]
 
 
@@ -301,12 +302,14 @@ class Command(BaseCommand):
                 nome=nome,
                 defaults={'descricao': descricao, 'ativo': True},
             )
-        for nome, descricao, exclui in TIPOS_INDISPONIBILIDADE:
+        for nome, descricao, exclui, blq_pre, blq_pos in TIPOS_INDISPONIBILIDADE:
             TipoIndisponibilidade.objects.update_or_create(
                 nome=nome,
                 defaults={
                     'descricao': descricao,
                     'exclui_do_sorteio': exclui,
+                    'gera_bloqueio_pre': blq_pre,
+                    'gera_bloqueio_pos': blq_pos,
                     'ativo': True,
                 },
             )

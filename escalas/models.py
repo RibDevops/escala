@@ -881,7 +881,27 @@ class TipoIndisponibilidade(models.Model):
         default=True,
         help_text="Se True, militar com este tipo não pode ser escalado"
     )
-    
+
+    gera_bloqueio_pre = models.BooleanField(
+        verbose_name="Gera bloqueio pré-período",
+        default=False,
+        help_text=(
+            "Se ativado, bloqueia serviços que terminariam dentro do período de folga "
+            "mínima ANTES do início deste tipo de indisponibilidade. "
+            "Recomendado apenas para Férias."
+        )
+    )
+
+    gera_bloqueio_pos = models.BooleanField(
+        verbose_name="Gera bloqueio pós-período",
+        default=False,
+        help_text=(
+            "Se ativado, bloqueia serviços dentro do período de folga mínima "
+            "APÓS o retorno deste tipo de indisponibilidade. "
+            "Recomendado apenas para Férias."
+        )
+    )
+
     ativo = models.BooleanField(default=True)
     
     class Meta:

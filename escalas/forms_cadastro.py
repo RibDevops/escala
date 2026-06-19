@@ -84,7 +84,7 @@ class EspecialidadeForm(BootstrapFormMixin, forms.ModelForm):
 class TipoIndisponibilidadeForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = TipoIndisponibilidade
-        fields = ['nome', 'descricao', 'exclui_do_sorteio', 'ativo']
+        fields = ['nome', 'descricao', 'exclui_do_sorteio', 'gera_bloqueio_pre', 'gera_bloqueio_pos', 'ativo']
         widgets = {
             'descricao': forms.Textarea(attrs={'rows': 3}),
         }

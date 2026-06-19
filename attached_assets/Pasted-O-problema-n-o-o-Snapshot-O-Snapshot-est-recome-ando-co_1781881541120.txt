@@ -1,0 +1,74 @@
+O problema não é o Snapshot. O Snapshot está recomeçando corretamente.
+
+O problema está no tipo de bloqueio aplicado ao RÓGER.
+
+Se a indisponibilidade dele está cadastrada assim:
+
+RÓGER: 01/06/2026 a 02/06/2026
+
+Então ele deve estar bloqueado apenas nos dias 01/06 e 02/06.
+
+No dia 03/06, ele deve voltar a ser candidato normalmente, salvo se existir outra indisponibilidade real cadastrada.
+
+O motor está tratando a dispensa como se ela gerasse pós-bloqueio automático de 48h, mas isso não deve acontecer para toda indisponibilidade.
+
+Regra correta:
+
+1. Serviço gera folga.
+2. Indisponibilidade cadastrada bloqueia apenas o período cadastrado.
+3. Dispensa de 01/06 a 02/06 bloqueia somente 01/06 e 02/06.
+4. Ela não deve gerar bloqueio automático em 03/06 e 04/06.
+5. O bloqueio pré/pós deve existir apenas se for regra específica para aquele tipo de indisponibilidade, por exemplo férias, e não global para todo tipo.
+
+Exemplo correto:
+
+RÓGER indisponível:
+01/06 e 02/06
+
+Geração:
+
+01/06 Preto:
+RÓGER bloqueado por dispensa.
+Próximo disponível recebe.
+
+02/06 Preto:
+Novo Snapshot.
+RÓGER bloqueado por dispensa.
+Próximo disponível recebe.
+
+03/06 Preto:
+Novo Snapshot.
+RÓGER não está mais em dispensa.
+Se ele estiver na menor coluna e não tiver folga por serviço anterior, ele deve receber.
+
+Portanto, se RÓGER só tem dispensa 01 e 02, ele não deveria ficar bloqueado em 03/06 e 04/06.
+
+Ajuste necessário:
+
+Separar claramente:
+
+* indisponibilidade real cadastrada;
+* folga após serviço;
+* bloqueio pré/pós férias.
+
+A função que carrega indisponibilidades não deve aplicar pós-bloqueio automaticamente para todos os tipos de indisponibilidade.
+
+Sugestão:
+
+No TipoIndisponibilidade, criar campos ou regra:
+
+* gera_bloqueio_pre = True/False
+* gera_bloqueio_pos = True/False
+
+Ou, mais simples agora:
+
+* aplicar pré/pós somente quando o tipo for Férias;
+* não aplicar pré/pós para Dispensa, Licença simples, Missão etc., salvo configuração explícita.
+
+Resumo:
+
+O Snapshot está correto.
+A navegação está correta.
+O erro está em transformar a dispensa 01-02 em bloqueio 01-04.
+A dispensa deve bloquear somente os dias cadastrados.
+A folga de 48h deve nascer de serviço realizado, não de qualquer indisponibilidade.
