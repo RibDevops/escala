@@ -144,16 +144,9 @@
                                     <div class="small text-muted">{{ linha.militar.nome_completo }}</div>
                                 {% else %}
                                 <div class="d-flex align-items-center gap-1">
-                                    <div>
-                                        <a href="{% url 'militar_detalhe' linha.militar.id %}?ano={{ ano }}"
-                                           class="text-decoration-none">
-                                            <strong>{{ linha.militar.nome_guerra }}</strong>
-                                        </a>
-                                        <div class="small text-muted">{{ linha.militar.nome_completo }}</div>
-                                    </div>
                                     {% if not todos_anos %}
                                     <button type="button"
-                                            class="btn btn-link btn-sm p-0 text-success btn-add-lancamento ms-1"
+                                            class="btn btn-link btn-sm p-0 text-primary btn-add-lancamento flex-shrink-0"
                                             title="Adicionar lançamento manual"
                                             data-militar="{{ linha.militar.id }}"
                                             data-tipo-escala="{{ tipo_escala_atual.id }}"
@@ -164,6 +157,13 @@
                                         <i class="bi bi-plus-circle fs-5"></i>
                                     </button>
                                     {% endif %}
+                                    <div>
+                                        <a href="{% url 'militar_detalhe' linha.militar.id %}?ano={{ ano }}"
+                                           class="text-decoration-none">
+                                            <strong>{{ linha.militar.nome_guerra }}</strong>
+                                        </a>
+                                        <div class="small text-muted">{{ linha.militar.nome_completo }}</div>
+                                    </div>
                                 </div>
                                 {% endif %}
                             </td>
