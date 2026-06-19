@@ -1,0 +1,153 @@
+Explicação importante sobre o bug do motor
+
+O bloqueio do RÓGER por indisponibilidade está correto. Porém a escolha dos próximos dias ainda está errada porque o motor parece estar continuando a fila a partir do próximo militar.
+
+A regra manual não funciona assim.
+
+## Regra principal
+
+Para CADA serviço que será registrado, o motor deve começar uma nova execução completa.
+
+Ou seja:
+
+1. Vai registrar 01/06?
+
+   * Cria Snapshot novo.
+   * Procura a menor coluna do quadrinho daquele tipo.
+   * Percorre de baixo para cima.
+   * Verifica indisponibilidade e folga.
+   * Registra o primeiro disponível.
+
+2. Vai registrar 02/06?
+
+   * Cria OUTRO Snapshot novo.
+   * Recomeça tudo do zero.
+   * Procura novamente a menor coluna.
+   * Percorre novamente de baixo para cima.
+   * Não continua de onde parou.
+
+3. Vai registrar 03/06?
+
+   * Cria OUTRO Snapshot novo.
+   * Recomeça novamente do militar mais moderno.
+   * Se RÓGER ainda estiver bloqueado, pula.
+   * Se RÓGER estiver livre, ele deve ser escolhido.
+
+## O erro atual
+
+O motor parece estar fazendo isto:
+
+01/06:
+RÓGER bloqueado → ROBERTA recebe.
+
+02/06:
+continua depois da ROBERTA → MINNIKEL recebe.
+
+03/06:
+continua depois da MINNIKEL → HENRIQUE recebe.
+
+Isso está errado para a regra da planilha.
+
+## Como deveria ser
+
+Supondo todos zerados e a ordem de baixo para cima:
+
+1. RÓGER
+2. ROBERTA
+3. MINNIKEL
+4. HENRIQUE
+5. FRAUCHES
+   ...
+
+E supondo que RÓGER está indisponível em 01/06 e 02/06:
+
+### Dia 01/06
+
+Snapshot novo.
+
+Busca:
+
+* RÓGER → bloqueado por indisponibilidade.
+* ROBERTA → disponível.
+
+Resultado:
+
+01/06 → ROBERTA.
+
+### Dia 02/06
+
+Snapshot novo.
+
+A busca NÃO começa em MINNIKEL.
+
+A busca recomeça em RÓGER.
+
+* RÓGER → bloqueado por indisponibilidade.
+* ROBERTA → já recebeu 01/06, então agora está em folga.
+* MINNIKEL → disponível.
+
+Resultado:
+
+02/06 → MINNIKEL.
+
+### Dia 03/06
+
+Snapshot novo.
+
+A busca recomeça novamente em RÓGER.
+
+* RÓGER → verificar se ainda está bloqueado.
+* Se estiver bloqueado por pós-dispensa ou folga, pula.
+* ROBERTA → verificar folga.
+* MINNIKEL → verificar folga.
+* HENRIQUE → disponível.
+
+Resultado pode ser HENRIQUE se RÓGER/ROBERTA/MINNIKEL estiverem bloqueados.
+
+Mas isso só é correto se o Snapshot novo demonstrar esses bloqueios.
+
+### Dia 08/06
+
+Snapshot novo.
+
+A busca recomeça em RÓGER.
+
+Se RÓGER estiver disponível e ainda estiver na menor coluna do quadrinho Preto, ele pode receber 08/06.
+
+Isso está correto.
+
+O problema não é RÓGER receber 08/06. O problema é garantir que isso aconteceu porque um novo Snapshot foi montado e não porque o motor continuou uma fila.
+
+## Regra técnica obrigatória
+
+Não pode existir ponteiro de continuação entre serviços dentro da geração.
+
+O motor não deve guardar “último militar analisado” para decidir o próximo serviço.
+
+Cada serviço deve executar:
+
+```text
+gerar_snapshot(data, tipo_servico)
+encontrar_menor_coluna()
+percorrer_de_baixo_para_cima()
+escolher_primeiro_disponivel()
+registrar_servico()
+atualizar_folga_global()
+descartar_snapshot()
+```
+
+Depois, para o próximo dia, tudo recomeça.
+
+## Conclusão
+
+O bloqueio por indisponibilidade está funcionando.
+
+Mas a lógica precisa garantir que:
+
+* todo serviço gera Snapshot novo;
+* a busca sempre recomeça do militar mais moderno;
+* a menor coluna é recalculada a cada serviço;
+* folga e indisponibilidade são verificadas novamente a cada serviço;
+* o motor nunca continua de onde parou no serviço anterior.
+
+Essa é a diferença principal entre uma fila comum e o quadrinho manual.
