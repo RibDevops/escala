@@ -122,7 +122,6 @@
                 <table class="table table-mil mb-0 align-middle">
                     <thead>
                         <tr>
-                            <th style="width:60px;">Posto</th>
                             <th>Militar</th>
                             {% for ts in tipos_servico %}
                                 <th class="text-center" style="width:140px;">
@@ -137,13 +136,18 @@
                     <tbody>
                         {% for linha in linhas %}
                         <tr>
-                            <td><span class="badge-posto">{{ linha.militar.posto.sigla }}</span></td>
                             <td>
                                 {% if militar_proprio %}
-                                    <strong>{{ linha.militar.nome_guerra }}</strong>
-                                    <div class="small text-muted">{{ linha.militar.nome_completo }}</div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge-posto">{{ linha.militar.posto.sigla }}</span>
+                                    <div>
+                                        <strong>{{ linha.militar.nome_guerra }}</strong>
+                                        <div class="small text-muted">{{ linha.militar.nome_completo }}</div>
+                                    </div>
+                                </div>
                                 {% else %}
-                                <div class="d-flex align-items-center gap-1">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge-posto flex-shrink-0">{{ linha.militar.posto.sigla }}</span>
                                     {% if not todos_anos %}
                                     <button type="button"
                                             class="btn btn-link btn-sm p-0 text-primary btn-add-lancamento flex-shrink-0"
