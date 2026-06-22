@@ -80,7 +80,7 @@
     <table class="table table-mil mb-0 align-middle">
         <thead>
             <tr>
-                <th></th>
+                <th style="width:70px;">Posto</th>
                 <th>Militar</th>
                 <th class="d-none d-lg-table-cell">Nome completo</th>
                 <th style="width:110px;" class="d-none d-md-table-cell">Matrícula</th>
@@ -104,8 +104,13 @@
             {% for linha in militares_lista %}
             {% with m=linha.militar %}
             <tr>
-                <td></td>
-                <td><strong>{{ m|posto_nome }}</strong></td>
+                <td>
+                    <span class="badge-posto">{{ m.posto.sigla }}</span>
+                </td>
+                <td>
+                    <a href="{% url 'militar_detalhe' m.id %}?ano={{ ano_atual|default:'' }}"
+                       class="text-decoration-none fw-semibold">{{ m.nome_guerra }}</a>
+                </td>
                 <td class="text-muted d-none d-lg-table-cell">{{ m.nome_completo }}</td>
                 <td class="d-none d-md-table-cell"><code>{{ m.matricula }}</code></td>
                 <td class="d-none d-md-table-cell">{{ m.divisao.sigla|default:"—" }}</td>
