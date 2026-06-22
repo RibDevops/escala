@@ -334,7 +334,22 @@
                         {% for linha in secao.linhas %}
                         <tr>
                             <td style="position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap;">
-                                <strong>{{ linha.militar|posto_nome }}</strong>
+                                <div class="d-flex align-items-center gap-1">
+                                    {% if not militar_proprio %}
+                                    <button type="button"
+                                            class="btn btn-link btn-sm p-0 text-success btn-add-lancamento flex-shrink-0"
+                                            title="Adicionar lançamento manual"
+                                            data-militar="{{ linha.militar.id }}"
+                                            data-tipo-escala="{{ tipo_escala_atual.id }}"
+                                            data-tipo-servico="{{ secao.tipo_servico.id }}"
+                                            data-ano="{{ matriz_ano }}"
+                                            data-militar-nome="{{ linha.militar|posto_nome }}"
+                                            data-tipo-servico-nome="{{ secao.tipo_servico.nome }}">
+                                        <i class="bi bi-plus-circle"></i>
+                                    </button>
+                                    {% endif %}
+                                    <strong>{{ linha.militar|posto_nome }}</strong>
+                                </div>
                             </td>
                             {% for n in secao.colunas %}
                             {% with entrada=linha.entradas|index:forloop.counter0 %}
