@@ -179,8 +179,7 @@
                                 {{ d.tipo_servico.nome }}
                             </span>
                         </td>
-                        <td><strong>{{ d.militar.nome_guerra }}</strong></td>
-                        <td class="small text-muted">{{ d.militar.posto.sigla }}</td>
+                        <td><strong>{{ d.militar|posto_nome }}</strong></td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -218,8 +217,7 @@
                 <li>
                     <span class="prox-num">{{ forloop.counter }}</span>
                     <div>
-                        <div class="fw-semibold">{{ p.militar.nome_guerra }}</div>
-                        <div class="text-muted" style="font-size:0.75rem;">{{ p.militar.posto.sigla }}</div>
+                        <div class="fw-semibold">{{ p.militar|posto_nome }}</div>
                     </div>
                     <span class="prox-total">{{ p.total }} serv.</span>
                 </li>
@@ -243,8 +241,7 @@
                 <li>
                     <span class="prox-num">{{ forloop.counter }}</span>
                     <div>
-                        <div class="fw-semibold">{{ p.militar.nome_guerra }}</div>
-                        <div class="text-muted" style="font-size:0.75rem;">{{ p.militar.posto.sigla }}</div>
+                        <div class="fw-semibold">{{ p.militar|posto_nome }}</div>
                     </div>
                     <span class="prox-total">{{ p.total }} serv.</span>
                 </li>

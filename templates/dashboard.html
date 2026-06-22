@@ -82,8 +82,7 @@
                         <tbody>
                             {% for m in militares_recentes %}
                             <tr>
-                                <td><span class="badge-posto">{{ m.posto.sigla }}</span></td>
-                                <td><strong>{{ m.nome_guerra }}</strong></td>
+                                <td colspan="2"><a href="{% url 'militar_detalhe' m.id %}" class="text-decoration-none fw-semibold">{{ m|posto_nome }}</a></td>
                                 <td>{{ m.divisao.sigla|default:'—' }}</td>
                                 <td>{{ m.especialidade.sigla|default:'—' }}</td>
                                 <td class="text-end">

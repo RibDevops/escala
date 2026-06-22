@@ -12,7 +12,7 @@
     </h2>
     {% if militar_proprio %}
       <small class="text-muted">
-        {{ militar_proprio.posto.sigla }} {{ militar_proprio.nome_guerra }} &mdash;
+        {{ militar_proprio|posto_nome }} &mdash;
         {{ militar_proprio.organizacao_militar.sigla }}
       </small>
     {% elif om %}
@@ -43,7 +43,7 @@
         <option value="">Todos</option>
         {% for m in militares %}
           <option value="{{ m.id }}" {% if filtro_mil == m.id|stringformat:'s' %}selected{% endif %}>
-            {{ m.posto.sigla }} {{ m.nome_guerra }}
+            {{ m|posto_nome }}
           </option>
         {% endfor %}
       </select>

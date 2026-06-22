@@ -4,7 +4,7 @@
 <div class="page-header">
     <h1><i class="bi bi-pencil-square"></i> Ajustar quadrinho</h1>
     <div class="subtitle">
-        {{ militar.posto.sigla }} <strong>{{ militar.nome_guerra }}</strong> &middot;
+        <strong>{{ militar|posto_nome }}</strong> &middot;
         {{ tipo_escala.nome }} &middot;
         <span class="badge rounded-pill" style="background-color: {{ tipo_servico.cor_hex }}; color: #fff;">
             {{ tipo_servico.nome }}

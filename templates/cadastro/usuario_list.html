@@ -90,8 +90,7 @@
                 {% for m in militares %}
                 <tr>
                     <td>
-                        <span class="badge-posto me-1">{{ m.posto.sigla }}</span>
-                        <strong>{{ m.nome_guerra }}</strong>
+                        <a href="{% url 'militar_detalhe' m.id %}" class="text-decoration-none fw-semibold">{{ m|posto_nome }}</a>
                     </td>
                     <td class="d-none d-md-table-cell"><code class="small">{{ m.matricula }}</code></td>
                     <td class="d-none d-md-table-cell small text-muted">{{ m.divisao.sigla|default:"—" }}</td>
@@ -189,8 +188,7 @@
                         {% for m in militares_inativos %}
                         <tr class="text-muted">
                             <td>
-                                <span class="badge-posto me-1" style="opacity:.6;">{{ m.posto.sigla }}</span>
-                                <span style="text-decoration:line-through;">{{ m.nome_guerra }}</span>
+                                <span class="text-decoration-line-through">{{ m|posto_nome }}</span>
                             </td>
                             <td class="d-none d-md-table-cell"><code class="text-muted small">{{ m.matricula }}</code></td>
                             <td class="d-none d-md-table-cell small">{{ m.divisao.sigla|default:"—" }}</td>

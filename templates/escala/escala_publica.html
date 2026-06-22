@@ -432,14 +432,14 @@
                     </td>
                     <td class="col-nome">
                         {% if d.substituto %}
-                            <span class="text-decoration-line-through text-muted">{{ d.militar.posto.sigla }} {{ d.militar.nome_guerra }}</span>
+                            <span class="text-decoration-line-through text-muted">{{ d.militar|posto_nome }}</span>
                         {% else %}
-                            {{ d.militar.posto.sigla }} {{ d.militar.nome_guerra }}
+                            {{ d.militar|posto_nome }}
                         {% endif %}
                     </td>
                     <td class="col-nome">
                         {% if d.substituto %}
-                            <span style="color:#15803d;font-weight:600;">{{ d.substituto.posto.sigla }} {{ d.substituto.nome_guerra }}</span>
+                            <span style="color:#15803d;font-weight:600;">{{ d.substituto|posto_nome }}</span>
                         {% else %}
                             <span class="text-muted">—</span>
                         {% endif %}
@@ -499,14 +499,14 @@
                     </td>
                     <td class="col-nome">
                         {% if d.substituto %}
-                            <span class="text-decoration-line-through text-muted">{{ d.militar.posto.sigla }} {{ d.militar.nome_guerra }}</span>
+                            <span class="text-decoration-line-through text-muted">{{ d.militar|posto_nome }}</span>
                         {% else %}
-                            {{ d.militar.posto.sigla }} {{ d.militar.nome_guerra }}
+                            {{ d.militar|posto_nome }}
                         {% endif %}
                     </td>
                     <td class="col-nome">
                         {% if d.substituto %}
-                            <span style="color:#15803d;font-weight:600;">{{ d.substituto.posto.sigla }} {{ d.substituto.nome_guerra }}</span>
+                            <span style="color:#15803d;font-weight:600;">{{ d.substituto|posto_nome }}</span>
                         {% else %}
                             <span class="text-muted">—</span>
                         {% endif %}
@@ -542,7 +542,7 @@
             <li>
                 <span class="prox-num">{{ forloop.counter }}</span>
                 <div style="flex:1;min-width:0;">
-                    <div class="prox-nome">{{ p.militar.posto.sigla }} {{ p.militar.nome_guerra }}</div>
+                    <div class="prox-nome">{{ p.militar|posto_nome }}</div>
                 </div>
                 <span class="prox-total" title="Total geral / este tipo">
                     <span style="font-weight:700;color:var(--dk-navy,#1e3a5f);">{{ p.contagem_tipo }}</span>

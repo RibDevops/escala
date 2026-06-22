@@ -252,9 +252,8 @@
                         {% if forloop.last %}
                             <span class="badge bg-warning text-dark me-1" style="font-size:0.6rem;" title="Base — mais moderno">↓</span>
                         {% endif %}
-                        {{ row.militar.nome_guerra }}
+                        {{ row.militar|posto_nome }}
                     </td>
-                    <td class="text-muted" style="white-space:nowrap; font-size:0.78rem;">{{ row.militar.posto.sigla }}</td>
 
                     {% for ev in row.eventos_padded %}
                         {% if ev == None %}
@@ -324,8 +323,7 @@
                         </span>
                         {% endif %}
                     </td>
-                    <td><strong>{{ item.militar.nome_guerra }}</strong></td>
-                    <td class="text-muted small">{{ item.militar.posto.sigla }}</td>
+                    <td><strong>{{ item.militar|posto_nome }}</strong></td>
                 </tr>
                 {% endfor %}
             </tbody>

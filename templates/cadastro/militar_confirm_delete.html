@@ -8,7 +8,7 @@
     <div class="card-mil-header">Confirmação</div>
     <div class="p-4">
         <p>Deseja desativar o militar
-            <strong>{{ militar.posto.sigla }} {{ militar.nome_guerra }}</strong>
+            <strong>{{ militar|posto_nome }}</strong>
             ({{ militar.matricula }})?
         </p>
         <p class="text-muted small">O registro será mantido para preservar histórico de escalas.</p>

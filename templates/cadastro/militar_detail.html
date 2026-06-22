@@ -3,10 +3,7 @@
 {% block conteudo %}
 <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div>
-        <h1>
-            <span class="badge-posto me-2">{{ militar.posto.sigla }}</span>
-            {{ militar.nome_guerra }}
-        </h1>
+        <h1>{{ militar|posto_nome }}</h1>
         <div class="subtitle">{{ militar.nome_completo }}</div>
     </div>
     <div class="d-flex gap-2 flex-wrap">

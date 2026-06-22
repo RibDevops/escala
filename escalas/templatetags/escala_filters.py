@@ -23,13 +23,13 @@ def get_item(dictionary, key):
 
 @register.filter
 def posto_nome(militar):
-    """Formata militar como '1º Sgt ALVES' (sigla do posto + nome_guerra em maiúsculas).
+    """Formata militar como '3º SGT FRAUCHES' (sigla maiúscula + nome_guerra maiúsculo).
     Uso: {{ militar|posto_nome }}
     """
     if militar is None:
         return ''
     try:
-        sigla = militar.posto.sigla if militar.posto else ''
+        sigla = militar.posto.sigla.upper() if militar.posto and militar.posto.sigla else ''
         nome = militar.nome_guerra.upper() if militar.nome_guerra else ''
         if sigla and nome:
             return f'{sigla} {nome}'
