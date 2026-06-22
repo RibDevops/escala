@@ -185,8 +185,8 @@
                 <tbody>
                     {% for m in militares_inativos %}
                     <tr class="text-muted">
-                        <td></td>
-                        <td><span style="text-decoration:line-through;">{{ m|posto_nome }}</span></td>
+                        <td><span class="badge-posto" style="opacity:.6;">{{ m.posto.sigla }}</span></td>
+                        <td><span style="text-decoration:line-through;">{{ m.nome_guerra }}</span></td>
                         <td class="d-none d-lg-table-cell small">{{ m.nome_completo }}</td>
                         <td class="d-none d-md-table-cell"><code class="text-muted">{{ m.matricula }}</code></td>
                         <td class="d-none d-md-table-cell">{{ m.divisao.sigla|default:"—" }}</td>

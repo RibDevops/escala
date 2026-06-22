@@ -339,8 +339,8 @@
                     <tbody>
                         {% for linha in secao.linhas %}
                         <tr>
-                            <td style="position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap;font-weight:600;">
-                                {{ linha.militar|posto_nome }}
+                            <td style="position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap;">
+                                <span class="badge-posto me-1">{{ linha.militar.posto.sigla }}</span><strong>{{ linha.militar.nome_guerra }}</strong>
                             </td>
                             {% for n in secao.colunas %}
                             {% with entrada=linha.entradas|index:forloop.counter0 %}
