@@ -13,6 +13,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.http import JsonResponse
+from django.utils.safestring import mark_safe
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -1581,8 +1582,10 @@ def militar_form(request, militar_id=None):
                     usuario = militar.criar_usuario_automatico()
                     messages.info(
                         request,
-                        f'Usuário <strong>{usuario.username}</strong> criado automaticamente. '
-                        f'Senha inicial: matrícula ({militar.matricula}).',
+                        mark_safe(
+                            f'Usuário <strong>{usuario.username}</strong> criado automaticamente. '
+                            f'Senha inicial: matrícula ({militar.matricula}).'
+                        ),
                     )
                 except Exception as exc:
                     messages.warning(
