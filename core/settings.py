@@ -483,12 +483,14 @@ LOGGING = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "simple",
+            "level": "INFO",
         },
 
         "django_file": {
             "class": "logging.handlers.RotatingFileHandler",
             "filename": LOG_DIR / "django.log",
             "formatter": "verbose",
+            "level": "DEBUG",
             "maxBytes": 5 * 1024 * 1024,
             "backupCount": 5,
             "encoding": "utf-8",
@@ -498,6 +500,7 @@ LOGGING = {
             "class": "logging.handlers.RotatingFileHandler",
             "filename": LOG_DIR / "requests.log",
             "formatter": "simple",
+            "level": "WARNING",
             "maxBytes": 5 * 1024 * 1024,
             "backupCount": 5,
             "encoding": "utf-8",

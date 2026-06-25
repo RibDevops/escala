@@ -964,7 +964,9 @@ def quadrinho_visao(request):
                     'total': total,
                 })
 
-            colunas = list(range(1, max_entradas + 1))
+            # Mesmo sem registros, mantém a primeira coluna visível para que o
+            # escalante possa criar o primeiro lançamento manual da matriz.
+            colunas = list(range(1, max(max_entradas, 1) + 1))
 
             matriz_secoes.append({
                 'tipo_servico': ts,
@@ -997,6 +999,7 @@ def quadrinho_visao(request):
             'matriz_secoes': matriz_secoes,
             'matriz_mes': matriz_mes,
             'matriz_ano': matriz_ano,
+            'ano_lancamento_matriz': matriz_ano or ano or ano_atual,
             'todos_anos_matriz': todos_anos_matriz,
             'anos_opcoes_matriz': anos_opcoes_matriz,
             'nomes_meses': NOMES_MESES,
