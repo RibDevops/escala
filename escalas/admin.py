@@ -15,7 +15,7 @@ from django.db.models import Count, Q
 from .models import (
     UsuarioCustomizado, OrganizacaoMilitar, Divisao, Posto, Especialidade,
     Militar, TipoServico, TipoEscala, CalendarioDia, TipoIndisponibilidade,
-    Indisponibilidade, Escala, EscalaItem, Quadrinho
+    Indisponibilidade, IndisponibilidadeHistorico, Escala, EscalaItem, Quadrinho
 )
 
 
@@ -358,10 +358,10 @@ class IndisponibilidadeAdmin(admin.ModelAdmin):
     
     list_display = (
         'get_militar', 'get_tipo', 'data_inicio', 'data_fim',
-        'get_duracao_dias'
+        'get_duracao_dias', 'status', 'aprovado_por', 'anexo'
     )
     
-    list_filter = ('tipo', 'data_inicio', 'data_fim')
+    list_filter = ('status', 'tipo', 'data_inicio', 'data_fim')
     search_fields = ('militar__nome_guerra',)
     ordering = ('-data_inicio',)
     
@@ -370,10 +370,16 @@ class IndisponibilidadeAdmin(admin.ModelAdmin):
             'fields': ('militar',)
         }),
         ('Indisponibilidade', {
-            'fields': ('tipo', 'data_inicio', 'data_fim')
+            'fields': ('tipo', 'data_inicio', 'data_fim', 'status')
+        }),
+        ('Decisão', {
+            'fields': ('aprovado_por', 'data_decisao', 'motivo_reprovacao')
         }),
         ('Observação', {
             'fields': ('observacao',)
+        }),
+        ('Documento comprobatório', {
+            'fields': ('anexo',)
         }),
     )
     
@@ -384,7 +390,7 @@ class IndisponibilidadeAdmin(admin.ModelAdmin):
     def get_tipo(self, obj):
         return obj.tipo.nome
     get_tipo.short_description = 'Tipo'
-    
+
     def get_duracao_dias(self, obj):
         dias = (obj.data_fim - obj.data_inicio).days + 1
         return format_html(
@@ -392,6 +398,20 @@ class IndisponibilidadeAdmin(admin.ModelAdmin):
             dias
         )
     get_duracao_dias.short_description = 'Duração'
+
+
+@admin.register(IndisponibilidadeHistorico)
+class IndisponibilidadeHistoricoAdmin(admin.ModelAdmin):
+    """Admin para auditoria das indisponibilidades."""
+
+    list_display = ('data_criacao', 'acao', 'militar', 'usuario', 'status_anterior', 'status_novo')
+    list_filter = ('acao', 'data_criacao')
+    search_fields = ('militar__nome_guerra', 'usuario__username', 'resumo', 'motivo')
+    readonly_fields = (
+        'indisponibilidade', 'militar', 'usuario', 'acao',
+        'status_anterior', 'status_novo', 'resumo', 'motivo', 'data_criacao',
+    )
+    ordering = ('-data_criacao',)
 
 
 @admin.register(Escala)

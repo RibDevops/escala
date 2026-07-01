@@ -12,7 +12,7 @@ from datetime import date as _date, date, timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.utils.safestring import mark_safe
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -43,6 +43,7 @@ from .models import (
     EscalaItem,
     Especialidade,
     Indisponibilidade,
+    IndisponibilidadeHistorico,
     LancamentoManualQuadrinho,
     Militar,
     OrganizacaoMilitar,
@@ -1011,12 +1012,87 @@ def quadrinho_visao(request):
 # Indisponibilidades — auto-serviço do militar e gestão pelo escalante
 # ---------------------------------------------------------------------------
 
+def _usuario_pode_decidir_indisponibilidade(usuario) -> bool:
+    return (
+        getattr(usuario, 'is_superuser', False)
+        or usuario.perfil in (
+            PerfilUsuario.ESCALANTE,
+            PerfilUsuario.CHEFE,
+            PerfilUsuario.ADJUNTO,
+            PerfilUsuario.ADMIN_OM,
+        )
+    ) and usuario.ativo
+
+
+def _militar_proprio_indisponibilidade(request):
+    if getattr(request.user, 'perfil', None) == PerfilUsuario.MILITAR:
+        return getattr(request.user, 'militar', None)
+    return None
+
+
+def _usuario_militar_sem_vinculo(request) -> bool:
+    return (
+        getattr(request.user, 'perfil', None) == PerfilUsuario.MILITAR
+        and _militar_proprio_indisponibilidade(request) is None
+    )
+
+
+def _usuario_pode_acessar_indisponibilidade(request, ind) -> bool:
+    militar_proprio = _militar_proprio_indisponibilidade(request)
+    if militar_proprio:
+        return ind.militar_id == militar_proprio.id
+    if _usuario_pode_decidir_indisponibilidade(request.user):
+        om = obter_om_ativa(request)
+        return not om or ind.militar.organizacao_militar_id == om.id
+    return False
+
+
+def _resumo_indisponibilidade(ind) -> str:
+    return (
+        f"{ind.tipo.nome} — {ind.militar.nome_guerra} — "
+        f"{ind.data_inicio:%d/%m/%Y} a {ind.data_fim:%d/%m/%Y}"
+    )
+
+
+def _registrar_historico_indisponibilidade(
+    ind,
+    usuario,
+    acao,
+    status_anterior='',
+    status_novo='',
+    motivo='',
+):
+    IndisponibilidadeHistorico.objects.create(
+        indisponibilidade=ind,
+        militar=ind.militar,
+        usuario=usuario if getattr(usuario, 'is_authenticated', False) else None,
+        acao=acao,
+        status_anterior=status_anterior or '',
+        status_novo=status_novo or '',
+        resumo=_resumo_indisponibilidade(ind),
+        motivo=motivo or '',
+    )
+
+
 @login_required
 def indisponibilidade_listar(request):
     om = obter_om_ativa(request)
-    militar_proprio = getattr(request.user, 'militar', None)
+    militar_proprio = _militar_proprio_indisponibilidade(request)
+    militar_sem_vinculo = _usuario_militar_sem_vinculo(request)
+    pode_decidir = _usuario_pode_decidir_indisponibilidade(request.user)
+    hoje = timezone.localdate()
+    try:
+        ano = int(request.GET.get('ano', hoje.year))
+    except (TypeError, ValueError):
+        ano = hoje.year
+    inicio_ano = date(ano, 1, 1)
+    fim_ano = date(ano, 12, 31)
 
-    if militar_proprio:
+    if militar_sem_vinculo:
+        indisp = Indisponibilidade.objects.none()
+        militares = None
+        filtro_mil = None
+    elif militar_proprio:
         indisp = (
             Indisponibilidade.objects.filter(militar=militar_proprio)
             .select_related('tipo', 'militar__posto')
@@ -1039,6 +1115,28 @@ def indisponibilidade_listar(request):
         if filtro_mil:
             indisp = indisp.filter(militar_id=filtro_mil)
 
+    indisp = indisp.filter(data_inicio__lte=fim_ano, data_fim__gte=inicio_ano)
+
+    filtro_status = request.GET.get('status', '')
+    if filtro_status:
+        indisp = indisp.filter(status=filtro_status)
+
+    reprovadas_ano_count = 0
+    if militar_proprio:
+        reprovadas_ano_count = indisp.filter(status=Indisponibilidade.STATUS_REPROVADA).count()
+
+    anos_existentes = set()
+    base_anos = (
+        Indisponibilidade.objects.filter(militar=militar_proprio)
+        if militar_proprio else
+        Indisponibilidade.objects.none()
+        if militar_sem_vinculo else
+        Indisponibilidade.objects.filter(militar__organizacao_militar=om)
+    )
+    for ini, fim in base_anos.values_list('data_inicio', 'data_fim'):
+        for y in range(ini.year, fim.year + 1):
+            anos_existentes.add(y)
+    anos_disponiveis = sorted(anos_existentes | {hoje.year, ano}, reverse=True)
 
     return render(request, 'indisponibilidade/listar.html', {
         'indisp': indisp,
@@ -1046,44 +1144,118 @@ def indisponibilidade_listar(request):
         'militar_proprio': militar_proprio,
         'militares': militares,
         'filtro_mil': filtro_mil,
+        'ano': ano,
+        'anos_disponiveis': anos_disponiveis,
+        'filtro_status': filtro_status,
+        'status_choices': Indisponibilidade.STATUS_CHOICES,
+        'pode_decidir': pode_decidir,
+        'reprovadas_ano_count': reprovadas_ano_count,
+        'militar_sem_vinculo': militar_sem_vinculo,
     })
 
 
 @login_required
-def indisponibilidade_criar(request):
+def indisponibilidade_criar(request, ind_id=None):
     om = obter_om_ativa(request)
-    militar_proprio = getattr(request.user, 'militar', None)
+    militar_proprio = _militar_proprio_indisponibilidade(request)
+    militar_sem_vinculo = _usuario_militar_sem_vinculo(request)
+    pode_decidir = _usuario_pode_decidir_indisponibilidade(request.user)
+    instancia = None
+
+    if militar_sem_vinculo:
+        messages.error(
+            request,
+            'Seu usuário está com perfil Militar, mas não está vinculado a um cadastro de Militar. '
+            'Peça ao administrador para vincular seu usuário ao seu militar.'
+        )
+        return redirect('indisponibilidade_listar')
+
+    if not militar_proprio and not pode_decidir:
+        messages.error(request, 'Sem permissão para registrar indisponibilidade.')
+        return redirect('indisponibilidade_listar')
+
+    if ind_id:
+        instancia = get_object_or_404(
+            Indisponibilidade.objects.select_related('militar__posto', 'tipo'),
+            pk=ind_id,
+        )
+        if militar_proprio:
+            if instancia.militar_id != militar_proprio.id:
+                messages.error(request, 'Sem permissão para editar esta indisponibilidade.')
+                return redirect('indisponibilidade_listar')
+            if instancia.status != Indisponibilidade.STATUS_PENDENTE:
+                messages.error(request, 'Você só pode alterar indisponibilidades pendentes.')
+                return redirect('indisponibilidade_listar')
+        elif not pode_decidir or (om and instancia.militar.organizacao_militar_id != om.id):
+            messages.error(request, 'Sem permissão para editar esta indisponibilidade.')
+            return redirect('indisponibilidade_listar')
 
     if request.method == 'POST':
+        status_anterior = instancia.status if instancia else ''
         form = IndisponibilidadeRegistrarForm(
-            request.POST, om=om, militar_fixo=militar_proprio
+            request.POST,
+            request.FILES,
+            om=om,
+            militar_fixo=militar_proprio,
+            permitir_militar=not instancia,
+            instance=instancia,
         )
         if form.is_valid():
             ind = form.save(commit=False)
             if militar_proprio and not ind.militar_id:
                 ind.militar = militar_proprio
             ind.data_fim = form.cleaned_data['data_fim']
+            if not instancia:
+                if militar_proprio:
+                    ind.status = Indisponibilidade.STATUS_PENDENTE
+                    ind.aprovado_por = None
+                    ind.data_decisao = None
+                    ind.motivo_reprovacao = ''
+                elif pode_decidir:
+                    ind.status = Indisponibilidade.STATUS_APROVADA
+                    ind.aprovado_por = request.user
+                    ind.data_decisao = timezone.now()
+                    ind.motivo_reprovacao = ''
+            elif instancia.status == Indisponibilidade.STATUS_REPROVADA:
+                ind.aprovado_por = None
+                ind.data_decisao = None
+                ind.motivo_reprovacao = ''
             ind.save()
-            um_dia = form.cleaned_data['data_inicio'] == form.cleaned_data['data_fim']
+            _registrar_historico_indisponibilidade(
+                ind,
+                request.user,
+                IndisponibilidadeHistorico.ACAO_EDITADA if instancia else IndisponibilidadeHistorico.ACAO_CRIADA,
+                status_anterior=status_anterior,
+                status_novo=ind.status,
+            )
+            acao = 'atualizada' if instancia else 'registrada'
             if getattr(form, '_data_fim_ajustada', False):
                 msg = (
-                    f'Indisponibilidade registrada como 1 dia: '
+                    f'Indisponibilidade {acao} como 1 dia: '
                     f'{ind.tipo.nome} em {ind.data_inicio.strftime("%d/%m/%Y")}.'
                 )
             else:
                 msg = (
-                    f'Indisponibilidade registrada: {ind.tipo.nome} de '
+                    f'Indisponibilidade {acao}: {ind.tipo.nome} de '
                     f'{ind.data_inicio.strftime("%d/%m/%Y")} a {ind.data_fim.strftime("%d/%m/%Y")}.'
                 )
+            if ind.status == Indisponibilidade.STATUS_PENDENTE:
+                msg += ' Ela ficará pendente até aprovação.'
             messages.success(request, msg)
             return redirect('indisponibilidade_listar')
     else:
-        form = IndisponibilidadeRegistrarForm(om=om, militar_fixo=militar_proprio)
+        form = IndisponibilidadeRegistrarForm(
+            om=om,
+            militar_fixo=militar_proprio,
+            permitir_militar=not instancia,
+            instance=instancia,
+        )
 
     return render(request, 'indisponibilidade/criar.html', {
         'form': form,
         'om': om,
         'militar_proprio': militar_proprio,
+        'indisponibilidade': instancia,
     })
 
 
@@ -1091,16 +1263,91 @@ def indisponibilidade_criar(request):
 @require_POST
 def indisponibilidade_excluir(request, ind_id):
     ind = get_object_or_404(Indisponibilidade, pk=ind_id)
-    militar_proprio = getattr(request.user, 'militar', None)
+    militar_proprio = _militar_proprio_indisponibilidade(request)
+    pode_decidir = _usuario_pode_decidir_indisponibilidade(request.user)
 
-    if militar_proprio and ind.militar_id != militar_proprio.id:
+    if militar_proprio:
+        if ind.militar_id != militar_proprio.id or ind.status != Indisponibilidade.STATUS_PENDENTE:
+            messages.error(request, 'Você só pode excluir suas indisponibilidades pendentes.')
+            return redirect('indisponibilidade_listar')
+    elif not pode_decidir:
         messages.error(request, 'Sem permissão para excluir esta indisponibilidade.')
         return redirect('indisponibilidade_listar')
 
     desc = f'{ind.tipo.nome} — {ind.militar.nome_guerra}'
+    _registrar_historico_indisponibilidade(
+        ind,
+        request.user,
+        IndisponibilidadeHistorico.ACAO_EXCLUIDA,
+        status_anterior=ind.status,
+        status_novo='',
+    )
     ind.delete()
     messages.success(request, f'Indisponibilidade removida: {desc}.')
     return redirect('indisponibilidade_listar')
+
+
+@login_required
+@require_POST
+def indisponibilidade_decidir(request, ind_id, acao):
+    ind = get_object_or_404(
+        Indisponibilidade.objects.select_related('militar__posto', 'militar__organizacao_militar', 'tipo'),
+        pk=ind_id,
+    )
+    om = obter_om_ativa(request)
+    if not _usuario_pode_decidir_indisponibilidade(request.user):
+        messages.error(request, 'Sem permissão para aprovar/reprovar indisponibilidades.')
+        return redirect('indisponibilidade_listar')
+    if om and ind.militar.organizacao_militar_id != om.id:
+        messages.error(request, 'Esta indisponibilidade não pertence à OM ativa.')
+        return redirect('indisponibilidade_listar')
+    if ind.status != Indisponibilidade.STATUS_PENDENTE:
+        messages.warning(request, 'Apenas indisponibilidades pendentes podem ser decididas.')
+        return redirect('indisponibilidade_listar')
+
+    if acao == 'aprovar':
+        status_anterior = ind.status
+        ind.status = Indisponibilidade.STATUS_APROVADA
+        ind.motivo_reprovacao = ''
+        msg = f'Indisponibilidade aprovada: {ind.tipo.nome} — {ind.militar.nome_guerra}.'
+    elif acao == 'reprovar':
+        status_anterior = ind.status
+        ind.status = Indisponibilidade.STATUS_REPROVADA
+        ind.motivo_reprovacao = request.POST.get('motivo_reprovacao', '').strip()
+        msg = f'Indisponibilidade reprovada: {ind.tipo.nome} — {ind.militar.nome_guerra}.'
+    else:
+        messages.error(request, 'Ação inválida.')
+        return redirect('indisponibilidade_listar')
+
+    ind.aprovado_por = request.user
+    ind.data_decisao = timezone.now()
+    ind.save(update_fields=['status', 'motivo_reprovacao', 'aprovado_por', 'data_decisao'])
+    _registrar_historico_indisponibilidade(
+        ind,
+        request.user,
+        IndisponibilidadeHistorico.ACAO_APROVADA if acao == 'aprovar' else IndisponibilidadeHistorico.ACAO_REPROVADA,
+        status_anterior=status_anterior,
+        status_novo=ind.status,
+        motivo=ind.motivo_reprovacao,
+    )
+    messages.success(request, msg)
+    return redirect('indisponibilidade_listar')
+
+
+@login_required
+def indisponibilidade_anexo(request, ind_id):
+    ind = get_object_or_404(
+        Indisponibilidade.objects.select_related('militar__organizacao_militar'),
+        pk=ind_id,
+    )
+    if not _usuario_pode_acessar_indisponibilidade(request, ind):
+        raise Http404()
+    if not ind.anexo:
+        raise Http404()
+    try:
+        return FileResponse(ind.anexo.open('rb'), as_attachment=False, filename=ind.anexo.name.rsplit('/', 1)[-1])
+    except FileNotFoundError:
+        raise Http404()
 
 
 @login_required
@@ -2403,6 +2650,7 @@ def escala_matriz(request, escala_id):
     for ind in (
         Indisponibilidade.objects.filter(
             militar__organizacao_militar=om,
+            status=Indisponibilidade.STATUS_APROVADA,
             data_inicio__lte=fim,
             data_fim__gte=inicio,
         )
@@ -2686,17 +2934,17 @@ def escala_publica(request, slug):
                 data_fim=data_fim_prox,
             )
 
-    # Ranking "Próximos a Escalar" — usa EXATAMENTE a mesma chave de ordenação do motor.
-    #
     # Ranking "Próximos a Escalar"
     #
-    # Regras (idênticas ao MotorEscalaVertical):
-    #   1. Ordenação: MENOR total geral (preto + vermelho + roxo) vai primeiro
-    #   2. Empate no total: BASE→TOPO (mais moderno tem prioridade)
+    # Regras:
+    #   1. Cada tipo de serviço tem seu próprio quadrinho.
+    #      Preto ordena por saldo Preto; Vermelho por saldo Vermelho; Roxo por saldo Roxo.
+    #   2. Empate no saldo do tipo: BASE→TOPO (mais moderno tem prioridade),
+    #      igual à navegação do MotorEscalaVertical.
     #      lista_militares =.order_by('posto__ordem_hierarquica', 'data_ultima_promocao', '-nota', 'nome_guerra')
     #      desempate_por_id = n-1-i  →  BASE (índice n-1) = 0 = prioridade máxima no empate
     #
-    # Exibição: mostra a contagem de CADA tipo separado + o total geral.
+    # Exibição: mostra a contagem do tipo + o total geral apenas como referência.
     # Ano: usa o ano da escala sendo exibida (ou ano atual se não houver escala).
     ano_ranking = escala_atual.ano if escala_atual else hoje.year
 
@@ -2731,6 +2979,7 @@ def escala_publica(request, slug):
             totais_map[qd.militar_id]['por_tipo'][qd.tipo_servico_id] = qd.total
 
     # Adiciona lançamentos manuais (lastro, atestado, etc.) ao total geral
+    # e também ao total do tipo específico — igual à matriz e ao motor.
     # — exatamente como o motor e o quadrinho visual contabilizam
     lancamentos_pub = LancamentoManualQuadrinho.objects.filter(
         militar__in=militares_om,
@@ -2740,8 +2989,10 @@ def escala_publica(request, slug):
     for lm in lancamentos_pub:
         if lm.militar_id in totais_map:
             totais_map[lm.militar_id]['total_geral'] += lm.quantidade
+            por_tipo = totais_map[lm.militar_id]['por_tipo']
+            por_tipo[lm.tipo_servico_id] = por_tipo.get(lm.tipo_servico_id, 0) + lm.quantidade
 
-    # Para cada tipo de serviço: ranking pelo total_geral, exibe contagem do tipo específico
+    # Para cada tipo de serviço: ranking pelo saldo do próprio tipo.
     proximos_por_servico = []
     for ts in tipos_servico:
         candidatos = [
@@ -2752,10 +3003,10 @@ def escala_publica(request, slug):
             }
             for v in totais_map.values()
         ]
-        # Menor total geral → BASE→TOPO no empate (igual ao motor)
+        # Menor saldo do tipo → BASE→TOPO no empate.
         proximos = sorted(
             candidatos,
-            key=lambda x: (x['total'], desempate_key.get(x['militar'].id, 0)),
+            key=lambda x: (x['contagem_tipo'], desempate_key.get(x['militar'].id, 0)),
         )[:5]
         proximos_por_servico.append({'tipo_servico': ts, 'proximos': proximos})
 
@@ -2838,6 +3089,7 @@ def matriz_publica(request, slug):
         for ind in (
             Indisponibilidade.objects.filter(
                 militar__organizacao_militar=om,
+                status=Indisponibilidade.STATUS_APROVADA,
                 data_inicio__lte=fim,
                 data_fim__gte=inicio,
             ).select_related('militar', 'tipo')

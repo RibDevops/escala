@@ -20,9 +20,11 @@
     {% endif %}
   </div>
   <div class="d-flex gap-2 flex-wrap">
+    {% if not militar_sem_vinculo %}
     <a href="{% url 'indisponibilidade_criar' %}" class="btn btn-mil-dourado btn-sm">
       <i class="bi bi-plus-lg"></i> Registrar Indisponibilidade
     </a>
+    {% endif %}
     {% if militar_proprio %}
       <a href="{% url 'quadrinho_visao' %}" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-grid-3x3-gap"></i> Meu Quadrinho
@@ -34,11 +36,45 @@
   </div>
 </div>
 
-{% if not militar_proprio and militares %}
+{% if militar_sem_vinculo %}
+<div class="alert alert-danger">
+  <i class="bi bi-exclamation-triangle"></i>
+  Seu usuário está com perfil <strong>Militar</strong>, mas não está vinculado a nenhum cadastro de militar.
+  Por isso o sistema não consegue preencher automaticamente “quem é você” para registrar indisponibilidade.
+  Peça ao administrador para vincular este usuário ao cadastro correto em <strong>Militares → Usuário vinculado</strong>.
+</div>
+{% endif %}
+
+{% if militar_proprio and reprovadas_ano_count %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle"></i>
+  Você possui {{ reprovadas_ano_count }} indisponibilidade{{ reprovadas_ano_count|pluralize }} reprovada{{ reprovadas_ano_count|pluralize }} em {{ ano }}.
+  Verifique o motivo na coluna <strong>Status</strong> e, se necessário, registre uma nova solicitação corrigida.
+</div>
+{% endif %}
+
 <form method="get" class="card card-body mb-3 p-3">
   <div class="row g-2 align-items-end">
-    <div class="col-sm-5">
-      <label class="form-label small fw-semibold">Filtrar por Militar</label>
+    <div class="col-sm-2">
+      <label class="form-label small fw-semibold">Ano</label>
+      <select name="ano" class="form-select form-select-sm">
+        {% for a in anos_disponiveis %}
+          <option value="{{ a }}" {% if ano == a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-3">
+      <label class="form-label small fw-semibold">Status</label>
+      <select name="status" class="form-select form-select-sm">
+        <option value="">Todos</option>
+        {% for valor,label in status_choices %}
+          <option value="{{ valor }}" {% if filtro_status == valor %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if not militar_proprio and militares %}
+    <div class="col-sm-4">
+      <label class="form-label small fw-semibold">Militar</label>
       <select name="militar" class="form-select form-select-sm">
         <option value="">Todos</option>
         {% for m in militares %}
@@ -48,6 +84,7 @@
         {% endfor %}
       </select>
     </div>
+    {% endif %}
     <div class="col-sm-auto">
       <button class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i> Filtrar</button>
       <a href="{% url 'indisponibilidade_listar' %}" class="btn btn-outline-secondary btn-sm">
@@ -56,7 +93,6 @@
     </div>
   </div>
 </form>
-{% endif %}
 
 {% if indisp %}
 <div class="table-responsive">
@@ -65,8 +101,10 @@
       <tr>
         {% if not militar_proprio %}<th>Militar</th>{% endif %}
         <th>Tipo</th>
+        <th>Status</th>
         <th>Período</th>
         <th>Excluí sorteio?</th>
+        <th>Anexo</th>
         <th>Observação</th>
         <th></th>
       </tr>
@@ -81,6 +119,20 @@
           <span class="badge {% if ind.tipo.exclui_do_sorteio %}bg-danger{% else %}bg-secondary{% endif %}">
             {{ ind.tipo.nome }}
           </span>
+        </td>
+        <td>
+          {% if ind.status == 'aprovada' %}
+            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Aprovada</span>
+          {% elif ind.status == 'reprovada' %}
+            <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Reprovada</span>
+            {% if ind.motivo_reprovacao %}
+              <div class="small text-muted mt-1" title="{{ ind.motivo_reprovacao }}">
+                {{ ind.motivo_reprovacao|truncatechars:40 }}
+              </div>
+            {% endif %}
+          {% else %}
+            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pendente</span>
+          {% endif %}
         </td>
         <td>
           {% if ind.data_inicio == ind.data_fim %}
@@ -102,15 +154,51 @@
             <i class="bi bi-check-circle text-success" title="Não excluído"></i>
           {% endif %}
         </td>
-        <td class="text-muted small">{{ ind.observacao|default:"—"|truncatechars:40 }}</td>
         <td>
-          <form method="post" action="{% url 'indisponibilidade_excluir' ind.id %}"
-                onsubmit="return confirm('Remover esta indisponibilidade?')">
-            {% csrf_token %}
-            <button class="btn btn-outline-danger btn-sm" title="Remover">
-              <i class="bi bi-trash3"></i>
-            </button>
-          </form>
+          {% if ind.anexo %}
+            <a href="{% url 'indisponibilidade_anexo' ind.id %}" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-paperclip"></i> Abrir
+            </a>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td class="text-muted small">{{ ind.observacao|default:"—"|truncatechars:40 }}</td>
+        <td class="text-end">
+          <div class="d-flex gap-1 justify-content-end flex-wrap">
+            {% if ind.status == 'pendente' %}
+              {% if militar_proprio %}
+                <a href="{% url 'indisponibilidade_editar' ind.id %}" class="btn btn-outline-primary btn-sm" title="Editar">
+                  <i class="bi bi-pencil"></i>
+                </a>
+              {% endif %}
+              {% if pode_decidir %}
+                <form method="post" action="{% url 'indisponibilidade_decidir' ind.id 'aprovar' %}" class="m-0">
+                  {% csrf_token %}
+                  <button class="btn btn-outline-success btn-sm" title="Aprovar">
+                    <i class="bi bi-check-lg"></i>
+                  </button>
+                </form>
+                <form method="post" action="{% url 'indisponibilidade_decidir' ind.id 'reprovar' %}" class="m-0"
+                      onsubmit="const motivo=prompt('Motivo da reprovação (opcional):',''); if (motivo === null) return false; this.motivo_reprovacao.value = motivo; return true;">
+                  {% csrf_token %}
+                  <input type="hidden" name="motivo_reprovacao" value="">
+                  <button class="btn btn-outline-warning btn-sm" title="Reprovar">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </form>
+              {% endif %}
+            {% endif %}
+            {% if not militar_proprio or ind.status == 'pendente' %}
+              <form method="post" action="{% url 'indisponibilidade_excluir' ind.id %}"
+                    onsubmit="return confirm('Remover esta indisponibilidade?')" class="m-0">
+                {% csrf_token %}
+                <button class="btn btn-outline-danger btn-sm" title="Remover">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
+            {% endif %}
+          </div>
         </td>
       </tr>
       {% endfor %}

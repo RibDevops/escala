@@ -109,8 +109,8 @@ class MotorEscalaVertical:
     Simula o processo humano de escalamento em planilha.
 
     Estados durante a execução:
-    - counts_historicos_por_tipo  : carregado do banco por tipo, imutável
-    - counts_operacional_por_tipo : histórico + gerados nesta sessão, por tipo
+    - counts_historicos_por_tipo  : quadrinho do banco por tipo, ponto de partida
+    - counts_operacional_por_tipo : histórico + serviços gerados nesta sessão, por tipo
     - folga_global                : bloqueios temporários (descartados ao fim)
     - indisponibilidades          : férias/licença (NUNCA quebradas)
     """
@@ -261,19 +261,20 @@ class MotorEscalaVertical:
 
     def _carregar_quadrinhos(self):
         """
-        Carrega counts históricos para referência/log.
+        Carrega o quadrinho oficial como ponto de partida da geração.
 
-        REGRA: Ciclo independente por mês — a geração sempre começa do zero
-        (counts_operacional = 0 para todos). O histórico (ajuste_inicial +
-        quantidade + lançamentos) é carregado apenas para exibição no log;
-        NÃO afeta a ordem de escalamento.
+        REGRA: o motor navega pelo quadrinho real do ano/tipo de serviço.
+        A posição inicial de cada militar é:
 
-        Dentro de um mês, a ordem é determinada exclusivamente pela posição na
-        lista de antiguidade: BASE (mais moderno) → TOPO (mais antigo).
+            ajuste_inicial + quantidade + lançamentos_manuais
+
+        Assim, um lançamento manual visível na matriz também afeta a escolha
+        automática: quem já está uma coluna à direita só volta a ser considerado
+        depois dos militares que ainda estão na menor coluna.
         """
         mil_ids = [m.id for m in self.lista_militares]
 
-        # 1. Quadrinhos do banco: ajuste_inicial + quantidade (somente para log)
+        # 1. Quadrinhos do banco: ajuste_inicial + quantidade
         quadrinhos = Quadrinho.objects.filter(
             militar_id__in=mil_ids,
             tipo_escala=self.tipo_escala,
@@ -286,7 +287,7 @@ class MotorEscalaVertical:
                 self.counts_historicos_por_tipo[ts_id] = {m.id: 0 for m in self.lista_militares}
             self.counts_historicos_por_tipo[ts_id][q.militar_id] = q.total
 
-        # 2. Lançamentos manuais: também no histórico (somente para log)
+        # 2. Lançamentos manuais: entram no mesmo total usado pela matriz.
         lancamentos = LancamentoManualQuadrinho.objects.filter(
             militar_id__in=mil_ids,
             tipo_escala=self.tipo_escala,
@@ -299,13 +300,16 @@ class MotorEscalaVertical:
                 self.counts_historicos_por_tipo[ts_id] = {m.id: 0 for m in self.lista_militares}
             self.counts_historicos_por_tipo[ts_id][lm.militar_id] += lm.quantidade
 
-        # 3. Operacional SEMPRE começa do zero — ciclo independente por mês.
-        #    Não copiar histórico: a posição de antiguidade (BASE→TOPO) é que
-        #    define quem serve primeiro, não o saldo acumulado.
-        self.counts_operacional_por_tipo = {}
+        # 3. O operacional começa como cópia do quadrinho histórico.
+        #    Depois, durante esta geração, cada serviço criado incrementa apenas
+        #    a cópia operacional do respectivo tipo de serviço.
+        self.counts_operacional_por_tipo = {
+            ts_id: counts.copy()
+            for ts_id, counts in self.counts_historicos_por_tipo.items()
+        }
 
-        # Log (mostra histórico para referência, mas não é usado na geração)
-        self._log("\nQUADRINHOS HISTÓRICOS (somente referência — geração começa do zero):")
+        # Log
+        self._log("\nQUADRINHOS DE PARTIDA (usados na geração):")
         for ts_id, counts in self.counts_historicos_por_tipo.items():
             try:
                 ts = TipoServico.objects.get(id=ts_id)
@@ -315,7 +319,7 @@ class MotorEscalaVertical:
             self._log(f"  [{ts_nome}]")
             for m in sorted(self.lista_militares, key=lambda x: self.indice_por_id[x.id]):
                 self._log(
-                    f"    histórico {counts.get(m.id, 0):>3} "
+                    f"    col {counts.get(m.id, 0):>3} "
                     f"— {m.posto.sigla} {m.nome_guerra}"
                 )
 
@@ -335,6 +339,7 @@ class MotorEscalaVertical:
 
         registros = Indisponibilidade.objects.filter(
             militar_id__in=[m.id for m in self.lista_militares],
+            status=Indisponibilidade.STATUS_APROVADA,
             tipo__exclui_do_sorteio=True,
             data_inicio__lte=ultimo_dia,
             data_fim__gte=primeiro_dia - folga_td,

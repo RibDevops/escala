@@ -403,7 +403,7 @@ class IndisponibilidadeRegistrarForm(BootstrapFormMixin, forms.ModelForm):
 
     class Meta:
         model = Indisponibilidade
-        fields = ['militar', 'tipo', 'data_inicio', 'data_fim', 'observacao']
+        fields = ['militar', 'tipo', 'data_inicio', 'data_fim', 'observacao', 'anexo']
         widgets = {
             'data_inicio': forms.DateInput(attrs={'type': 'date'}),
             'data_fim': forms.DateInput(attrs={
@@ -411,6 +411,9 @@ class IndisponibilidadeRegistrarForm(BootstrapFormMixin, forms.ModelForm):
                 'placeholder': 'Deixe em branco para registrar 1 dia',
             }),
             'observacao': forms.Textarea(attrs={'rows': 2}),
+            'anexo': forms.ClearableFileInput(attrs={
+                'accept': '.pdf,image/jpeg,image/png,image/webp',
+            }),
         }
         labels = {
             'militar': 'Militar',
@@ -418,13 +421,18 @@ class IndisponibilidadeRegistrarForm(BootstrapFormMixin, forms.ModelForm):
             'data_inicio': 'Data de início',
             'data_fim': 'Data de fim',
             'observacao': 'Observação (opcional)',
+            'anexo': 'Documento comprobatório (opcional)',
         }
 
-    def __init__(self, *args, om=None, militar_fixo=None, **kwargs):
+    def __init__(self, *args, om=None, militar_fixo=None, permitir_militar=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['tipo'].queryset = TipoIndisponibilidade.objects.filter(ativo=True)
         self.fields['data_fim'].required = False
         self.fields['data_fim'].help_text = 'Deixe em branco para registrar apenas 1 dia.'
+        self.fields['anexo'].required = False
+        self.fields['anexo'].help_text = 'PDF ou imagem (JPG, PNG, WEBP), até 10 MB.'
+        if not permitir_militar:
+            self.fields['militar'].disabled = True
         if om:
             self.fields['militar'].queryset = (
                 Militar.objects.filter(organizacao_militar=om, ativo=True)

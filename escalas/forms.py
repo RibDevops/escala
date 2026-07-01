@@ -392,6 +392,7 @@ class EscalaItemForm(forms.ModelForm):
             tem_indisponibilidade = militar.indisponibilidades.filter(
                 data_inicio__lte=data_dia.data,
                 data_fim__gte=data_dia.data,
+                status=Indisponibilidade.STATUS_APROVADA,
                 tipo__exclui_do_sorteio=True
             ).exists()
             

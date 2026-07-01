@@ -129,7 +129,10 @@ urlpatterns = [
     # Indisponibilidades
     path('indisponibilidades/', views.indisponibilidade_listar, name='indisponibilidade_listar'),
     path('indisponibilidades/nova/', views.indisponibilidade_criar, name='indisponibilidade_criar'),
+    path('indisponibilidades/<int:ind_id>/editar/', views.indisponibilidade_criar, name='indisponibilidade_editar'),
+    path('indisponibilidades/<int:ind_id>/anexo/', views.indisponibilidade_anexo, name='indisponibilidade_anexo'),
     path('indisponibilidades/<int:ind_id>/excluir/', views.indisponibilidade_excluir, name='indisponibilidade_excluir'),
+    path('indisponibilidades/<int:ind_id>/<str:acao>/', views.indisponibilidade_decidir, name='indisponibilidade_decidir'),
 
     # Escalas
     path('escalas/', views.escala_listar, name='escala_listar'),

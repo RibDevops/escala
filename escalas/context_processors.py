@@ -1,5 +1,5 @@
 """Context processor que injeta a OM ativa e a lista de OMs disponíveis."""
-from .models import OrganizacaoMilitar, PerfilUsuario
+from .models import Indisponibilidade, OrganizacaoMilitar, PerfilUsuario
 
 
 SESSION_KEY_OM = 'om_id_ativa'
@@ -64,8 +64,26 @@ def om_context(request):
     except Exception:
         pass
 
+    pode_decidir_indisponibilidade = (
+        getattr(request.user, 'is_superuser', False)
+        or getattr(request.user, 'perfil', None) in (
+            PerfilUsuario.ESCALANTE,
+            PerfilUsuario.CHEFE,
+            PerfilUsuario.ADJUNTO,
+            PerfilUsuario.ADMIN_OM,
+        )
+    ) and getattr(request.user, 'ativo', True)
+
+    indisponibilidades_pendentes_count = 0
+    if pode_decidir_indisponibilidade and om_ativa:
+        indisponibilidades_pendentes_count = Indisponibilidade.objects.filter(
+            militar__organizacao_militar=om_ativa,
+            status=Indisponibilidade.STATUS_PENDENTE,
+        ).count()
+
     return {
         'om_ativa': om_ativa,
         'oms_disponiveis': oms,
         'militar_do_usuario': militar_do_usuario,
+        'indisponibilidades_pendentes_count': indisponibilidades_pendentes_count,
     }

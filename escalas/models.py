@@ -8,9 +8,17 @@ from typing import Optional
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.utils import timezone
 from django.utils.text import slugify
 from datetime import datetime, timedelta
+
+
+def validar_tamanho_anexo_indisponibilidade(arquivo):
+    """Limita anexos de indisponibilidade a 10 MB."""
+    limite_mb = 10
+    if arquivo.size > limite_mb * 1024 * 1024:
+        raise ValidationError(f"O anexo não pode ultrapassar {limite_mb} MB.")
 
 
 # ============================================================================
@@ -915,6 +923,15 @@ class TipoIndisponibilidade(models.Model):
 
 class Indisponibilidade(models.Model):
     """Períodos em que um militar não pode ser escalado"""
+
+    STATUS_PENDENTE = 'pendente'
+    STATUS_APROVADA = 'aprovada'
+    STATUS_REPROVADA = 'reprovada'
+    STATUS_CHOICES = [
+        (STATUS_PENDENTE, 'Pendente'),
+        (STATUS_APROVADA, 'Aprovada'),
+        (STATUS_REPROVADA, 'Reprovada'),
+    ]
     
     militar = models.ForeignKey(
         Militar,
@@ -940,6 +957,47 @@ class Indisponibilidade(models.Model):
         blank=True,
         help_text="Motivo adicional"
     )
+
+    anexo = models.FileField(
+        upload_to='indisponibilidades/anexos/%Y/%m/',
+        blank=True,
+        null=True,
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['pdf', 'jpg', 'jpeg', 'png', 'webp']
+            ),
+            validar_tamanho_anexo_indisponibilidade,
+        ],
+        help_text="Documento comprobatório em PDF ou imagem (até 10 MB)"
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDENTE,
+        db_index=True,
+        help_text="Somente indisponibilidades aprovadas bloqueiam a geração da escala."
+    )
+
+    aprovado_por = models.ForeignKey(
+        'UsuarioCustomizado',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='indisponibilidades_decididas',
+        help_text="Usuário que aprovou ou reprovou a indisponibilidade."
+    )
+
+    data_decisao = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Data/hora da aprovação ou reprovação."
+    )
+
+    motivo_reprovacao = models.TextField(
+        blank=True,
+        help_text="Justificativa quando a indisponibilidade for reprovada."
+    )
     
     data_criacao = models.DateTimeField(auto_now_add=True)
     
@@ -952,6 +1010,10 @@ class Indisponibilidade(models.Model):
     
     def __str__(self):
         return f"{self.militar.nome_guerra} - {self.tipo.nome} ({self.data_inicio} a {self.data_fim})"
+
+    @property
+    def pode_bloquear_escala(self) -> bool:
+        return self.status == self.STATUS_APROVADA
     
     def limpar(self):
         """Validação customizada"""
@@ -961,6 +1023,65 @@ class Indisponibilidade(models.Model):
     def save(self, *args, **kwargs):
         self.limpar()
         super().save(*args, **kwargs)
+
+
+class IndisponibilidadeHistorico(models.Model):
+    """Trilha de auditoria das ações feitas em indisponibilidades."""
+
+    ACAO_CRIADA = 'criada'
+    ACAO_EDITADA = 'editada'
+    ACAO_APROVADA = 'aprovada'
+    ACAO_REPROVADA = 'reprovada'
+    ACAO_EXCLUIDA = 'excluida'
+    ACAO_CHOICES = [
+        (ACAO_CRIADA, 'Criada'),
+        (ACAO_EDITADA, 'Editada'),
+        (ACAO_APROVADA, 'Aprovada'),
+        (ACAO_REPROVADA, 'Reprovada'),
+        (ACAO_EXCLUIDA, 'Excluída'),
+    ]
+
+    indisponibilidade = models.ForeignKey(
+        Indisponibilidade,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='historicos',
+    )
+    militar = models.ForeignKey(
+        Militar,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='historicos_indisponibilidade',
+    )
+    usuario = models.ForeignKey(
+        'UsuarioCustomizado',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='historicos_indisponibilidade',
+    )
+    acao = models.CharField(max_length=20, choices=ACAO_CHOICES)
+    status_anterior = models.CharField(max_length=20, blank=True)
+    status_novo = models.CharField(max_length=20, blank=True)
+    resumo = models.TextField(blank=True)
+    motivo = models.TextField(blank=True)
+    data_criacao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'indisponibilidade_historico'
+        ordering = ['-data_criacao']
+        indexes = [
+            models.Index(fields=['militar', 'data_criacao']),
+            models.Index(fields=['acao', 'data_criacao']),
+        ]
+        verbose_name = 'Histórico de Indisponibilidade'
+        verbose_name_plural = 'Históricos de Indisponibilidade'
+
+    def __str__(self):
+        militar = self.militar.nome_guerra if self.militar else '—'
+        return f"{self.get_acao_display()} — {militar} — {self.data_criacao:%d/%m/%Y %H:%M}"
     
 
 # ============================================================================
@@ -1143,6 +1264,7 @@ class Escala(models.Model):
         indisponibilidades: Dict[int, Set[date_type]] = {}
         registros = Indisponibilidade.objects.filter(
             militar__organizacao_militar=om,
+            status=Indisponibilidade.STATUS_APROVADA,
             tipo__exclui_do_sorteio=True,
             data_inicio__lte=ultimo_dia,
             data_fim__gte=primeiro_dia,
@@ -1322,6 +1444,7 @@ class EscalaItem(models.Model):
         return not self.militar.indisponibilidades.filter(
             data_inicio__lte=self.calendario_dia.data,
             data_fim__gte=self.calendario_dia.data,
+            status=Indisponibilidade.STATUS_APROVADA,
             tipo__exclui_do_sorteio=True
         ).exists()
 
